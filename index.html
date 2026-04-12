@@ -9,667 +9,253 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
-    --black: #0A0A0A;
-    --white: #FAFAFA;
-    --gray-50: #F5F5F5;
-    --gray-100: #E8E8E8;
-    --gray-300: #B0B0B0;
-    --gray-500: #6B6B6B;
-    --gray-700: #3A3A3A;
-    --accent: #1D6AF5;
-    --accent-dark: #1454C4;
-    --accent-light: #EBF1FF;
-    --green: #12A05C;
-    --green-light: #E6F7EF;
-    --radius: 12px;
-    --radius-lg: 20px;
-    --font-display: 'Syne', sans-serif;
-    --font-body: 'DM Sans', sans-serif;
+    --black: #0A0A0A; --white: #FAFAFA;
+    --gray-50: #F5F5F5; --gray-100: #E8E8E8; --gray-300: #B0B0B0; --gray-500: #6B6B6B; --gray-700: #3A3A3A;
+    --accent: #1D6AF5; --accent-dark: #1454C4; --accent-light: #EBF1FF;
+    --green: #12A05C; --green-light: #E6F7EF;
+    --radius: 12px; --radius-lg: 20px;
+    --font-display: 'Syne', sans-serif; --font-body: 'DM Sans', sans-serif;
   }
-
   html { scroll-behavior: smooth; }
+  body { font-family: var(--font-body); background: var(--white); color: var(--black); line-height: 1.6; overflow-x: hidden; }
 
-  body {
-    font-family: var(--font-body);
-    background: var(--white);
-    color: var(--black);
-    line-height: 1.6;
-    overflow-x: hidden;
-  }
-
-  /* ── HEADER ── */
   header {
     position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-    background: rgba(250,250,250,0.92);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--gray-100);
-    padding: 0 1.5rem;
-    height: 64px;
-    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(250,250,250,0.94); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--gray-100); padding: 0 2rem; height: 64px;
+    display: flex; align-items: center; justify-content: space-between; transition: transform 0.3s ease;
   }
-
-  .logo {
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: 1.25rem;
-    color: var(--black);
-    text-decoration: none;
-    letter-spacing: -0.02em;
-  }
+  .logo { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; color: var(--black); text-decoration: none; letter-spacing: -0.02em; }
   .logo span { color: var(--accent); }
-
-  nav { display: flex; align-items: center; gap: 1.5rem; }
-  nav a {
-    font-size: 0.875rem;
-    color: var(--gray-500);
-    text-decoration: none;
-    font-weight: 400;
-    transition: color 0.2s;
-  }
+  nav { display: flex; align-items: center; gap: 1.75rem; }
+  nav a { font-size: 0.875rem; color: var(--gray-500); text-decoration: none; transition: color 0.2s; }
   nav a:hover { color: var(--black); }
-
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 0.625rem 1.25rem;
-    border-radius: 8px;
-    font-family: var(--font-body);
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    text-decoration: none;
-    transition: all 0.2s;
-    white-space: nowrap;
-  }
-
-  .btn-primary {
-    background: var(--accent);
-    color: #fff;
-  }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0.625rem 1.25rem; border-radius: 8px; font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; cursor: pointer; border: none; text-decoration: none; transition: all 0.2s; white-space: nowrap; }
+  .btn-primary { background: var(--accent); color: #fff; }
   .btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(29,106,245,0.3); }
-
-  .btn-outline {
-    background: transparent;
-    color: var(--black);
-    border: 1.5px solid var(--gray-100);
-  }
-  .btn-outline:hover { border-color: var(--gray-300); background: var(--gray-50); }
-
-  .btn-lg {
-    padding: 0.875rem 2rem;
-    font-size: 1rem;
-    border-radius: 10px;
-  }
-
-  .btn-xl {
-    padding: 1rem 2.5rem;
-    font-size: 1.0625rem;
-    border-radius: 12px;
-  }
-
-  /* ── HAMBURGER ── */
-  .hamburger {
-    display: none;
-    flex-direction: column; gap: 5px;
-    background: none; border: none;
-    cursor: pointer; padding: 4px;
-  }
-  .hamburger span {
-    display: block; width: 24px; height: 2px;
-    background: var(--black);
-    border-radius: 2px;
-    transition: all 0.3s;
-  }
+  .btn-green { background: var(--green); color: #fff; }
+  .btn-green:hover { background: #0d8a4f; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(18,160,92,0.3); }
+  .btn-white { background: #fff; color: var(--accent); font-weight: 600; }
+  .btn-white:hover { background: rgba(255,255,255,0.9); transform: translateY(-1px); }
+  .btn-lg { padding: 0.875rem 2rem; font-size: 1rem; border-radius: 10px; }
+  .hamburger { display: none; flex-direction: column; gap: 5px; background: none; border: none; cursor: pointer; padding: 4px; }
+  .hamburger span { display: block; width: 24px; height: 2px; background: var(--black); border-radius: 2px; transition: all 0.3s; }
   .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
   .hamburger.open span:nth-child(2) { opacity: 0; }
   .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
-  .mobile-menu {
-    display: none;
-    position: fixed; top: 64px; left: 0; right: 0;
-    background: var(--white);
-    border-bottom: 1px solid var(--gray-100);
-    padding: 1.5rem;
-    flex-direction: column; gap: 1rem;
-    z-index: 99;
-    transform: translateY(-10px);
-    opacity: 0;
-    transition: all 0.25s ease;
-  }
-  .mobile-menu.open {
-    display: flex;
-    transform: translateY(0);
-    opacity: 1;
-  }
-  .mobile-menu a {
-    font-size: 1rem;
-    color: var(--gray-700);
-    text-decoration: none;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid var(--gray-100);
-  }
-
-  /* ── SECTIONS ── */
-  section { padding: 5rem 1.5rem; }
+  .mobile-menu { display: none; position: fixed; top: 64px; left: 0; right: 0; background: var(--white); border-bottom: 1px solid var(--gray-100); padding: 1.5rem; flex-direction: column; gap: 1rem; z-index: 99; }
+  .mobile-menu.open { display: flex; }
+  .mobile-menu a { font-size: 1rem; color: var(--gray-700); text-decoration: none; padding: 0.5rem 0; border-bottom: 1px solid var(--gray-100); }
+  section { padding: 5rem 2rem; }
   .container { max-width: 1100px; margin: 0 auto; }
-  .container-sm { max-width: 740px; margin: 0 auto; }
+  .container-sm { max-width: 760px; margin: 0 auto; }
+  .section-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.75rem; }
+  .section-title { font-family: var(--font-display); font-size: clamp(1.75rem, 4vw, 2.75rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; color: var(--black); margin-bottom: 1rem; }
+  .section-sub { font-size: 1.0625rem; color: var(--gray-500); font-weight: 300; max-width: 540px; margin-bottom: 3rem; line-height: 1.6; }
+  .fade-in { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+  .fade-in.visible { opacity: 1; transform: translateY(0); }
 
-  /* ── HERO ── */
-  #hero {
-    padding-top: 9rem;
-    padding-bottom: 5rem;
-    background: var(--white);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .hero-bg {
-    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(ellipse 80% 60% at 60% -10%, rgba(29,106,245,0.07) 0%, transparent 70%);
-    pointer-events: none;
-  }
-
-  .hero-badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: var(--accent-light);
-    color: var(--accent);
-    font-size: 0.8rem;
-    font-weight: 500;
-    padding: 5px 12px;
-    border-radius: 100px;
-    margin-bottom: 1.5rem;
-    border: 1px solid rgba(29,106,245,0.15);
-  }
-  .hero-badge::before {
-    content: '';
-    display: block; width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--accent);
-  }
-
-  .hero-title {
-    font-family: var(--font-display);
-    font-size: clamp(2.5rem, 6vw, 4.5rem);
-    font-weight: 800;
-    line-height: 1.08;
-    letter-spacing: -0.03em;
-    color: var(--black);
-    margin-bottom: 1.25rem;
-  }
-
-  .hero-title em {
-    font-style: normal;
-    color: var(--accent);
-  }
-
-  .hero-sub {
-    font-size: clamp(1rem, 2vw, 1.2rem);
-    color: var(--gray-500);
-    font-weight: 300;
-    max-width: 540px;
-    line-height: 1.65;
-    margin-bottom: 2.5rem;
-  }
-
-  .hero-ctas {
-    display: flex; flex-wrap: wrap; gap: 12px;
-    margin-bottom: 3rem;
-  }
-
-  .btn-green {
-    background: var(--green);
-    color: #fff;
-  }
-  .btn-green:hover { background: #0d8a4f; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(18,160,92,0.3); }
-
-  .hero-social-proof {
-    display: flex; align-items: center; gap: 12px;
-    font-size: 0.875rem;
-    color: var(--gray-500);
-  }
-  .avatars {
-    display: flex;
-  }
-  .avatars span {
-    width: 32px; height: 32px;
-    border-radius: 50%;
-    border: 2px solid var(--white);
-    background: var(--gray-100);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.7rem; font-weight: 600; color: var(--gray-500);
-    margin-left: -8px;
-  }
+  /* HERO */
+  #hero { padding-top: 9rem; padding-bottom: 6rem; background: var(--white); position: relative; overflow: hidden; }
+  .hero-bg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse 80% 60% at 60% -10%, rgba(29,106,245,0.07) 0%, transparent 70%); pointer-events: none; }
+  .hero-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+  .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-light); color: var(--accent); font-size: 0.8rem; font-weight: 500; padding: 5px 12px; border-radius: 100px; margin-bottom: 1.5rem; border: 1px solid rgba(29,106,245,0.15); }
+  .hero-badge::before { content: ''; display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.5)} }
+  .hero-title { font-family: var(--font-display); font-size: clamp(2.5rem, 5vw, 4.25rem); font-weight: 800; line-height: 1.08; letter-spacing: -0.03em; color: var(--black); margin-bottom: 1.25rem; }
+  .hero-title em { font-style: normal; color: var(--accent); }
+  .hero-sub { font-size: 1.125rem; color: var(--gray-500); font-weight: 300; max-width: 480px; line-height: 1.65; margin-bottom: 2.5rem; }
+  .hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 2.5rem; }
+  .hero-social-proof { display: flex; align-items: center; gap: 12px; font-size: 0.875rem; color: var(--gray-500); }
+  .avatars { display: flex; }
+  .avatars span { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--white); background: var(--gray-100); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; color: var(--gray-500); margin-left: -8px; }
   .avatars span:first-child { margin-left: 0; }
+  .hero-cards { display: flex; flex-direction: column; gap: 12px; }
+  .hero-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 1rem 1.25rem; display: flex; align-items: center; gap: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+  .hero-card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
+  .hero-card-title { font-size: 0.875rem; font-weight: 600; color: var(--black); margin-bottom: 2px; }
+  .hero-card-sub { font-size: 0.78rem; color: var(--gray-500); }
+  .hero-card-value { margin-left: auto; text-align: right; flex-shrink: 0; }
+  .hero-card-num { font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: var(--green); }
+  .hero-card-unit { font-size: 0.72rem; color: var(--gray-300); }
 
-  /* ── COMO FUNCIONA ── */
+  /* CATEGORIAS */
+  #categorias { background: var(--white); }
+  .cat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; }
+  .cat-card { border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 1.25rem 1rem; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .cat-card:hover { border-color: var(--accent); background: var(--accent-light); transform: translateY(-2px); }
+  .cat-icon { font-size: 1.75rem; margin-bottom: 0.5rem; }
+  .cat-name { font-size: 0.8rem; font-weight: 600; color: var(--gray-700); }
+  .cat-desc { font-size: 0.72rem; color: var(--gray-300); margin-top: 2px; }
+
+  /* COMO FUNCIONA */
   #como-funciona { background: var(--gray-50); }
-
-  .section-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 0.75rem;
-  }
-
-  .section-title {
-    font-family: var(--font-display);
-    font-size: clamp(1.75rem, 4vw, 2.75rem);
-    font-weight: 700;
-    letter-spacing: -0.025em;
-    line-height: 1.15;
-    color: var(--black);
-    margin-bottom: 1rem;
-  }
-
-  .section-sub {
-    font-size: 1.0625rem;
-    color: var(--gray-500);
-    font-weight: 300;
-    max-width: 520px;
-    margin-bottom: 3rem;
-    line-height: 1.6;
-  }
-
-  .how-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-  }
-
-  .how-card {
-    background: var(--white);
-    border: 1px solid var(--gray-100);
-    border-radius: var(--radius-lg);
-    padding: 2rem;
-  }
-
-  .how-card-badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 0.75rem; font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 6px;
-    margin-bottom: 1.25rem;
-  }
+  .how-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .how-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg); padding: 2rem; }
+  .how-card-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 6px; margin-bottom: 1.25rem; }
   .badge-blue { background: var(--accent-light); color: var(--accent); }
   .badge-green { background: var(--green-light); color: var(--green); }
-
-  .how-card h3 {
-    font-family: var(--font-display);
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    letter-spacing: -0.02em;
-  }
-
+  .how-card h3 { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; margin-bottom: 1.25rem; letter-spacing: -0.02em; }
   .how-steps { display: flex; flex-direction: column; gap: 1rem; }
-
-  .how-step {
-    display: flex; gap: 12px; align-items: flex-start;
-  }
-
-  .step-num {
-    min-width: 28px; height: 28px;
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.75rem; font-weight: 700;
-  }
+  .how-step { display: flex; gap: 12px; align-items: flex-start; }
+  .step-num { min-width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
   .step-num-blue { background: var(--accent-light); color: var(--accent); }
   .step-num-green { background: var(--green-light); color: var(--green); }
-
-  .how-step p { font-size: 0.9375rem; color: var(--gray-700); line-height: 1.5; }
+  .how-step p { font-size: 0.9375rem; color: var(--gray-700); line-height: 1.55; }
   .how-step strong { color: var(--black); }
+  .how-divider { margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-100); }
+  .how-highlight { background: var(--gray-50); border-radius: 8px; padding: 0.875rem 1rem; font-size: 0.875rem; color: var(--gray-700); }
 
-  /* ── BENEFÍCIOS ── */
-  #beneficios { background: var(--white); }
+  /* COMO GANHAR */
+  #como-ganhar { background: var(--white); }
+  .ganhar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+  .ganhar-text h3 { font-family: var(--font-display); font-size: 1.75rem; font-weight: 700; letter-spacing: -0.025em; margin-bottom: 1rem; line-height: 1.2; }
+  .ganhar-text p { font-size: 0.9375rem; color: var(--gray-500); line-height: 1.65; margin-bottom: 1.5rem; }
+  .ganhar-list { list-style: none; display: flex; flex-direction: column; gap: 0.875rem; margin-bottom: 2rem; }
+  .ganhar-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9375rem; color: var(--gray-700); line-height: 1.5; }
+  .ganhar-list li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .ganhar-example { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg); padding: 2rem; }
+  .ganhar-example h4 { font-size: 0.72rem; font-weight: 700; color: var(--gray-300); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1.25rem; }
+  .ganhar-item { display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 0; border-bottom: 1px solid var(--gray-100); }
+  .ganhar-item:last-of-type { border-bottom: none; }
+  .ganhar-item-left { display: flex; align-items: center; gap: 12px; }
+  .ganhar-item-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--gray-50); display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+  .ganhar-item-name { font-size: 0.875rem; font-weight: 500; color: var(--black); }
+  .ganhar-item-freq { font-size: 0.78rem; color: var(--gray-300); }
+  .ganhar-item-value { font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: var(--green); }
+  .ganhar-total { margin-top: 1.25rem; background: var(--green-light); border-radius: 10px; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; }
+  .ganhar-total-label { font-size: 0.875rem; font-weight: 600; color: var(--green); }
+  .ganhar-total-value { font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; color: var(--green); }
 
-  .benefits-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.25rem;
-  }
-
-  .benefit-card {
-    border: 1px solid var(--gray-100);
-    border-radius: var(--radius);
-    padding: 1.5rem;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
+  /* BENEFÍCIOS */
+  #beneficios { background: var(--gray-50); }
+  .benefits-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+  .benefit-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 1.5rem; transition: border-color 0.2s, box-shadow 0.2s; }
   .benefit-card:hover { border-color: var(--gray-300); box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
-
-  .benefit-icon {
-    width: 44px; height: 44px;
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.25rem;
-    margin-bottom: 1rem;
-  }
-
-  .benefit-card h3 {
-    font-family: var(--font-display);
-    font-size: 1rem;
-    font-weight: 700;
-    margin-bottom: 0.4rem;
-    letter-spacing: -0.01em;
-  }
-
+  .benefit-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; margin-bottom: 1rem; }
+  .benefit-card h3 { font-family: var(--font-display); font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
   .benefit-card p { font-size: 0.875rem; color: var(--gray-500); line-height: 1.55; }
 
-  /* ── SEGURANÇA ── */
-  #seguranca { background: var(--black); color: var(--white); }
+  /* NÚMEROS */
+  #numeros { background: var(--accent); padding: 4rem 2rem; }
+  .numeros-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; text-align: center; }
+  .num-val { font-family: var(--font-display); font-size: 3rem; font-weight: 800; letter-spacing: -0.04em; color: #fff; }
+  .num-lbl { font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: 4px; }
 
+  /* SEGURANÇA */
+  #seguranca { background: var(--black); }
   #seguranca .section-label { color: #6899fa; }
   #seguranca .section-title { color: var(--white); }
   #seguranca .section-sub { color: #888; }
+  .trust-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+  .trust-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); padding: 1.75rem; }
+  .trust-card h3 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; color: var(--white); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 10px; }
+  .trust-card p { font-size: 0.875rem; color: #888; line-height: 1.6; }
+  .trust-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.08); border-radius: 6px; padding: 5px 10px; font-size: 0.78rem; color: #aaa; margin-top: 1rem; }
 
-  .trust-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.25rem;
-  }
+  /* VALIDAÇÃO */
+  #validacao { background: var(--white); }
+  .options-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 1.5rem; }
+  .option-tag { display: flex; align-items: center; gap: 8px; background: var(--gray-50); border: 1.5px solid var(--gray-100); border-radius: 100px; padding: 8px 18px; font-size: 0.9rem; color: var(--gray-700); cursor: pointer; transition: all 0.2s; user-select: none; }
+  .option-tag:hover, .option-tag.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-light); font-weight: 500; }
+  .validation-result { text-align: center; font-size: 0.9rem; color: var(--gray-500); min-height: 24px; }
 
-  .trust-card {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: var(--radius);
-    padding: 1.5rem;
-  }
-
-  .trust-card h3 {
-    font-family: var(--font-display);
-    font-size: 1rem; font-weight: 700;
-    color: var(--white);
-    margin-bottom: 0.4rem;
-    display: flex; align-items: center; gap: 8px;
-  }
-
-  .trust-card p { font-size: 0.875rem; color: #888; line-height: 1.55; }
-
-  /* ── PROVA SOCIAL ── */
+  /* PROVA SOCIAL */
   #prova-social { background: var(--gray-50); }
-
-  .stats-row {
-    display: flex; justify-content: center; gap: 3rem; flex-wrap: wrap;
-    margin-bottom: 3rem;
-  }
-
-  .stat { text-align: center; }
-  .stat-num {
-    font-family: var(--font-display);
-    font-size: 2.5rem; font-weight: 800;
-    letter-spacing: -0.04em;
-    color: var(--black);
-  }
-  .stat-label { font-size: 0.875rem; color: var(--gray-500); }
-
-  .testimonials-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.25rem;
-  }
-
-  .testimonial-card {
-    background: var(--white);
-    border: 1px solid var(--gray-100);
-    border-radius: var(--radius);
-    padding: 1.5rem;
-  }
-
-  .testimonial-text {
-    font-size: 0.9375rem;
-    color: var(--gray-700);
-    line-height: 1.6;
-    margin-bottom: 1rem;
-    font-style: italic;
-  }
-
+  .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+  .testimonial-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 1.5rem; }
+  .stars { color: #F59E0B; font-size: 0.85rem; margin-bottom: 0.75rem; }
+  .testimonial-text { font-size: 0.9375rem; color: var(--gray-700); line-height: 1.6; margin-bottom: 1.25rem; font-style: italic; }
   .testimonial-author { display: flex; align-items: center; gap: 10px; }
-  .author-avatar {
-    width: 36px; height: 36px; border-radius: 50%;
-    background: var(--accent-light);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.75rem; font-weight: 700; color: var(--accent);
-  }
+  .author-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent-light); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--accent); }
   .author-name { font-size: 0.875rem; font-weight: 500; }
   .author-role { font-size: 0.8rem; color: var(--gray-500); }
 
-  /* ── VALIDAÇÃO ── */
-  #validacao { background: var(--white); }
+  /* LISTA DE ESPERA */
+  #lista-espera { background: var(--white); }
+  .waitlist-box { background: var(--gray-50); border: 1px solid var(--gray-100); border-radius: var(--radius-lg); padding: 3rem; }
+  .waitlist-split { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
+  .waitlist-left h2 { font-family: var(--font-display); font-size: 1.75rem; font-weight: 700; letter-spacing: -0.025em; margin-bottom: 1rem; line-height: 1.2; }
+  .waitlist-left p { font-size: 0.9375rem; color: var(--gray-500); line-height: 1.65; margin-bottom: 1.5rem; }
+  .waitlist-perks { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+  .waitlist-perks li { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--gray-700); }
+  .perk-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .waitlist-form-col { display: flex; flex-direction: column; gap: 12px; }
+  .form-input-dark { width: 100%; padding: 0.875rem 1rem; border-radius: 10px; border: 1.5px solid var(--gray-100); background: var(--white); color: var(--black); font-family: var(--font-body); font-size: 0.9375rem; outline: none; transition: border-color 0.2s; }
+  .form-input-dark:focus { border-color: var(--accent); }
+  .form-input-dark::placeholder { color: var(--gray-300); }
+  .form-note { font-size: 0.8rem; color: var(--gray-300); }
 
-  .validation-intro { text-align: center; margin-bottom: 2.5rem; }
-  .options-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 2rem; }
-
-  .option-tag {
-    display: flex; align-items: center; gap: 8px;
-    background: var(--gray-50);
-    border: 1.5px solid var(--gray-100);
-    border-radius: 100px;
-    padding: 8px 18px;
-    font-size: 0.9rem; color: var(--gray-700);
-    cursor: pointer;
-    transition: all 0.2s;
-    user-select: none;
-  }
-  .option-tag:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-  .option-tag.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-light); font-weight: 500; }
-  .option-tag.selected-green { border-color: var(--green); color: var(--green); background: var(--green-light); font-weight: 500; }
-
-  .validation-result {
-    text-align: center;
-    font-size: 0.9rem;
-    color: var(--gray-500);
-    min-height: 24px;
-  }
-
-  /* ── FAQ ── */
-  #faq { background: var(--gray-50); }
-
-  .faq-list { display: flex; flex-direction: column; gap: 8px; }
-
-  .faq-item {
-    background: var(--white);
-    border: 1px solid var(--gray-100);
-    border-radius: var(--radius);
-    overflow: hidden;
-  }
-
-  .faq-question {
-    width: 100%; text-align: left;
-    background: none; border: none;
-    padding: 1.25rem 1.5rem;
-    font-family: var(--font-body);
-    font-size: 0.9375rem; font-weight: 500; color: var(--black);
-    cursor: pointer;
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 12px;
-  }
-
-  .faq-icon {
-    min-width: 20px; height: 20px;
-    border-radius: 50%;
-    background: var(--gray-50);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1rem; line-height: 1;
-    transition: transform 0.3s;
-    color: var(--gray-500);
-  }
-  .faq-item.open .faq-icon { transform: rotate(45deg); }
-
-  .faq-answer {
-    max-height: 0; overflow: hidden;
-    transition: max-height 0.35s ease, padding 0.35s ease;
-    padding: 0 1.5rem;
-    font-size: 0.9rem; color: var(--gray-500); line-height: 1.65;
-  }
-  .faq-item.open .faq-answer { max-height: 200px; padding: 0 1.5rem 1.25rem; }
-
-  /* ── CTA FINAL ── */
-  #cta-final {
-    background: var(--accent);
-    color: #fff;
-    text-align: center;
-  }
-
+  /* CTA FINAL */
+  #cta-final { background: var(--accent); text-align: center; }
   #cta-final .section-title { color: #fff; }
   #cta-final .section-sub { color: rgba(255,255,255,0.75); margin: 0 auto 2.5rem; }
-
-  /* ── FORMULÁRIO ── */
-  .waitlist-form {
-    display: flex; flex-wrap: wrap; gap: 10px;
-    justify-content: center;
-    max-width: 540px; margin: 0 auto;
-  }
-
-  .form-input {
-    flex: 1; min-width: 180px;
-    padding: 0.875rem 1rem;
-    border-radius: 10px;
-    border: 1.5px solid rgba(255,255,255,0.25);
-    background: rgba(255,255,255,0.12);
-    color: #fff;
-    font-family: var(--font-body);
-    font-size: 0.9375rem;
-    outline: none;
-    transition: border-color 0.2s;
-  }
+  .waitlist-form-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 560px; margin: 0 auto; }
+  .form-input { flex: 1; min-width: 180px; padding: 0.875rem 1rem; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.12); color: #fff; font-family: var(--font-body); font-size: 0.9375rem; outline: none; transition: border-color 0.2s; }
   .form-input::placeholder { color: rgba(255,255,255,0.55); }
   .form-input:focus { border-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.18); }
+  .form-success { display: none; padding: 1.25rem 2rem; background: rgba(255,255,255,0.15); border-radius: var(--radius); font-size: 1rem; color: #fff; max-width: 560px; margin: 0 auto; }
+  .form-note-white { font-size: 0.8rem; color: rgba(255,255,255,0.55); margin-top: 1rem; }
 
-  .btn-white {
-    background: #fff;
-    color: var(--accent);
-    font-weight: 600;
-  }
-  .btn-white:hover { background: rgba(255,255,255,0.9); transform: translateY(-1px); }
-
-  .form-success {
-    display: none;
-    text-align: center;
-    padding: 1.25rem 2rem;
-    background: rgba(255,255,255,0.15);
-    border-radius: var(--radius);
-    font-size: 1rem;
-    color: #fff;
-  }
-
-  .form-note { font-size: 0.8rem; color: rgba(255,255,255,0.55); margin-top: 1rem; }
-
-  /* ── WAITLIST INLINE ── */
-  #lista-espera { background: var(--white); }
-
-  .waitlist-inline-form {
-    display: flex; flex-wrap: wrap; gap: 10px;
-    max-width: 600px;
-  }
-  .form-input-dark {
-    flex: 1; min-width: 180px;
-    padding: 0.875rem 1rem;
-    border-radius: 10px;
-    border: 1.5px solid var(--gray-100);
-    background: var(--gray-50);
-    color: var(--black);
-    font-family: var(--font-body);
-    font-size: 0.9375rem;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-  .form-input-dark:focus { border-color: var(--accent); background: var(--white); }
-  .form-input-dark::placeholder { color: var(--gray-300); }
-
-  /* ── FOOTER ── */
-  footer {
-    background: var(--black);
-    color: #888;
-    padding: 2.5rem 1.5rem;
-  }
-
-  .footer-inner {
-    max-width: 1100px; margin: 0 auto;
-    display: flex; justify-content: space-between; align-items: center;
-    flex-wrap: wrap; gap: 1rem;
-  }
-
-  .footer-logo {
-    font-family: var(--font-display);
-    font-weight: 800; font-size: 1.125rem;
-    color: var(--white);
-    text-decoration: none;
-  }
+  /* FOOTER */
+  footer { background: var(--black); padding: 3rem 2rem 2rem; }
+  .footer-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 2rem; padding-bottom: 2rem; border-bottom: 1px solid #1a1a1a; }
+  .footer-logo { font-family: var(--font-display); font-weight: 800; font-size: 1.125rem; color: var(--white); text-decoration: none; display: block; margin-bottom: 0.75rem; }
   .footer-logo span { color: var(--accent); }
-  .footer-links { display: flex; gap: 1.5rem; }
-  .footer-links a { color: #666; font-size: 0.875rem; text-decoration: none; transition: color 0.2s; }
-  .footer-links a:hover { color: #ccc; }
-  .footer-copy { font-size: 0.8rem; color: #444; width: 100%; text-align: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #1a1a1a; }
+  .footer-desc { font-size: 0.875rem; color: #555; line-height: 1.6; }
+  .footer-col h4 { font-size: 0.8rem; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; }
+  .footer-col a { display: block; font-size: 0.875rem; color: #555; text-decoration: none; margin-bottom: 0.5rem; transition: color 0.2s; }
+  .footer-col a:hover { color: #ccc; }
+  .footer-bottom { max-width: 1100px; margin: 1.5rem auto 0; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+  .footer-copy { font-size: 0.8rem; color: #444; }
 
-  /* ── MOBILE STICKY CTA ── */
-  .mobile-sticky-cta {
-    display: none;
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
-    background: var(--white);
-    border-top: 1px solid var(--gray-100);
-    padding: 0.875rem 1.5rem;
-  }
+  .mobile-sticky-cta { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 90; background: var(--white); border-top: 1px solid var(--gray-100); padding: 0.875rem 1.5rem; }
   .mobile-sticky-cta .btn { width: 100%; }
 
-  /* ── ANIMATIONS ── */
-  .fade-in {
-    opacity: 0;
-    transform: translateY(24px);
-    transition: opacity 0.6s ease, transform 0.6s ease;
+  @media (max-width: 900px) {
+    .hero-inner, .how-grid, .ganhar-grid, .waitlist-split { grid-template-columns: 1fr; }
+    .hero-cards { display: none; }
+    .cat-grid { grid-template-columns: repeat(3, 1fr); }
+    .numeros-grid { grid-template-columns: repeat(2, 1fr); }
+    .footer-inner { grid-template-columns: 1fr 1fr; }
   }
-  .fade-in.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  /* ── RESPONSIVE ── */
   @media (max-width: 768px) {
     nav { display: none; }
     .hamburger { display: flex; }
-    .how-grid { grid-template-columns: 1fr; }
     .benefits-grid { grid-template-columns: 1fr 1fr; }
-    .trust-grid { grid-template-columns: 1fr; }
-    .testimonials-grid { grid-template-columns: 1fr; }
-    .stats-row { gap: 1.5rem; }
+    .trust-grid, .testimonials-grid { grid-template-columns: 1fr; }
     .mobile-sticky-cta { display: block; }
     body { padding-bottom: 80px; }
     #hero { padding-top: 7rem; }
-    .waitlist-form { flex-direction: column; }
-    .footer-inner { flex-direction: column; align-items: flex-start; }
+    .waitlist-box { padding: 1.5rem; }
+    .waitlist-form-row { flex-direction: column; }
   }
-
   @media (max-width: 480px) {
-    .benefits-grid { grid-template-columns: 1fr; }
+    .benefits-grid, .cat-grid { grid-template-columns: 1fr 1fr; }
     .hero-ctas { flex-direction: column; }
-    .hero-ctas .btn { width: 100%; text-align: center; }
+    .hero-ctas .btn { width: 100%; }
+    .footer-inner { grid-template-columns: 1fr; }
   }
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
-<header>
+<header id="mainHeader">
   <a href="#" class="logo">USEI<span>.</span>APP</a>
   <nav>
     <a href="#como-funciona">Como funciona</a>
-    <a href="#beneficios">Benefícios</a>
+    <a href="#como-ganhar">Ganhe dinheiro</a>
     <a href="#seguranca">Segurança</a>
     <a href="#faq">FAQ</a>
     <a href="#lista-espera" class="btn btn-primary">Entrar na lista</a>
   </nav>
-  <button class="hamburger" id="hamburger" aria-label="Menu">
-    <span></span><span></span><span></span>
-  </button>
+  <button class="hamburger" id="hamburger" aria-label="Menu"><span></span><span></span><span></span></button>
 </header>
 
-<!-- MOBILE MENU -->
 <div class="mobile-menu" id="mobileMenu">
   <a href="#como-funciona" onclick="closeMenu()">Como funciona</a>
-  <a href="#beneficios" onclick="closeMenu()">Benefícios</a>
+  <a href="#como-ganhar" onclick="closeMenu()">Ganhe dinheiro</a>
   <a href="#seguranca" onclick="closeMenu()">Segurança</a>
   <a href="#faq" onclick="closeMenu()">FAQ</a>
   <a href="#lista-espera" class="btn btn-primary" onclick="closeMenu()">Entrar na lista</a>
@@ -679,29 +265,63 @@
 <section id="hero">
   <div class="hero-bg"></div>
   <div class="container">
-    <div class="hero-badge">Plataforma de aluguel P2P · Em breve</div>
-    <h1 class="hero-title">
-      Pare de comprar<br>o que você pode<br><em>usar.</em>
-    </h1>
-    <p class="hero-sub">
-      Alugue o que você precisa por quanto tempo quiser — ou ganhe dinheiro alugando o que você já tem. Simples assim.
-    </p>
-    <div class="hero-ctas">
-      <a href="#lista-espera" class="btn btn-primary btn-lg" data-intent="alugar">
-        Quero alugar
-      </a>
-      <a href="#lista-espera" class="btn btn-green btn-lg" data-intent="ganhar">
-        Quero ganhar dinheiro
-      </a>
-    </div>
-    <div class="hero-social-proof">
-      <div class="avatars">
-        <span>AJ</span>
-        <span>MR</span>
-        <span>LS</span>
-        <span>+</span>
+    <div class="hero-inner">
+      <div>
+        <div class="hero-badge">Plataforma de aluguel P2P · Em breve</div>
+        <h1 class="hero-title">Pare de comprar<br>o que você pode<br><em>usar.</em></h1>
+        <p class="hero-sub">Alugue o que você precisa por quanto tempo quiser — ou ganhe dinheiro alugando o que você já tem e não usa.</p>
+        <div class="hero-ctas">
+          <a href="#lista-espera" class="btn btn-primary btn-lg" data-intent="alugar">Quero alugar</a>
+          <a href="#lista-espera" class="btn btn-green btn-lg" data-intent="ganhar">Quero ganhar dinheiro</a>
+        </div>
+        <div class="hero-social-proof">
+          <div class="avatars"><span>AJ</span><span>MR</span><span>LS</span><span>PC</span><span>+</span></div>
+          <span>Mais de 200 pessoas já na lista de espera</span>
+        </div>
       </div>
-      <span>Mais de 200 pessoas já na lista de espera</span>
+      <div class="hero-cards fade-in">
+        <div class="hero-card">
+          <div class="hero-card-icon" style="background:#EBF1FF;">📷</div>
+          <div><div class="hero-card-title">Câmera Sony A7III</div><div class="hero-card-sub">São Paulo · Disponível agora</div></div>
+          <div class="hero-card-value"><div class="hero-card-num">R$120</div><div class="hero-card-unit">por dia</div></div>
+        </div>
+        <div class="hero-card">
+          <div class="hero-card-icon" style="background:#E6F7EF;">🔧</div>
+          <div><div class="hero-card-title">Furadeira Bosch Pro</div><div class="hero-card-sub">Campinas · Disponível agora</div></div>
+          <div class="hero-card-value"><div class="hero-card-num">R$25</div><div class="hero-card-unit">por dia</div></div>
+        </div>
+        <div class="hero-card">
+          <div class="hero-card-icon" style="background:#FFF7E6;">🏕️</div>
+          <div><div class="hero-card-title">Kit camping completo</div><div class="hero-card-sub">Curitiba · Disponível agora</div></div>
+          <div class="hero-card-value"><div class="hero-card-num">R$80</div><div class="hero-card-unit">por dia</div></div>
+        </div>
+        <div class="hero-card">
+          <div class="hero-card-icon" style="background:#F0E6FF;">🎸</div>
+          <div><div class="hero-card-title">Guitarra Fender Strat</div><div class="hero-card-sub">Belo Horizonte · Disponível</div></div>
+          <div class="hero-card-value"><div class="hero-card-num">R$55</div><div class="hero-card-unit">por dia</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CATEGORIAS -->
+<section id="categorias">
+  <div class="container">
+    <div class="section-label">Categorias</div>
+    <h2 class="section-title">Alugue qualquer coisa</h2>
+    <p class="section-sub">De câmeras a bicicletas, ferramentas a instrumentos. Se existe, alguém tem para alugar.</p>
+    <div class="cat-grid fade-in">
+      <div class="cat-card"><div class="cat-icon">📷</div><div class="cat-name">Foto & Vídeo</div><div class="cat-desc">Câmeras, lentes, drones</div></div>
+      <div class="cat-card"><div class="cat-icon">🔧</div><div class="cat-name">Ferramentas</div><div class="cat-desc">Furadeiras, serras, kits</div></div>
+      <div class="cat-card"><div class="cat-icon">🏕️</div><div class="cat-name">Outdoor</div><div class="cat-desc">Camping, trilha, surf</div></div>
+      <div class="cat-card"><div class="cat-icon">💻</div><div class="cat-name">Eletrônicos</div><div class="cat-desc">Notebooks, tablets, games</div></div>
+      <div class="cat-card"><div class="cat-icon">🎸</div><div class="cat-name">Música</div><div class="cat-desc">Guitarras, teclados, PAs</div></div>
+      <div class="cat-card"><div class="cat-icon">🏋️</div><div class="cat-name">Fitness</div><div class="cat-desc">Bikes, pesos, tapetes</div></div>
+      <div class="cat-card"><div class="cat-icon">🎉</div><div class="cat-name">Festas & Eventos</div><div class="cat-desc">Tendas, mesas, som</div></div>
+      <div class="cat-card"><div class="cat-icon">👗</div><div class="cat-name">Moda</div><div class="cat-desc">Roupas, acessórios, looks</div></div>
+      <div class="cat-card"><div class="cat-icon">🚲</div><div class="cat-name">Mobilidade</div><div class="cat-desc">Bikes, patinetes, skates</div></div>
+      <div class="cat-card"><div class="cat-icon">🎮</div><div class="cat-name">Games</div><div class="cat-desc">Consoles, jogos, VR</div></div>
     </div>
   </div>
 </section>
@@ -711,42 +331,70 @@
   <div class="container">
     <div class="section-label">Como funciona</div>
     <h2 class="section-title">Dois lados, uma plataforma</h2>
-    <p class="section-sub">Seja quem precisa usar ou quem quer lucrar com o que já tem.</p>
+    <p class="section-sub">Seja quem precisa usar ou quem quer lucrar com o que já tem parado em casa.</p>
     <div class="how-grid fade-in">
       <div class="how-card">
         <div class="how-card-badge badge-blue">Para quem quer alugar</div>
-        <h3>Acesse sem comprar</h3>
+        <h3>Acesse sem precisar comprar</h3>
         <div class="how-steps">
-          <div class="how-step">
-            <div class="step-num step-num-blue">1</div>
-            <p><strong>Busque o produto</strong> que você precisa por período, cidade ou categoria.</p>
-          </div>
-          <div class="how-step">
-            <div class="step-num step-num-blue">2</div>
-            <p><strong>Reserve com segurança</strong> pagando só pelo tempo de uso, com caução protegido.</p>
-          </div>
-          <div class="how-step">
-            <div class="step-num step-num-blue">3</div>
-            <p><strong>Use, devolva e avalie.</strong> Sem dores de cabeça, sem depreciação, sem guardar.</p>
-          </div>
+          <div class="how-step"><div class="step-num step-num-blue">1</div><p><strong>Busque o produto</strong> que você precisa por período, cidade ou categoria.</p></div>
+          <div class="how-step"><div class="step-num step-num-blue">2</div><p><strong>Reserve com segurança</strong> pagando só pelo tempo de uso, com caução protegido.</p></div>
+          <div class="how-step"><div class="step-num step-num-blue">3</div><p><strong>Retire, use e devolva.</strong> Sem dores de cabeça, sem depreciação, sem guardar.</p></div>
+          <div class="how-step"><div class="step-num step-num-blue">4</div><p><strong>Avalie a experiência.</strong> Sua avaliação fortalece a comunidade.</p></div>
         </div>
+        <hr class="how-divider">
+        <div class="how-highlight">💡 Uma furadeira usada 3x por ano: alugue por R$25/dia ao invés de pagar R$350.</div>
       </div>
       <div class="how-card">
-        <div class="how-card-badge badge-green">Para quem quer ganhar</div>
-        <h3>Monetize o que você tem</h3>
+        <div class="how-card-badge badge-green">Para quem quer ganhar dinheiro</div>
+        <h3>Monetize o que você já tem</h3>
         <div class="how-steps">
-          <div class="how-step">
-            <div class="step-num step-num-green">1</div>
-            <p><strong>Cadastre seu item</strong> — câmera, ferramenta, eletrônico, esporte, o que for.</p>
-          </div>
-          <div class="how-step">
-            <div class="step-num step-num-green">2</div>
-            <p><strong>Defina preço e disponibilidade.</strong> Você controla quando e para quem aluga.</p>
-          </div>
-          <div class="how-step">
-            <div class="step-num step-num-green">3</div>
-            <p><strong>Receba na sua conta.</strong> A USEI cuida da intermediação e da proteção.</p>
-          </div>
+          <div class="how-step"><div class="step-num step-num-green">1</div><p><strong>Cadastre seu item</strong> com fotos, descrição e preço. Leva menos de 5 minutos.</p></div>
+          <div class="how-step"><div class="step-num step-num-green">2</div><p><strong>Defina disponibilidade.</strong> Você controla quando e para quem deseja alugar.</p></div>
+          <div class="how-step"><div class="step-num step-num-green">3</div><p><strong>Confirme o aluguel</strong> pelo app. Combine retirada ou entrega com o locatário.</p></div>
+          <div class="how-step"><div class="step-num step-num-green">4</div><p><strong>Receba na sua conta.</strong> A USEI cuida da intermediação, caução e proteção.</p></div>
+        </div>
+        <hr class="how-divider">
+        <div class="how-highlight">💰 Uma câmera alugada 2x por mês pode gerar R$600–R$1.200/mês.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMO GANHAR DINHEIRO -->
+<section id="como-ganhar">
+  <div class="container">
+    <div class="ganhar-grid fade-in">
+      <div class="ganhar-text">
+        <div class="section-label">Renda extra real</div>
+        <h3>Seus itens parados<br>rendem dinheiro</h3>
+        <p>A maioria das pessoas possui produtos que usa menos de 10% do tempo. Na USEI, você transforma esse tempo ocioso em renda real, sem precisar vender nada.</p>
+        <ul class="ganhar-list">
+          <li>Você define o preço, a disponibilidade e as regras</li>
+          <li>Caução garante proteção total ao seu item</li>
+          <li>Pagamento direto na sua conta após cada aluguel</li>
+          <li>Você pode pausar ou encerrar quando quiser</li>
+          <li>Quanto mais avaliações positivas, mais aluguéis</li>
+        </ul>
+        <a href="#lista-espera" class="btn btn-green btn-lg" data-intent="ganhar">Quero cadastrar meus itens →</a>
+      </div>
+      <div class="ganhar-example">
+        <h4>Simulação de renda mensal</h4>
+        <div class="ganhar-item">
+          <div class="ganhar-item-left"><div class="ganhar-item-icon">📷</div><div><div class="ganhar-item-name">Câmera Sony A7III</div><div class="ganhar-item-freq">8 dias/mês · R$120/dia</div></div></div>
+          <div class="ganhar-item-value">R$960</div>
+        </div>
+        <div class="ganhar-item">
+          <div class="ganhar-item-left"><div class="ganhar-item-icon">🎮</div><div><div class="ganhar-item-name">PS5 + jogos</div><div class="ganhar-item-freq">6 dias/mês · R$60/dia</div></div></div>
+          <div class="ganhar-item-value">R$360</div>
+        </div>
+        <div class="ganhar-item">
+          <div class="ganhar-item-left"><div class="ganhar-item-icon">🔧</div><div><div class="ganhar-item-name">Kit ferramentas</div><div class="ganhar-item-freq">4 dias/mês · R$40/dia</div></div></div>
+          <div class="ganhar-item-value">R$160</div>
+        </div>
+        <div class="ganhar-total">
+          <div class="ganhar-total-label">Renda mensal estimada</div>
+          <div class="ganhar-total-value">R$1.480</div>
         </div>
       </div>
     </div>
@@ -760,36 +408,24 @@
     <h2 class="section-title">Por que a USEI.APP?</h2>
     <p class="section-sub">Construída para quem valoriza acesso, não acúmulo.</p>
     <div class="benefits-grid fade-in">
-      <div class="benefit-card">
-        <div class="benefit-icon" style="background:#EBF1FF;">💸</div>
-        <h3>Economize de verdade</h3>
-        <p>Por que comprar uma furadeira para usar 3 vezes? Alugue por R$20 ao invés de pagar R$300.</p>
-      </div>
-      <div class="benefit-card">
-        <div class="benefit-icon" style="background:#E6F7EF;">📈</div>
-        <h3>Renda extra real</h3>
-        <p>Seus itens parados rendem dinheiro. Uma câmera alugada no fim de semana pode pagar ela mesma em meses.</p>
-      </div>
-      <div class="benefit-card">
-        <div class="benefit-icon" style="background:#FFF7E6;">⚡</div>
-        <h3>Simples e rápido</h3>
-        <p>Processo 100% digital. Reserve, combine, retire — sem burocracia, sem papelada.</p>
-      </div>
-      <div class="benefit-card">
-        <div class="benefit-icon" style="background:#EBF1FF;">🔒</div>
-        <h3>Proteção garantida</h3>
-        <p>Caução digital protege quem aluga. Seguro cobre danos. Avaliações mantêm a qualidade.</p>
-      </div>
-      <div class="benefit-card">
-        <div class="benefit-icon" style="background:#F0E6FF;">🌱</div>
-        <h3>Mais sustentável</h3>
-        <p>Menos produção desnecessária. Compartilhar é o novo ter — e ainda faz bem pro planeta.</p>
-      </div>
-      <div class="benefit-card">
-        <div class="benefit-icon" style="background:#E6F7EF;">🤝</div>
-        <h3>Comunidade confiável</h3>
-        <p>Perfis verificados, avaliações reais e suporte ativo. Você sabe com quem está negociando.</p>
-      </div>
+      <div class="benefit-card"><div class="benefit-icon" style="background:#EBF1FF;">💸</div><h3>Economize de verdade</h3><p>Por que comprar uma furadeira para usar 3 vezes? Alugue por R$25 ao invés de pagar R$350 e guardar no armário.</p></div>
+      <div class="benefit-card"><div class="benefit-icon" style="background:#E6F7EF;">📈</div><h3>Renda extra real</h3><p>Seus itens parados rendem dinheiro. Uma câmera alugada regularmente pode gerar mais de R$1.000 por mês.</p></div>
+      <div class="benefit-card"><div class="benefit-icon" style="background:#FFF7E6;">⚡</div><h3>Simples e rápido</h3><p>Processo 100% digital. Reserve, combine a retirada e use — sem burocracia, sem papelada, sem complicação.</p></div>
+      <div class="benefit-card"><div class="benefit-icon" style="background:#EBF1FF;">🔒</div><h3>Proteção garantida</h3><p>Caução digital protege quem disponibiliza. Sistema de avaliações mantém a qualidade da comunidade.</p></div>
+      <div class="benefit-card"><div class="benefit-icon" style="background:#F0E6FF;">🌱</div><h3>Mais sustentável</h3><p>Menos produção desnecessária. Compartilhar é o novo ter — e ainda faz muito bem para o planeta.</p></div>
+      <div class="benefit-card"><div class="benefit-icon" style="background:#E6F7EF;">🤝</div><h3>Comunidade confiável</h3><p>Perfis verificados, avaliações reais e suporte ativo. Você sempre sabe com quem está negociando.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- NÚMEROS -->
+<section id="numeros">
+  <div class="container">
+    <div class="numeros-grid fade-in">
+      <div><div class="num-val">200+</div><div class="num-lbl">Na lista de espera</div></div>
+      <div><div class="num-val">10+</div><div class="num-lbl">Categorias de produtos</div></div>
+      <div><div class="num-val">R$0</div><div class="num-lbl">Para entrar na plataforma</div></div>
+      <div><div class="num-val">2026</div><div class="num-lbl">Lançamento previsto</div></div>
     </div>
   </div>
 </section>
@@ -803,31 +439,35 @@
     <div class="trust-grid fade-in">
       <div class="trust-card">
         <h3>🔐 Caução digital</h3>
-        <p>O valor de caução é bloqueado antes da retirada e liberado automaticamente após a devolução confirmada. Ninguém fica sem garantia.</p>
+        <p>O valor de caução é bloqueado no cartão do locatário antes da retirada — sem débito. Ao confirmar a devolução, o bloqueio é liberado automaticamente. Em caso de danos, o valor cobre o ressarcimento.</p>
+        <div class="trust-badge">✓ Proteção automática</div>
       </div>
       <div class="trust-card">
         <h3>✅ Perfis verificados</h3>
-        <p>CPF, telefone e email verificados antes de qualquer transação. Você sabe quem está do outro lado.</p>
+        <p>CPF, telefone e e-mail verificados antes de qualquer transação. Histórico público de avaliações e aluguéis anteriores. Você sempre sabe com quem está negociando.</p>
+        <div class="trust-badge">✓ Identidade confirmada</div>
       </div>
       <div class="trust-card">
         <h3>⭐ Sistema de avaliações</h3>
-        <p>Após cada aluguel, ambas as partes avaliam. Reputação visível, histórico transparente.</p>
+        <p>Após cada aluguel, ambas as partes avaliam a experiência. Reputação visível, histórico transparente. Quem tem má conduta é suspenso da plataforma.</p>
+        <div class="trust-badge">✓ Reputação pública</div>
       </div>
       <div class="trust-card">
         <h3>🛡️ Cobertura para danos</h3>
-        <p>Itens danificados têm cobertura pelo caução retido. A plataforma media conflitos de forma imparcial.</p>
+        <p>Itens danificados têm cobertura pelo caução retido. A plataforma media conflitos de forma imparcial. Todo aluguel é documentado com fotos antes e depois.</p>
+        <div class="trust-badge">✓ Mediação imparcial</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- VALIDAÇÃO DE MERCADO -->
+<!-- VALIDAÇÃO -->
 <section id="validacao">
   <div class="container-sm">
-    <div class="validation-intro">
+    <div style="text-align:center;margin-bottom:2.5rem;">
       <div class="section-label" style="text-align:center">Nos ajude a construir</div>
       <h2 class="section-title" style="text-align:center">O que você alugaria?</h2>
-      <p class="section-sub" style="text-align:center; margin: 0 auto 2rem;">Clique nos itens que te interessam. Isso nos ajuda a priorizar as primeiras categorias.</p>
+      <p class="section-sub" style="text-align:center;margin:0 auto 2rem;">Clique nos itens que te interessam. Isso nos ajuda a priorizar as primeiras categorias.</p>
     </div>
     <div class="options-row" id="optionTags">
       <div class="option-tag" onclick="selectTag(this)">📷 Câmera e fotografia</div>
@@ -840,6 +480,8 @@
       <div class="option-tag" onclick="selectTag(this)">💻 Eletrônicos</div>
       <div class="option-tag" onclick="selectTag(this)">🏋️ Equipamentos fitness</div>
       <div class="option-tag" onclick="selectTag(this)">🎉 Itens para festas</div>
+      <div class="option-tag" onclick="selectTag(this)">🏄 Esportes aquáticos</div>
+      <div class="option-tag" onclick="selectTag(this)">🎨 Arte e criatividade</div>
     </div>
     <p class="validation-result" id="validationResult"></p>
   </div>
@@ -849,71 +491,74 @@
 <section id="prova-social">
   <div class="container">
     <div class="section-label" style="text-align:center">Prova social</div>
-    <h2 class="section-title" style="text-align:center">Já somos uma comunidade</h2>
-    <div class="stats-row fade-in">
-      <div class="stat">
-        <div class="stat-num">200+</div>
-        <div class="stat-label">Na lista de espera</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">R$0</div>
-        <div class="stat-label">Para entrar na plataforma</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">2026</div>
-        <div class="stat-label">Lançamento previsto</div>
-      </div>
-    </div>
+    <h2 class="section-title" style="text-align:center">O que as pessoas dizem</h2>
+    <p class="section-sub" style="text-align:center;margin:0 auto 3rem;">Ainda em pré-lançamento, mas a demanda já é real.</p>
     <div class="testimonials-grid fade-in">
       <div class="testimonial-card">
-        <p class="testimonial-text">"Tenho uma câmera Sony que uso 4x por ano. Poder alugar ela quando não estou usando seria perfeito — é uma renda extra sem esforço."</p>
-        <div class="testimonial-author">
-          <div class="author-avatar">AL</div>
-          <div>
-            <div class="author-name">André Lima</div>
-            <div class="author-role">Fotógrafo, São Paulo</div>
-          </div>
-        </div>
+        <div class="stars">★★★★★</div>
+        <p class="testimonial-text">"Tenho uma câmera Sony que uso 4x por ano. Poder alugar ela quando não estou usando seria perfeito — é uma renda extra sem esforço nenhum."</p>
+        <div class="testimonial-author"><div class="author-avatar">AL</div><div><div class="author-name">André Lima</div><div class="author-role">Fotógrafo, São Paulo</div></div></div>
       </div>
       <div class="testimonial-card">
-        <p class="testimonial-text">"Precisei de uma furadeira por 1 semana pra reforma do apê. Comprar não fazia sentido. Queria exatamente uma plataforma assim."</p>
-        <div class="testimonial-author">
-          <div class="author-avatar">MC</div>
-          <div>
-            <div class="author-name">Mariana Costa</div>
-            <div class="author-role">Designer, Belo Horizonte</div>
-          </div>
-        </div>
+        <div class="stars">★★★★★</div>
+        <p class="testimonial-text">"Precisei de uma furadeira por 1 semana pra reforma do apê. Comprar não fazia o menor sentido. Queria exatamente uma plataforma assim há anos."</p>
+        <div class="testimonial-author"><div class="author-avatar">MC</div><div><div class="author-name">Mariana Costa</div><div class="author-role">Designer, Belo Horizonte</div></div></div>
       </div>
       <div class="testimonial-card">
-        <p class="testimonial-text">"Tenho equipamento de camping que uso 2x por ano. Se puder alugar pro resto do tempo, já pagou o investimento que fiz."</p>
-        <div class="testimonial-author">
-          <div class="author-avatar">RS</div>
-          <div>
-            <div class="author-name">Rafael Santos</div>
-            <div class="author-role">Engenheiro, Curitiba</div>
-          </div>
-        </div>
+        <div class="stars">★★★★★</div>
+        <p class="testimonial-text">"Tenho equipamento de camping que uso 2x por ano. Se puder alugar pro resto do tempo, já pagou o investimento que fiz. Faz todo sentido."</p>
+        <div class="testimonial-author"><div class="author-avatar">RS</div><div><div class="author-name">Rafael Santos</div><div class="author-role">Engenheiro, Curitiba</div></div></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- LISTA DE ESPERA (seção inline) -->
+<!-- LISTA DE ESPERA -->
 <section id="lista-espera">
-  <div class="container-sm">
-    <div class="section-label">Lista de espera</div>
-    <h2 class="section-title">Garanta acesso antecipado</h2>
-    <p class="section-sub">Seja um dos primeiros a alugar ou ganhar dinheiro. Vagas limitadas para o beta.</p>
-
-    <form class="waitlist-inline-form" id="waitlistInline" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
-      <input type="hidden" name="intent" id="intentField" value="">
-      <input type="text" name="name" placeholder="Seu nome" class="form-input-dark" required>
-      <input type="email" name="email" placeholder="Seu melhor e-mail" class="form-input-dark" required>
-      <button type="submit" class="btn btn-primary btn-lg">Quero entrar →</button>
-    </form>
-
-    <p style="font-size:0.8rem; color:var(--gray-300); margin-top:0.75rem;">Sem spam. Você é notificado primeiro quando abrirmos.</p>
+  <div class="container">
+    <div class="waitlist-box">
+      <div class="waitlist-split">
+        <div class="waitlist-left">
+          <div class="section-label">Lista de espera</div>
+          <h2>Garanta seu acesso antecipado</h2>
+          <p>Seja um dos primeiros a usar a USEI.APP. Quem entra na lista recebe acesso ao beta antes do lançamento público — e condições especiais de fundador.</p>
+          <ul class="waitlist-perks">
+            <li><span class="perk-dot"></span>Acesso ao beta antes de todo mundo</li>
+            <li><span class="perk-dot"></span>Condições especiais para os primeiros usuários</li>
+            <li><span class="perk-dot"></span>Você ajuda a moldar o produto com seu feedback</li>
+            <li><span class="perk-dot"></span>Zero spam — só notificações importantes</li>
+            <li><span class="perk-dot"></span>Pode cancelar a qualquer momento</li>
+          </ul>
+        </div>
+        <div>
+          <form class="waitlist-form-col" id="waitlistInline" action="https://formspree.io/f/xjgjbprj" method="POST">
+            <input type="hidden" name="intent" id="intentField" value="">
+            <input type="text" name="name" placeholder="Seu nome completo" class="form-input-dark" required>
+            <input type="email" name="email" placeholder="Seu melhor e-mail" class="form-input-dark" required>
+            <input type="tel" name="phone" placeholder="WhatsApp (opcional)" class="form-input-dark">
+            <select name="city" class="form-input-dark" style="appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23B0B0B0' stroke-width='1.5' fill='none'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 1rem center;">
+              <option value="" disabled selected>Sua cidade</option>
+              <option>São Paulo</option><option>Rio de Janeiro</option><option>Belo Horizonte</option>
+              <option>Curitiba</option><option>Porto Alegre</option><option>Brasília</option>
+              <option>Salvador</option><option>Fortaleza</option><option>Outra</option>
+            </select>
+            <select name="role" class="form-input-dark" style="appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23B0B0B0' stroke-width='1.5' fill='none'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 1rem center;">
+              <option value="" disabled selected>Quero usar a USEI para...</option>
+              <option value="alugar">Alugar produtos de outras pessoas</option>
+              <option value="ganhar">Ganhar dinheiro alugando meus itens</option>
+              <option value="ambos">Os dois!</option>
+            </select>
+            <button type="submit" class="btn btn-primary btn-lg" style="width:100%">Garantir minha vaga →</button>
+            <p class="form-note">Sem spam. Você só recebe confirmação e aviso de lançamento.</p>
+          </form>
+          <div id="waitlistInlineSuccess" style="display:none;background:var(--green-light);border-radius:var(--radius);padding:1.5rem;text-align:center;">
+            <div style="font-size:1.5rem;margin-bottom:0.5rem;">🎉</div>
+            <div style="font-weight:600;color:var(--green);margin-bottom:0.25rem;">Você está na lista!</div>
+            <div style="font-size:0.875rem;color:var(--gray-500);">Avisaremos assim que o beta abrir.</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -922,48 +567,34 @@
   <div class="container-sm">
     <div class="section-label">Dúvidas frequentes</div>
     <h2 class="section-title">Perguntas & Respostas</h2>
-    <div class="faq-list" id="faqList">
-      <div class="faq-item">
-        <button class="faq-question" onclick="toggleFaq(this)">
-          Como funciona o caução?
-          <div class="faq-icon">+</div>
-        </button>
-        <div class="faq-answer">O caução é bloqueado digitalmente no cartão do locatário no momento da reserva — nenhum valor é debitado. Ao confirmar a devolução, o bloqueio é liberado automaticamente. Em caso de danos, o valor é usado para ressarcimento.</div>
+    <div class="faq-list" style="display:flex;flex-direction:column;gap:8px;">
+      <div class="faq-item" style="background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius);overflow:hidden;">
+        <button class="faq-question" onclick="toggleFaq(this)" style="width:100%;text-align:left;background:none;border:none;padding:1.25rem 1.5rem;font-family:var(--font-body);font-size:0.9375rem;font-weight:500;color:var(--black);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;">Como funciona o caução? <span class="faq-icon" style="min-width:22px;height:22px;border-radius:50%;background:var(--gray-50);display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:transform 0.3s;color:var(--gray-500);">+</span></button>
+        <div class="faq-answer" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 1.5rem;font-size:0.9rem;color:var(--gray-500);line-height:1.7;">O caução é bloqueado digitalmente no cartão do locatário no momento da reserva — nenhum valor é debitado de fato. Ao confirmar a devolução em boas condições, o bloqueio é liberado automaticamente em até 24h. Em caso de danos, o valor cobre o ressarcimento do proprietário.</div>
       </div>
-      <div class="faq-item">
-        <button class="faq-question" onclick="toggleFaq(this)">
-          Quem define o preço do aluguel?
-          <div class="faq-icon">+</div>
-        </button>
-        <div class="faq-answer">Quem disponibiliza o item define o preço por dia/semana/mês. A plataforma oferece sugestões de precificação com base no mercado para ajudar na decisão.</div>
+      <div class="faq-item" style="background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius);overflow:hidden;">
+        <button class="faq-question" onclick="toggleFaq(this)" style="width:100%;text-align:left;background:none;border:none;padding:1.25rem 1.5rem;font-family:var(--font-body);font-size:0.9375rem;font-weight:500;color:var(--black);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;">Quem define o preço do aluguel? <span class="faq-icon" style="min-width:22px;height:22px;border-radius:50%;background:var(--gray-50);display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:transform 0.3s;color:var(--gray-500);">+</span></button>
+        <div class="faq-answer" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 1.5rem;font-size:0.9rem;color:var(--gray-500);line-height:1.7;">Quem disponibiliza o item define o preço por dia, semana ou mês. A plataforma oferece sugestões de precificação com base no mercado e na categoria para ajudar quem está começando.</div>
       </div>
-      <div class="faq-item">
-        <button class="faq-question" onclick="toggleFaq(this)">
-          E se o item for danificado?
-          <div class="faq-icon">+</div>
-        </button>
-        <div class="faq-answer">O caução cobre danos. Se o valor não for suficiente, a USEI.APP medeia o processo entre as partes. Todo item deve ser fotografado antes e depois do aluguel como evidência.</div>
+      <div class="faq-item" style="background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius);overflow:hidden;">
+        <button class="faq-question" onclick="toggleFaq(this)" style="width:100%;text-align:left;background:none;border:none;padding:1.25rem 1.5rem;font-family:var(--font-body);font-size:0.9375rem;font-weight:500;color:var(--black);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;">E se o item for danificado? <span class="faq-icon" style="min-width:22px;height:22px;border-radius:50%;background:var(--gray-50);display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:transform 0.3s;color:var(--gray-500);">+</span></button>
+        <div class="faq-answer" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 1.5rem;font-size:0.9rem;color:var(--gray-500);line-height:1.7;">O caução cobre danos. Se o valor não for suficiente, a USEI.APP medeia o processo com base nas fotos registradas antes e depois do aluguel. Todo aluguel deve ser documentado com fotos.</div>
       </div>
-      <div class="faq-item">
-        <button class="faq-question" onclick="toggleFaq(this)">
-          É gratuito para usar?
-          <div class="faq-icon">+</div>
-        </button>
-        <div class="faq-answer">Cadastro e navegação são gratuitos. A plataforma cobra uma pequena comissão por transação bem-sucedida — tanto de quem aluga quanto de quem disponibiliza. Nada antes de fechar o negócio.</div>
+      <div class="faq-item" style="background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius);overflow:hidden;">
+        <button class="faq-question" onclick="toggleFaq(this)" style="width:100%;text-align:left;background:none;border:none;padding:1.25rem 1.5rem;font-family:var(--font-body);font-size:0.9375rem;font-weight:500;color:var(--black);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;">É gratuito para usar? <span class="faq-icon" style="min-width:22px;height:22px;border-radius:50%;background:var(--gray-50);display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:transform 0.3s;color:var(--gray-500);">+</span></button>
+        <div class="faq-answer" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 1.5rem;font-size:0.9rem;color:var(--gray-500);line-height:1.7;">Cadastro e navegação são completamente gratuitos. A plataforma cobra uma pequena comissão apenas em transações bem-sucedidas, de ambos os lados. Nenhuma cobrança antes de fechar negócio.</div>
       </div>
-      <div class="faq-item">
-        <button class="faq-question" onclick="toggleFaq(this)">
-          Quando a plataforma lança?
-          <div class="faq-icon">+</div>
-        </button>
-        <div class="faq-answer">Estamos em fase de pré-lançamento, construindo a base de usuários. Quem entrar na lista de espera terá acesso antecipado ao beta, antes da abertura ao público geral.</div>
+      <div class="faq-item" style="background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius);overflow:hidden;">
+        <button class="faq-question" onclick="toggleFaq(this)" style="width:100%;text-align:left;background:none;border:none;padding:1.25rem 1.5rem;font-family:var(--font-body);font-size:0.9375rem;font-weight:500;color:var(--black);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;">Quando a plataforma lança? <span class="faq-icon" style="min-width:22px;height:22px;border-radius:50%;background:var(--gray-50);display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:transform 0.3s;color:var(--gray-500);">+</span></button>
+        <div class="faq-answer" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 1.5rem;font-size:0.9rem;color:var(--gray-500);line-height:1.7;">O lançamento está previsto para 2026. Estamos em fase de pré-lançamento construindo o produto. Quem entrar na lista de espera terá acesso antecipado ao beta antes da abertura ao público.</div>
       </div>
-      <div class="faq-item">
-        <button class="faq-question" onclick="toggleFaq(this)">
-          Qualquer produto pode ser alugado?
-          <div class="faq-icon">+</div>
-        </button>
-        <div class="faq-answer">Qualquer item legal e em boas condições de uso. Eletrônicos, ferramentas, câmeras, instrumentos, equipamentos esportivos, itens para festas e muito mais. Há categorias proibidas por questões de segurança e lei.</div>
+      <div class="faq-item" style="background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius);overflow:hidden;">
+        <button class="faq-question" onclick="toggleFaq(this)" style="width:100%;text-align:left;background:none;border:none;padding:1.25rem 1.5rem;font-family:var(--font-body);font-size:0.9375rem;font-weight:500;color:var(--black);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;">Posso recusar um aluguel? <span class="faq-icon" style="min-width:22px;height:22px;border-radius:50%;background:var(--gray-50);display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:transform 0.3s;color:var(--gray-500);">+</span></button>
+        <div class="faq-answer" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 1.5rem;font-size:0.9rem;color:var(--gray-500);line-height:1.7;">Sim. Você pode ver o perfil completo do locatário antes de confirmar — avaliações, verificações e histórico. Você tem total liberdade para recusar qualquer aluguel sem precisar justificar.</div>
+      </div>
+      <div class="faq-item" style="background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius);overflow:hidden;">
+        <button class="faq-question" onclick="toggleFaq(this)" style="width:100%;text-align:left;background:none;border:none;padding:1.25rem 1.5rem;font-family:var(--font-body);font-size:0.9375rem;font-weight:500;color:var(--black);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;">Como funciona a retirada e devolução? <span class="faq-icon" style="min-width:22px;height:22px;border-radius:50%;background:var(--gray-50);display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:transform 0.3s;color:var(--gray-500);">+</span></button>
+        <div class="faq-answer" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 1.5rem;font-size:0.9rem;color:var(--gray-500);line-height:1.7;">Locatário e proprietário combinam pela plataforma: retirada presencial, entrega por motoboy ou envio pelos Correios, dependendo do item e da distância. A plataforma oferece sugestões de logística para cada tipo de produto.</div>
       </div>
     </div>
   </div>
@@ -972,144 +603,135 @@
 <!-- CTA FINAL -->
 <section id="cta-final">
   <div class="container-sm" style="text-align:center;">
-    <div class="section-label" style="color:rgba(255,255,255,0.6)">Junte-se a nós</div>
+    <div class="section-label" style="color:rgba(255,255,255,0.6)">Junte-se ao movimento</div>
     <h2 class="section-title">Pronto para começar?</h2>
     <p class="section-sub">Economize alugando. Ganhe disponibilizando. Seja parte do movimento de acesso sobre posse.</p>
-    <form class="waitlist-form" id="waitlistFinal" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+    <form class="waitlist-form-row" id="waitlistFinal" action="https://formspree.io/f/xjgjbprj" method="POST">
       <input type="text" name="name" placeholder="Seu nome" class="form-input" required>
       <input type="email" name="email" placeholder="Seu e-mail" class="form-input" required>
       <button type="submit" class="btn btn-white btn-lg">Garantir minha vaga →</button>
     </form>
-    <div class="form-success" id="formSuccess">🎉 Você está na lista! Avisaremos em primeira mão.</div>
-    <p class="form-note">Sem spam. Cancele quando quiser.</p>
+    <div class="form-success" id="formSuccess">🎉 Você está na lista! Avisaremos em primeira mão quando o beta abrir.</div>
+    <p class="form-note-white">Sem spam. Cancele quando quiser.</p>
   </div>
 </section>
 
 <!-- FOOTER -->
 <footer>
   <div class="footer-inner">
-    <a href="#" class="footer-logo">USEI<span>.</span>APP</a>
-    <div class="footer-links">
+    <div>
+      <a href="#" class="footer-logo">USEI<span>.</span>APP</a>
+      <p class="footer-desc">A plataforma de aluguel P2P que transforma acesso em modelo de vida. Alugue o que precisa, ganhe com o que tem.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Plataforma</h4>
       <a href="#como-funciona">Como funciona</a>
-      <a href="#seguranca">Segurança</a>
+      <a href="#categorias">Categorias</a>
+      <a href="#como-ganhar">Ganhe dinheiro</a>
+      <a href="#lista-espera">Lista de espera</a>
+    </div>
+    <div class="footer-col">
+      <h4>Segurança</h4>
+      <a href="#seguranca">Caução digital</a>
+      <a href="#seguranca">Perfis verificados</a>
+      <a href="#seguranca">Cobertura de danos</a>
       <a href="#faq">FAQ</a>
-      <a href="/cdn-cgi/l/email-protection#620d0b221711070b4c031212">Contato</a>
+    </div>
+    <div class="footer-col">
+      <h4>Contato</h4>
+      <a href="mailto:oi@usei.app">oi@usei.app</a>
+      <a href="#lista-espera">Entrar na lista</a>
     </div>
   </div>
-  <div class="container">
-    <p class="footer-copy">© 2026 USEI.APP. Todos os direitos reservados. · Acesso sobre posse.</p>
+  <div class="footer-bottom">
+    <p class="footer-copy">© 2026 USEI.APP. Todos os direitos reservados.</p>
+    <p class="footer-copy">Acesso sobre posse. 🌱</p>
   </div>
 </footer>
 
-<!-- MOBILE STICKY CTA -->
 <div class="mobile-sticky-cta">
   <a href="#lista-espera" class="btn btn-primary">Entrar na lista de espera →</a>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
-  // Hamburger menu
-  const hamburger = document.getElementById('hamburger');
-  const mobileMenu = document.getElementById('mobileMenu');
-
-  hamburger.addEventListener('click', () => {
-    hamburger.classList.toggle('open');
-    mobileMenu.classList.toggle('open');
+<script>
+  let lastScroll = 0;
+  const mainHeader = document.getElementById('mainHeader');
+  window.addEventListener('scroll', () => {
+    const cur = window.scrollY;
+    mainHeader.style.transform = (cur > lastScroll && cur > 200) ? 'translateY(-100%)' : 'translateY(0)';
+    lastScroll = cur;
   });
 
-  function closeMenu() {
-    hamburger.classList.remove('open');
-    mobileMenu.classList.remove('open');
-  }
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobileMenu');
+  hamburger.addEventListener('click', () => { hamburger.classList.toggle('open'); mobileMenu.classList.toggle('open'); });
+  function closeMenu() { hamburger.classList.remove('open'); mobileMenu.classList.remove('open'); }
 
-  // Scroll animations
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(el => {
-      if (el.isIntersecting) {
-        el.target.classList.add('visible');
-      }
-    });
-  }, { threshold: 0.1 });
+  const obs = new IntersectionObserver((entries) => { entries.forEach(el => { if (el.isIntersecting) el.target.classList.add('visible'); }); }, { threshold: 0.08 });
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
 
-  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
-
-  // FAQ accordion
   function toggleFaq(btn) {
     const item = btn.parentElement;
     const wasOpen = item.classList.contains('open');
-    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
-    if (!wasOpen) item.classList.add('open');
+    document.querySelectorAll('.faq-item').forEach(i => {
+      i.classList.remove('open');
+      const ans = i.querySelector('.faq-answer');
+      const ico = i.querySelector('.faq-icon');
+      if (ans) ans.style.maxHeight = '0';
+      if (ans) ans.style.padding = '0 1.5rem';
+      if (ico) ico.style.transform = 'rotate(0deg)';
+    });
+    if (!wasOpen) {
+      item.classList.add('open');
+      const ans = item.querySelector('.faq-answer');
+      const ico = item.querySelector('.faq-icon');
+      if (ans) { ans.style.maxHeight = '240px'; ans.style.padding = '0 1.5rem 1.25rem'; }
+      if (ico) ico.style.transform = 'rotate(45deg)';
+    }
   }
 
-  // CTA intent tracking
   document.querySelectorAll('[data-intent]').forEach(btn => {
     btn.addEventListener('click', () => {
       const intent = btn.dataset.intent;
-      document.getElementById('intentField').value = intent;
+      const field = document.getElementById('intentField');
+      if (field) field.value = intent;
       sessionStorage.setItem('usei_intent', intent);
     });
   });
 
-  // Validation tags
   let selectedTags = [];
   function selectTag(el) {
-    const text = el.textContent;
-    if (el.classList.contains('selected') || el.classList.contains('selected-green')) {
-      el.classList.remove('selected', 'selected-green');
-      selectedTags = selectedTags.filter(t => t !== text);
-    } else {
-      el.classList.add('selected');
-      selectedTags.push(text);
-    }
-    const result = document.getElementById('validationResult');
-    if (selectedTags.length > 0) {
-      result.textContent = `Ótimo! Priorizaremos ${selectedTags.length} categoria${selectedTags.length > 1 ? 's' : ''} que você selecionou. Entre na lista para ser o primeiro!`;
-    } else {
-      result.textContent = '';
-    }
+    const text = el.textContent.trim();
+    if (el.classList.contains('selected')) { el.classList.remove('selected'); selectedTags = selectedTags.filter(t => t !== text); }
+    else { el.classList.add('selected'); selectedTags.push(text); }
+    document.getElementById('validationResult').textContent = selectedTags.length > 0
+      ? `Ótimo! Priorizaremos ${selectedTags.length} categoria${selectedTags.length > 1 ? 's' : ''} que você selecionou. Entre na lista para ser o primeiro!` : '';
   }
 
-  // Form submissions
-  function setupForm(formId, successId) {
+  async function handleForm(formId, successId) {
     const form = document.getElementById(formId);
     if (!form) return;
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = form.querySelector('button[type=submit]');
-      const originalText = btn.textContent;
-      btn.textContent = 'Enviando...';
-      btn.disabled = true;
+      const orig = btn.textContent; btn.textContent = 'Enviando...'; btn.disabled = true;
       try {
         const data = new FormData(form);
         const intent = sessionStorage.getItem('usei_intent') || '';
-        data.append('interest_tags', selectedTags.join(', '));
         if (intent) data.append('intent', intent);
+        data.append('interest_tags', selectedTags.join(', '));
         const resp = await fetch(form.action, { method: 'POST', body: data, headers: { Accept: 'application/json' } });
-        if (resp.ok || form.action.includes('YOUR_FORM_ID')) {
+        if (resp.ok) {
           form.style.display = 'none';
-          if (successId) {
-            const success = document.getElementById(successId);
-            if (success) { success.style.display = 'block'; }
-          } else {
-            form.insertAdjacentHTML('afterend', '<p style="color:#fff;font-size:1rem;margin-top:1rem;">🎉 Você está na lista! Avisaremos em primeira mão.</p>');
-          }
-        }
-      } catch(err) {
-        btn.textContent = originalText;
-        btn.disabled = false;
-      }
+          const s = document.getElementById(successId);
+          if (s) s.style.display = 'block';
+        } else { btn.textContent = orig; btn.disabled = false; }
+      } catch { btn.textContent = orig; btn.disabled = false; }
     });
   }
 
-  setupForm('waitlistFinal', 'formSuccess');
-  setupForm('waitlistInline', null);
-
-  // Smooth header hide on scroll
-  let lastScroll = 0;
-  const header = document.querySelector('header');
-  window.addEventListener('scroll', () => {
-    const current = window.scrollY;
-    if (current > lastScroll && current > 200) {
-      header.style.transform = 'translateY(-100%)';
-    } else {
-      header.style.tr
- 
+  handleForm('waitlistFinal', 'formSuccess');
+  handleForm('waitlistInline', 'waitlistInlineSuccess');
+</script>
+</body>
+</html>
