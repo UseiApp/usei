@@ -2466,5 +2466,16 @@ seedData();
 // Restore Cloudinary config fields if already set
 (function initCloudinaryUI() {
   const cfg = getCloudinaryConfig();
-  if(cfg.cloudName && cfg.upl
-     
+  if(cfg.cloudName && cfg.uploadPreset) {
+    const cnEl = document.getElementById('cloudinaryCloudName');
+    const upEl = document.getElementById('cloudinaryUploadPreset');
+    if(cnEl) cnEl.value = cfg.cloudName;
+    if(upEl) upEl.value = cfg.uploadPreset;
+  }
+})();
+
+renderNav();
+goTo('landing');
+</script>
+</body>
+</html>
