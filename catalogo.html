@@ -898,6 +898,9 @@ textarea.form-input { resize:vertical; min-height:90px; }
       <div class="admin-nav-item" onclick="switchAdminTab('orders',this)">🛒 Pedidos</div>
       <div class="admin-nav-item" onclick="switchAdminTab('transactions',this)">💳 Transações</div>
       <div class="admin-nav-section">Sistema</div>
+      <div class="admin-nav-item" onclick="switchAdminTab('cloudinary',this)">☁️ Cloudinary</div>
+      <div class="admin-nav-item" onclick="switchAdminTab('admins',this)">🔐 Admins</div>
+      <div class="admin-nav-item" onclick="switchAdminTab('settings',this)">⚙️ Configurações</div>
       <div class="admin-nav-item" onclick="goTo('landing');toast('Saindo do admin...')">↩ Voltar ao site</div>
     </aside>
     <main class="admin-content">
@@ -908,6 +911,9 @@ textarea.form-input { resize:vertical; min-height:90px; }
           <div class="stat-card"><div class="stat-value" id="adminProductsCount">0</div><div class="stat-label">Produtos</div></div>
           <div class="stat-card"><div class="stat-value" id="adminOrdersCount">0</div><div class="stat-label">Pedidos</div></div>
           <div class="stat-card"><div class="stat-value" id="adminRevenue">R$ 0</div><div class="stat-label">Receita Total</div><div class="stat-change stat-up">+8%</div></div>
+          <div class="stat-card"><div class="stat-value" id="adminActiveProducts">0</div><div class="stat-label">Produtos Ativos</div></div>
+          <div class="stat-card"><div class="stat-value" id="adminCreatorsCount">0</div><div class="stat-label">Creators</div></div>
+          <div class="stat-card"><div class="stat-value" id="adminPendingOrders">0</div><div class="stat-label">Pedidos Pendentes</div></div>
         </div>
         <div class="card">
           <div class="card-body">
@@ -932,7 +938,7 @@ textarea.form-input { resize:vertical; min-height:90px; }
         <h2 style="font-family:var(--font-display);font-weight:700;margin-bottom:1.25rem">Produtos</h2>
         <div class="card">
           <table class="admin-table">
-            <thead><tr><th>#</th><th>Produto</th><th>Categoria</th><th>Tipo</th><th>Preço venda</th><th>Preço aluguel</th><th>Dono</th><th>Status</th></tr></thead>
+            <thead><tr><th>#</th><th>Produto</th><th>Categoria</th><th>Tipo</th><th>Preço venda</th><th>Preço aluguel</th><th>Dono</th><th>Status</th><th>Ações</th></tr></thead>
             <tbody id="adminProductsTbody"></tbody>
           </table>
         </div>
@@ -955,6 +961,107 @@ textarea.form-input { resize:vertical; min-height:90px; }
           </table>
         </div>
       </div>
+
+      <!-- CLOUDINARY TAB -->
+      <div id="admin-tab-cloudinary" style="display:none">
+        <h2 style="font-family:var(--font-display);font-weight:700;margin-bottom:1.5rem">☁️ Cloudinary — Fotos para todos</h2>
+        <div class="card" style="margin-bottom:1.5rem">
+          <div class="card-body">
+            <h3 style="font-weight:700;margin-bottom:0.5rem">Status atual</h3>
+            <p style="font-size:0.9rem;color:var(--text2);margin-bottom:12px">Configurado globalmente por você, todos os usuários usam o mesmo preset para fazer upload de fotos dos produtos.</p>
+            <div style="padding:12px;background:var(--surface2);border-radius:10px;font-size:0.9rem;margin-bottom:16px">
+              <strong>Cloud Name:</strong> <span id="adminCloudinaryStatus">❌ Não configurado</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+              <div>
+                <label style="display:block;font-weight:600;font-size:0.85rem;margin-bottom:6px">Cloud Name</label>
+                <input type="text" id="cfCloudNameAdmin" class="form-input" placeholder="ex: meu-app">
+              </div>
+              <div>
+                <label style="display:block;font-weight:600;font-size:0.85rem;margin-bottom:6px">Upload Preset (Unsigned)</label>
+                <input type="text" id="cfPresetAdmin" class="form-input" placeholder="ex: usei_unsigned">
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="saveAdminCloudinary()">💾 Salvar e ativar para todos</button>
+            <div style="margin-top:16px;padding:12px;background:#EEF7CC;border-radius:10px;font-size:0.82rem;color:#4A5C72;line-height:1.7">
+              <strong>Como criar preset gratuito no Cloudinary:</strong><br>
+              1. Acesse <strong>cloudinary.com</strong> → crie conta grátis<br>
+              2. No Dashboard copie o <strong>Cloud Name</strong><br>
+              3. Settings → Upload → Add upload preset → Mode: <strong>Unsigned</strong><br>
+              4. Copie o nome do preset e cole acima
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADMINS TAB -->
+      <div id="admin-tab-admins" style="display:none">
+        <h2 style="font-family:var(--font-display);font-weight:700;margin-bottom:1.5rem">🔐 Gerenciar Administradores</h2>
+        <div class="card" style="margin-bottom:1.5rem">
+          <div class="card-body">
+            <h3 style="font-weight:700;margin-bottom:0.75rem">Conta Master</h3>
+            <p style="font-size:0.85rem;color:var(--text2);margin-bottom:12px">A conta master foi criada no primeiro acesso. Para alterar a senha, use a opção abaixo.</p>
+            <button class="btn btn-secondary btn-sm" onclick="openChangeAdminPass()">🔑 Alterar senha master</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <h3 style="font-weight:700;margin-bottom:0.75rem">E-mails Admin Adicionais</h3>
+            <p style="font-size:0.85rem;color:var(--text2);margin-bottom:12px">Usuários com estes e-mails terão acesso ao painel admin ao fazer login.</p>
+            <div style="display:flex;gap:8px;margin-bottom:16px">
+              <input type="email" id="newAdminEmail" class="form-input" placeholder="email@dominio.com" style="flex:1">
+              <button class="btn btn-primary btn-sm" onclick="adminAddEmail()">+ Adicionar</button>
+            </div>
+            <div id="adminEmailsList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS TAB -->
+      <div id="admin-tab-settings" style="display:none">
+        <h2 style="font-family:var(--font-display);font-weight:700;margin-bottom:1.5rem">⚙️ Configurações da Plataforma</h2>
+        <div class="card" style="margin-bottom:1.5rem">
+          <div class="card-body">
+            <h3 style="font-weight:700;margin-bottom:1rem">Dados e Backup</h3>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--surface2);border-radius:10px">
+                <div>
+                  <div style="font-weight:600;font-size:0.9rem">Exportar dados</div>
+                  <div style="font-size:0.8rem;color:var(--text2)">Baixar todos os dados da plataforma em JSON</div>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="adminExportData()">📥 Exportar</button>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#FFF5F5;border-radius:10px;border:1px solid #FFCDD2">
+                <div>
+                  <div style="font-weight:600;font-size:0.9rem;color:#C62828">Reset da plataforma</div>
+                  <div style="font-size:0.8rem;color:#E57373">Apaga todos os dados exceto conta admin. Irreversível!</div>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="adminResetPlatform()">🗑️ Reset</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <h3 style="font-weight:700;margin-bottom:1rem">Informações do Sistema</h3>
+            <div style="display:grid;gap:8px;font-size:0.85rem">
+              <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+                <span style="color:var(--text2)">Versão</span><strong>USEI.APP v1.0</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+                <span style="color:var(--text2)">Usuários cadastrados</span><strong id="settingsUsersCount">—</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+                <span style="color:var(--text2)">Produtos publicados</span><strong id="settingsProductsCount">—</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:8px 0">
+                <span style="color:var(--text2)">Cloudinary</span><strong id="settingsCloudinary">—</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
 </div>
@@ -980,9 +1087,7 @@ textarea.form-input { resize:vertical; min-height:90px; }
       <button class="btn btn-primary btn-full" onclick="login()" style="margin-bottom:0.75rem">Entrar</button>
       <div class="divider-text"><span>ou</span></div>
       <button class="btn btn-secondary btn-full" onclick="closeModal('loginModal');setTimeout(()=>openModal('registerModal'),150)">Criar conta grátis</button>
-      <p style="font-size:0.78rem;color:var(--text3);text-align:center;margin-top:10px">
-        Admin: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="fe9f9a939790be8b8d9b97d09f8e8e">[email&#160;protected]</a> / admin123
-      </p>
+
     </div>
   </div>
 </div>
@@ -1273,23 +1378,89 @@ textarea.form-input { resize:vertical; min-height:90px; }
 // DATA STORE (localStorage)
 // ============================================================
 const DB = {
-  get: k => { try { return JSON.parse(localStorage.getItem('usei_'+k)) || null; } catch(e){ return null; } },
-  set: (k,v) => localStorage.setItem('usei_'+k, JSON.stringify(v)),
+  get: k => { try { return JSON.parse(localStorage.getItem(k.startsWith('usei_')?k:'usei_'+k)) || null; } catch(e){ return null; } },
+  set: (k,v) => localStorage.setItem(k.startsWith('usei_')?k:'usei_'+k, JSON.stringify(v)),
   users: () => DB.get('users') || [],
   products: () => DB.get('products') || [],
   orders: () => DB.get('orders') || [],
   transactions: () => DB.get('transactions') || [],
-  currentUser: () => DB.get('currentUser'),
+  currentUser: () => DB.get('currentUser') || DB.get('current_user'),
+  saveProducts: (p) => DB.set('products', p),
+  saveOrders: (o) => DB.set('orders', o),
 };
 
 // ============================================================
 // SEED DATA
 // ============================================================
+// ============================================================
+// ADMIN MASTER SETUP - Primeiro acesso cria conta master
+// ============================================================
+function getAdminConfig() {
+  return DB.get('usei_admin_config') || null;
+}
+
+function hasAdminSetup() {
+  return !!getAdminConfig();
+}
+
+function setupAdminAccount(name, email, password) {
+  const cfg = { name, email, password: btoa(password), createdAt: new Date().toISOString() };
+  DB.set('usei_admin_config', cfg);
+  // Criar/atualizar o usuário admin
+  const users = DB.get('users') || [];
+  const existing = users.findIndex(u => u.role === 'admin');
+  const adminUser = { id: 1, name, email, phone:'', password, role:'admin', createdAt: cfg.createdAt };
+  if(existing >= 0) users[existing] = adminUser;
+  else users.unshift(adminUser);
+  DB.set('users', users);
+  return adminUser;
+}
+
+function getAdminEmails() {
+  return DB.get('usei_admin_emails') || [];
+}
+
+function addAdminEmail(email) {
+  const list = getAdminEmails();
+  if(!list.includes(email)) { list.push(email); DB.set('usei_admin_emails', list); }
+}
+
+function removeAdminEmail(email) {
+  const list = getAdminEmails().filter(e => e !== email);
+  DB.set('usei_admin_emails', list);
+}
+
+function openAdminSetup() {
+  document.getElementById('adminSetupModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAdminSetup() {
+  document.getElementById('adminSetupModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function submitAdminSetup() {
+  const name = document.getElementById('setupName').value.trim();
+  const email = document.getElementById('setupEmail').value.trim();
+  const pass = document.getElementById('setupPass').value;
+  const pass2 = document.getElementById('setupPass2').value;
+  if(!name || !email || !pass) { toast('❌ Preencha todos os campos'); return; }
+  if(pass !== pass2) { toast('❌ Senhas não coincidem'); return; }
+  if(pass.length < 8) { toast('❌ Senha deve ter no mínimo 8 caracteres'); return; }
+  const admin = setupAdminAccount(name, email, pass);
+  closeAdminSetup();
+  toast('✅ Conta master criada com sucesso!');
+  // Auto-login
+  DB.set('current_user', admin);
+  renderNav();
+  goTo('admin');
+}
+
 function seedData() {
   if(DB.get('seeded')) return;
   
   DB.set('users', [
-    { id:1, name:'Admin USEI', email:'admin@usei.app', phone:'(11) 97825-0549', password:'admin123', role:'admin', createdAt:'2024-01-01' },
     { id:2, name:'Maria Silva', email:'maria@email.com', phone:'(11) 91234-5678', password:'123456', role:'user', createdAt:'2024-01-15' },
     { id:3, name:'João Santos', email:'joao@email.com', phone:'(11) 99876-5432', password:'123456', role:'creator', createdAt:'2024-01-20' },
   ]);
@@ -1383,6 +1554,15 @@ function login() {
   const users = DB.users();
   const user = users.find(u => u.email === email && u.password === pass);
   if(!user) { toast('❌ Email ou senha incorretos'); return; }
+  if(user.banned) { toast('❌ Conta suspensa. Entre em contato com o suporte.'); return; }
+  // Verificar se email está na lista de admins adicionais
+  const adminEmails = getAdminEmails ? getAdminEmails() : [];
+  if(adminEmails.includes(email) && user.role !== 'admin') {
+    user.role = 'admin';
+    const allUsers = DB.get('users') || [];
+    const idx = allUsers.findIndex(u => u.id === user.id);
+    if(idx >= 0) { allUsers[idx].role = 'admin'; DB.set('users', allUsers); }
+  }
   DB.set('currentUser', user);
   closeModal('loginModal');
   updateNavForUser(user);
@@ -1915,25 +2095,34 @@ function renderBarChart(id, labels, values, color) {
 // CLOUDINARY CONFIG
 // ============================================================
 function getCloudinaryConfig() {
+  // Admin configura globalmente; todos os usuários usam o mesmo preset
+  const global = DB.get('usei_cloudinary') || {};
   return {
-    cloudName: localStorage.getItem('usei_cf_cloud') || '',
-    uploadPreset: localStorage.getItem('usei_cf_preset') || '',
+    cloudName: global.cloudName || localStorage.getItem('usei_cf_cloud') || '',
+    uploadPreset: global.uploadPreset || localStorage.getItem('usei_cf_preset') || '',
   };
+}
+
+function saveCloudinaryGlobal(cloudName, uploadPreset) {
+  DB.set('usei_cloudinary', { cloudName, uploadPreset });
+  localStorage.setItem('usei_cf_cloud', cloudName);
+  localStorage.setItem('usei_cf_preset', uploadPreset);
 }
 
 function saveCloudinaryConfig() {
   const cn = document.getElementById('cfCloudName').value.trim();
   const up = document.getElementById('cfUploadPreset').value.trim();
   if(!cn || !up) { toast('Preencha Cloud Name e Upload Preset'); return; }
-  localStorage.setItem('usei_cf_cloud', cn);
-  localStorage.setItem('usei_cf_preset', up);
+  saveCloudinaryGlobal(cn, up);
   const fb = document.getElementById('cloudinaryFeedback');
-  fb.style.display = 'block';
-  fb.style.cssText = 'font-size:0.78rem;margin-top:8px;padding:8px 10px;border-radius:6px;background:#E8F8EE;color:#1A7A3C';
-  fb.textContent = '✅ Configuração salva! Seus próximos uploads irão para o Cloudinary.';
-  document.getElementById('cloudinaryStatusMsg').textContent = '✅ Cloudinary configurado! Suas fotos serão hospedadas online.';
-  document.getElementById('cloudinaryStatusMsg').style.color = '#1A7A3C';
-  toast('✅ Cloudinary configurado!');
+  if(fb) {
+    fb.style.display = 'block';
+    fb.style.cssText = 'font-size:0.78rem;margin-top:8px;padding:8px 10px;border-radius:6px;background:#E8F8EE;color:#1A7A3C';
+    fb.textContent = '✅ Configurado globalmente! Todos os usuários poderão fazer upload de fotos.';
+  }
+  const sm = document.getElementById('cloudinaryStatusMsg');
+  if(sm) { sm.textContent = '✅ Cloudinary ativo para todos os usuários!'; sm.style.color = '#1A7A3C'; }
+  toast('✅ Cloudinary configurado para todos!');
 }
 
 function toggleCloudinaryConfig() {
@@ -2118,69 +2307,198 @@ async function saveProduct() {
 // ADMIN
 // ============================================================
 function renderAdmin() {
-  const users = DB.users();
+  const user = DB.get('current_user');
+  if(!user || user.role !== 'admin') { goTo('landing'); toast('❌ Acesso restrito'); return; }
+  
+  const users = DB.get('users') || [];
   const products = DB.products();
   const orders = DB.orders();
-  const txs = DB.transactions();
-  const revenue = txs.reduce((acc,t) => acc+(t.value||0),0);
-  
-  document.getElementById('adminUsersCount').textContent = users.length;
-  document.getElementById('adminProductsCount').textContent = products.length;
-  document.getElementById('adminOrdersCount').textContent = orders.length;
-  document.getElementById('adminRevenue').textContent = 'R$ '+revenue.toLocaleString('pt-BR');
-  
-  // Activity
+  const txs = DB.get('transactions') || [];
+  const revenue = txs.reduce((a,t)=>a+(t.value||0),0);
+  const activeProducts = products.filter(p=>p.active).length;
+  const pendingOrders = orders.filter(o=>o.status==='pendente').length;
+
+  // Atualizar métricas
+  const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  set('adminUsersCount', users.length);
+  set('adminProductsCount', products.length);
+  set('adminOrdersCount', orders.length);
+  set('adminRevenue', 'R$ '+revenue.toLocaleString('pt-BR',{minimumFractionDigits:2}));
+  set('adminActiveProducts', activeProducts);
+  set('adminPendingOrders', pendingOrders);
+  set('adminCreatorsCount', users.filter(u=>u.role==='creator'||u.role==='admin').length);
+
+  // Config Cloudinary status
+  const cfg = getCloudinaryConfig();
+  set('adminCloudinaryStatus', cfg.cloudName ? '✅ '+cfg.cloudName : '❌ Não configurado');
+  // Populate Cloudinary admin fields if configured
+  const cfAdmin = document.getElementById('cfCloudNameAdmin');
+  const upAdmin = document.getElementById('cfPresetAdmin');
+  if(cfAdmin && cfg.cloudName) cfAdmin.value = cfg.cloudName;
+  if(upAdmin && cfg.uploadPreset) upAdmin.value = cfg.uploadPreset;
+  // Settings tab
+  set('settingsUsersCount', users.length);
+  set('settingsProductsCount', products.length);
+  set('settingsCloudinary', cfg.cloudName ? '✅ Ativo: '+cfg.cloudName : '❌ Não configurado');
+
+  // Admin emails list
+  const adminEmails = getAdminEmails();
+  const ael = document.getElementById('adminEmailsList');
+  if(ael) ael.innerHTML = adminEmails.length > 0
+    ? adminEmails.map(e=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:0.9rem">${e}</span>
+        <button onclick="removeAdminEmail('${e}');renderAdmin()" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:0.8rem">✕ Remover</button>
+      </div>`).join('')
+    : '<p style="color:var(--text3);font-size:0.85rem">Nenhum e-mail admin adicional</p>';
+
+  // Atividade recente
   const activities = [
-    ...orders.map(o => ({date:o.date, msg:`🛒 ${o.buyerName} — ${o.type==='rent'?'alugou':'comprou'} ${o.productName}`, val:'R$ '+Number(o.value).toLocaleString('pt-BR')})),
-    ...users.map(u => ({date:u.createdAt, msg:`👤 Novo usuário: ${u.name}`, val:'—'})),
-  ].sort((a,b)=>b.date?.localeCompare(a.date||'')||0).slice(0,8);
-  
-  document.getElementById('adminActivity').innerHTML = activities.map(a =>
-    `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.85rem">
+    ...orders.map(o=>({date:o.date,msg:`🛒 <b>${o.buyerName||'?'}</b> ${o.type==='rent'?'alugou':'comprou'} <b>${o.productName}</b>`,val:'R$ '+Number(o.value||0).toLocaleString('pt-BR')})),
+    ...users.map(u=>({date:u.createdAt,msg:`👤 Novo cadastro: <b>${u.name}</b>`,val:u.role})),
+  ].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,10);
+
+  const actEl = document.getElementById('adminActivity');
+  if(actEl) actEl.innerHTML = activities.map(a=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:0.85rem">
       <span>${a.msg}</span>
-      <div style="display:flex;gap:1rem;color:var(--text2)"><span>${a.val}</span><span>${a.date||''}</span></div>
-    </div>`
-  ).join('') || '<p style="color:var(--text3);font-size:0.85rem">Sem atividade ainda</p>';
-  
-  // Users table
+      <div style="display:flex;gap:12px;color:var(--text2);white-space:nowrap">
+        <span style="color:var(--brand-dark);font-weight:600">${a.val}</span>
+        <span>${a.date||''}</span>
+      </div>
+    </div>`).join('') || '<p style="color:var(--text3)">Sem atividade</p>';
+
   renderAdminUsers(users);
-  
-  // Products
-  document.getElementById('adminProductsTbody').innerHTML = products.map((p,i) =>
-    `<tr><td style="color:var(--text3)">${i+1}</td>
-    <td>${p.emoji||'📦'} ${p.name}</td>
-    <td>${categoryLabel(p.category)}</td>
-    <td>${p.type==='both'?'Ambos':p.type==='rent'?'Aluguel':'Venda'}</td>
-    <td>${p.salePrice?'R$ '+p.salePrice.toLocaleString('pt-BR'):'—'}</td>
-    <td>${p.rentPrice?'R$ '+p.rentPrice+'/dia':'—'}</td>
-    <td>${p.ownerName||'—'}</td>
-    <td><span class="badge ${p.active?'badge-success':'badge-gray'}">${p.active?'Ativo':'Inativo'}</span></td></tr>`
-  ).join('');
-  
-  // Orders
-  document.getElementById('adminOrdersTbody').innerHTML = orders.map((o,i) =>
-    `<tr><td style="color:var(--text3)">${i+1}</td>
-    <td>${o.productEmoji||'📦'} ${o.productName}</td>
-    <td>${o.buyerName}</td>
-    <td>${o.type==='rent'?'🔄 Aluguel':'🛒 Venda'}</td>
-    <td>R$ ${Number(o.value).toLocaleString('pt-BR')}</td>
-    <td>${o.date}</td>
-    <td><span class="badge ${o.status==='entregue'?'badge-success':o.status==='confirmado'?'badge-info':'badge-warning'}">${o.status}</span></td></tr>`
-  ).join('');
-  
-  // Transactions
-  document.getElementById('adminTransactionsTbody').innerHTML = txs.map((t,i) =>
-    `<tr><td style="color:var(--text3)">${i+1}</td>
-    <td style="font-size:0.75rem;color:var(--text3)">#${t.id}</td>
-    <td>${t.userName}</td>
-    <td>${t.productName}</td>
-    <td>R$ ${Number(t.value).toLocaleString('pt-BR')}</td>
-    <td>${t.method}</td>
-    <td>${t.date}</td>
-    <td><span class="badge ${t.status==='aprovado'?'badge-success':'badge-warning'}">${t.status}</span></td></tr>`
-  ).join('');
+
+  // Produtos
+  const ptb = document.getElementById('adminProductsTbody');
+  if(ptb) ptb.innerHTML = products.map((p,i)=>`
+    <tr>
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="max-width:180px">
+        ${(p.mainImage||p.images?.[0]) ? `<img src="${p.mainImage||p.images[0]}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:6px" onerror="this.style.display='none'">` : `<span>${p.emoji||'📦'}</span> `}
+        <span style="vertical-align:middle">${p.name}</span>
+      </td>
+      <td>${categoryLabel(p.category)}</td>
+      <td>${p.type==='both'?'Ambos':p.type==='rent'?'Aluguel':'Venda'}</td>
+      <td>${p.salePrice?'R$ '+Number(p.salePrice).toLocaleString('pt-BR'):'—'}</td>
+      <td>${p.rentPrice?'R$ '+p.rentPrice+'/dia':'—'}</td>
+      <td>${p.ownerName||'—'}</td>
+      <td><span style="padding:3px 8px;border-radius:20px;font-size:0.75rem;font-weight:600;background:${p.active?'#E8F5E9':'#FFEBEE'};color:${p.active?'#2E7D32':'#C62828'}">${p.active?'Ativo':'Inativo'}</span></td>
+      <td>
+        <button onclick="adminToggleProduct(${p.id})" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.75rem">${p.active?'Pausar':'Ativar'}</button>
+        <button onclick="adminDeleteProduct(${p.id})" style="background:none;border:1px solid #ffcdd2;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.75rem;color:#c62828;margin-left:4px">Excluir</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px">Nenhum produto</td></tr>';
+
+  // Pedidos
+  const otb = document.getElementById('adminOrdersTbody');
+  if(otb) otb.innerHTML = orders.map((o,i)=>`
+    <tr>
+      <td style="color:var(--text3)">#${o.id}</td>
+      <td>${o.productEmoji||'📦'} ${o.productName}</td>
+      <td>${o.buyerName||'—'}</td>
+      <td>${o.type==='rent'?'🔄 Aluguel':'🛒 Venda'}</td>
+      <td style="font-weight:600;color:var(--brand-dark)">R$ ${Number(o.value||0).toLocaleString('pt-BR')}</td>
+      <td>${o.date||'—'}</td>
+      <td>
+        <select onchange="adminUpdateOrderStatus(${o.id},this.value)" style="border:1px solid var(--border2);border-radius:6px;padding:3px 6px;font-size:0.8rem">
+          ${['pendente','confirmado','entregue','cancelado'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Nenhum pedido</td></tr>';
+
+  // Transações
+  const ttb = document.getElementById('adminTransactionsTbody');
+  if(ttb) ttb.innerHTML = txs.map((t,i)=>`
+    <tr>
+      <td style="color:var(--text3);font-size:0.8rem">#${t.id}</td>
+      <td>${t.userName||'—'}</td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">${t.productName||'—'}</td>
+      <td style="font-weight:600;color:var(--brand-dark)">R$ ${Number(t.value||0).toLocaleString('pt-BR')}</td>
+      <td>${t.method||'—'}</td>
+      <td>${t.date||'—'}</td>
+      <td><span style="padding:3px 8px;border-radius:20px;font-size:0.75rem;font-weight:600;background:${t.status==='aprovado'?'#E8F5E9':'#FFF8E1'};color:${t.status==='aprovado'?'#2E7D32':'#F57F17'}">${t.status||'—'}</span></td>
+    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Nenhuma transação</td></tr>';
 }
 
+function adminToggleProduct(id) {
+  const products = DB.products();
+  const p = products.find(x=>x.id===id);
+  if(p) { p.active = !p.active; DB.saveProducts(products); renderAdmin(); toast(p.active?'✅ Produto ativado':'⏸️ Produto pausado'); }
+}
+
+function adminDeleteProduct(id) {
+  if(!confirm('Excluir este produto permanentemente?')) return;
+  DB.saveProducts(DB.products().filter(p=>p.id!==id));
+  renderAdmin(); toast('🗑️ Produto excluído');
+}
+
+function adminUpdateOrderStatus(id, status) {
+  const orders = DB.orders();
+  const o = orders.find(x=>x.id===id);
+  if(o) { o.status = status; DB.saveOrders(orders); toast('✅ Status atualizado'); }
+}
+
+function adminBanUser(id) {
+  if(!confirm('Banir este usuário?')) return;
+  const users = DB.get('users')||[];
+  const u = users.find(x=>x.id===id);
+  if(u) { u.banned=true; DB.set('users',users); renderAdmin(); toast('🚫 Usuário banido'); }
+}
+
+function adminUnbanUser(id) {
+  const users = DB.get('users')||[];
+  const u = users.find(x=>x.id===id);
+  if(u) { u.banned=false; DB.set('users',users); renderAdmin(); toast('✅ Usuário desbanido'); }
+}
+
+function adminDeleteUser(id) {
+  const user = DB.get('current_user');
+  if(user && user.id===id) { toast('❌ Não pode excluir a si mesmo'); return; }
+  if(!confirm('Excluir este usuário permanentemente?')) return;
+  DB.set('users',(DB.get('users')||[]).filter(u=>u.id!==id));
+  renderAdmin(); toast('🗑️ Usuário excluído');
+}
+
+function adminAddEmail() {
+  const email = document.getElementById('newAdminEmail')?.value?.trim();
+  if(!email || !email.includes('@')) { toast('❌ E-mail inválido'); return; }
+  addAdminEmail(email);
+  if(document.getElementById('newAdminEmail')) document.getElementById('newAdminEmail').value='';
+  // Atualizar role do usuário se existir
+  const users = DB.get('users')||[];
+  const u = users.find(x=>x.email===email);
+  if(u) { u.role='admin'; DB.set('users',users); }
+  renderAdmin(); toast('✅ E-mail admin adicionado');
+}
+
+function adminExportData() {
+  const data = {
+    users: DB.get('users')||[],
+    products: DB.products(),
+    orders: DB.orders(),
+    transactions: DB.get('transactions')||[],
+    exportedAt: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'usei-backup-'+new Date().toISOString().split('T')[0]+'.json';
+  a.click();
+  toast('✅ Dados exportados!');
+}
+
+function adminResetPlatform() {
+  if(!confirm('⚠️ ATENÇÃO: Isso apagará TODOS os dados da plataforma exceto a conta admin. Confirma?')) return;
+  if(!confirm('Tem CERTEZA ABSOLUTA? Esta ação é irreversível!')) return;
+  const admin = DB.get('usei_admin_config');
+  const adminUser = (DB.get('users')||[]).find(u=>u.role==='admin');
+  localStorage.clear();
+  if(admin) DB.set('usei_admin_config', admin);
+  if(adminUser) DB.set('users',[adminUser]);
+  toast('🔄 Plataforma resetada');
+  renderAdmin();
+}
 function renderAdminUsers(users) {
   document.getElementById('adminUsersTbody').innerHTML = users.map((u,i) =>
     `<tr>
@@ -2474,8 +2792,77 @@ seedData();
   }
 })();
 
+// Helper functions for new admin tabs
+function saveAdminCloudinary() {
+  const cn = document.getElementById('cfCloudNameAdmin')?.value?.trim();
+  const up = document.getElementById('cfPresetAdmin')?.value?.trim();
+  if(!cn || !up) { toast('❌ Preencha Cloud Name e Upload Preset'); return; }
+  saveCloudinaryGlobal(cn, up);
+  renderAdmin();
+  toast('✅ Cloudinary configurado para todos os usuários!');
+}
+
+function openChangeAdminPass() {
+  const newPass = prompt('Digite a nova senha master (mín. 8 caracteres):');
+  if(!newPass) return;
+  if(newPass.length < 8) { toast('❌ Senha deve ter no mínimo 8 caracteres'); return; }
+  const confirm = prompt('Confirme a nova senha:');
+  if(newPass !== confirm) { toast('❌ Senhas não coincidem'); return; }
+  const cfg = DB.get('usei_admin_config');
+  if(cfg) {
+    cfg.password = btoa(newPass);
+    DB.set('usei_admin_config', cfg);
+  }
+  // Atualizar também no array de usuários
+  const users = DB.get('users') || [];
+  const admin = users.find(u => u.role === 'admin');
+  if(admin) { admin.password = newPass; DB.set('users', users); }
+  // Atualizar sessão atual
+  const current = DB.get('current_user');
+  if(current && current.role === 'admin') { current.password = newPass; DB.set('current_user', current); }
+  toast('✅ Senha alterada com sucesso!');
+}
+
 renderNav();
-goTo('landing');
+// Verificar se precisa de setup inicial do admin
+if(!hasAdminSetup()) {
+  goTo('landing');
+  setTimeout(() => openAdminSetup(), 500);
+} else {
+  goTo('landing');
+}
 </script>
+
+<!-- ===================== ADMIN SETUP MODAL ===================== -->
+<div id="adminSetupModal" style="display:none;position:fixed;inset:0;background:rgba(11,31,58,0.85);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:20px;padding:40px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:3rem;margin-bottom:8px">🔐</div>
+      <h2 style="font-family:'Syne',sans-serif;font-size:1.6rem;color:#0B1F3A;font-weight:800">Configurar Conta Master</h2>
+      <p style="color:#4A5C72;font-size:0.95rem;margin-top:8px">Esta é a primeira vez que o sistema é acessado. Configure a conta de administrador mestre.</p>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="display:block;font-weight:600;color:#0B1F3A;margin-bottom:6px;font-size:0.9rem">Seu Nome</label>
+      <input id="setupName" type="text" placeholder="Nome completo" style="width:100%;padding:12px 16px;border:2px solid rgba(11,31,58,0.15);border-radius:12px;font-size:0.95rem;box-sizing:border-box;font-family:'DM Sans',sans-serif">
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="display:block;font-weight:600;color:#0B1F3A;margin-bottom:6px;font-size:0.9rem">E-mail do Admin</label>
+      <input id="setupEmail" type="email" placeholder="admin@suaplataforma.com" style="width:100%;padding:12px 16px;border:2px solid rgba(11,31,58,0.15);border-radius:12px;font-size:0.95rem;box-sizing:border-box;font-family:'DM Sans',sans-serif">
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="display:block;font-weight:600;color:#0B1F3A;margin-bottom:6px;font-size:0.9rem">Senha (mín. 8 caracteres)</label>
+      <input id="setupPass" type="password" placeholder="••••••••" style="width:100%;padding:12px 16px;border:2px solid rgba(11,31,58,0.15);border-radius:12px;font-size:0.95rem;box-sizing:border-box;font-family:'DM Sans',sans-serif">
+    </div>
+    <div style="margin-bottom:24px">
+      <label style="display:block;font-weight:600;color:#0B1F3A;margin-bottom:6px;font-size:0.9rem">Confirmar Senha</label>
+      <input id="setupPass2" type="password" placeholder="••••••••" style="width:100%;padding:12px 16px;border:2px solid rgba(11,31,58,0.15);border-radius:12px;font-size:0.95rem;box-sizing:border-box;font-family:'DM Sans',sans-serif">
+    </div>
+    <button onclick="submitAdminSetup()" style="width:100%;padding:14px;background:#8BBF00;color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">
+      🚀 Criar Conta Master
+    </button>
+    <p style="text-align:center;margin-top:16px;font-size:0.8rem;color:#8A9BB0">Esta configuração é salva localmente e não pode ser recuperada se perdida.</p>
+  </div>
+</div>
+
 </body>
 </html>
