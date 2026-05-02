@@ -1431,6 +1431,12 @@ function removeAdminEmail(email) {
 }
 
 function openAdminSetup() {
+  // Só abre se vier com o token correto na URL
+  const hash = window.location.hash;
+  if(!hash.startsWith('#setup-')) {
+    console.warn('Setup bloqueado: token não fornecido');
+    return;
+  }
   document.getElementById('adminSetupModal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
@@ -1448,10 +1454,17 @@ function submitAdminSetup() {
   if(!name || !email || !pass) { toast('❌ Preencha todos os campos'); return; }
   if(pass !== pass2) { toast('❌ Senhas não coincidem'); return; }
   if(pass.length < 8) { toast('❌ Senha deve ter no mínimo 8 caracteres'); return; }
+  // Verificar token novamente por segurança
+  if(!window.location.hash.startsWith('#setup-')) {
+    toast('❌ Acesso não autorizado');
+    closeAdminSetup();
+    return;
+  }
   const admin = setupAdminAccount(name, email, pass);
   closeAdminSetup();
-  toast('✅ Conta master criada com sucesso!');
-  // Auto-login
+  // Remover token da URL após configurar
+  history.replaceState(null, '', window.location.pathname);
+  toast('✅ Conta master criada! Guarde bem o seu e-mail e senha.');
   DB.set('current_user', admin);
   renderNav();
   goTo('admin');
@@ -2825,7 +2838,7 @@ function openChangeAdminPass() {
 
 renderNav();
 // Verificar se precisa de setup inicial do admin
-if(!hasAdminSetup()) {
+if(!hasAdminSetup() && window.location.hash.startsWith('#setup-')) {
   goTo('landing');
   setTimeout(() => openAdminSetup(), 500);
 } else {
