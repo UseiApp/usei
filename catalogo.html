@@ -964,7 +964,7 @@ function openProduct(id) {
   const catLabel = {eletronicos:'Eletrônicos',ferramentas:'Ferramentas',esportes:'Esportes',moda:'Moda',casa:'Casa',veiculos:'Veículos',games:'Games',outros:'Outros'}[p.cat]||p.cat||'';
   document.getElementById('page-productDetail').innerHTML = `
     <div style="padding:16px 0">
-      <button class="btn btn-ghost btn-sm" onclick="history.back();goTo('catalog')" style="margin-bottom:12px">← Voltar</button>
+      <button class="btn btn-ghost btn-sm" onclick="goTo('catalog')" style="margin-bottom:12px">← Voltar ao catálogo</button>
       <div class="detail-grid">
         <div>
           <div class="detail-main-img" id="mainImgWrap">
