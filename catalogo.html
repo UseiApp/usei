@@ -542,20 +542,28 @@ const DB = {
   // --- Escrever no JSONBin ---
   async _write(data) {
     const cfg = this.getBinConfig();
-    // Sempre salva local primeiro
-    ['users','products','orders','txs'].forEach(k => {
-      if(data[k] !== undefined) this.setLocal(k, data[k]);
-    });
-    this._cache.data = data;
-    this._cacheTime.data = Date.now();
+    // Salva local SEMPRE — nunca falha
+    try {
+      ['users','products','orders','txs'].forEach(k => {
+        if(data[k] !== undefined) this.setLocal(k, data[k]);
+      });
+      this._cache.data = data;
+      this._cacheTime.data = Date.now();
+    } catch(e) { console.warn('localStorage write failed:', e); }
+
+    // JSONBin em background — nunca bloqueia nem relança
     if(!cfg || !cfg.binId || !cfg.apiKey) return;
     try {
-      await fetch(`https://api.jsonbin.io/v3/b/${cfg.binId}`, {
+      const res = await fetch(`https://api.jsonbin.io/v3/b/${cfg.binId}`, {
         method: 'PUT',
-        headers: { 'Content-Type':'application/json', 'X-Master-Key': cfg.apiKey },
+        headers: { 'Content-Type': 'application/json', 'X-Master-Key': cfg.apiKey },
         body: JSON.stringify(data)
       });
-    } catch(e) { console.warn('JSONBin write failed:', e.message); }
+      if(!res.ok) console.warn('JSONBin write HTTP error:', res.status);
+    } catch(e) {
+      console.warn('JSONBin write failed (sem conexão?):', e.message);
+      // Não relança — dados já estão salvos localmente
+    }
   },
 
   // --- Estado carregado em memória ---
@@ -872,74 +880,117 @@ function renderImagePreviews() {
     </div>`).join('');
 }
 async function uploadAllImages() {
+  if(!_images || _images.length === 0) return [];
   const cfg = getCloudinaryConfig();
-  const hasCloudinary = cfg.cloudName && cfg.uploadPreset;
+  const hasCloudinary = !!(cfg.cloudName && cfg.uploadPreset);
   const results = [];
-  const bar = document.getElementById('uploadFill');
+  const bar    = document.getElementById('uploadFill');
   const status = document.getElementById('uploadStatus');
-  document.getElementById('uploadProgress').style.display = 'block';
-  for(let i=0; i<_images.length; i++) {
-    status.textContent = `Enviando foto ${i+1} de ${_images.length}...`;
-    bar.style.width = Math.round((i/_images.length)*90) + '%';
+  const prog   = document.getElementById('uploadProgress');
+  if(prog) prog.style.display = 'block';
+
+  for(let i = 0; i < _images.length; i++) {
+    const img = _images[i];
+    if(!img) continue;
+    if(status) status.textContent = `Enviando foto ${i+1} de ${_images.length}...`;
+    if(bar) bar.style.width = Math.round((i / _images.length) * 90) + '%';
+
     let url = null;
-    if(hasCloudinary && _images[i].file.size > 0) {
-      url = await uploadToCloudinary(_images[i].file);
+    try {
+      if(hasCloudinary && img.file && img.file.size > 0) {
+        url = await uploadToCloudinary(img.file);
+      }
+    } catch(e) {
+      console.warn('Cloudinary upload falhou para imagem', i, e);
     }
-    results.push(url || _images[i].preview);
+
+    // Se upload falhou ou Cloudinary não configurado, usa preview base64
+    results.push(url || img.preview || null);
   }
-  bar.style.width = '100%';
-  status.textContent = _images.length > 0 ? 'Fotos enviadas!' : '';
-  setTimeout(() => { document.getElementById('uploadProgress').style.display='none'; }, 800);
-  return results;
+
+  if(bar) bar.style.width = '100%';
+  if(status) status.textContent = hasCloudinary ? 'Fotos enviadas!' : 'Fotos salvas localmente';
+  setTimeout(() => { if(prog) prog.style.display = 'none'; }, 1000);
+  return results.filter(Boolean);
 }
 
 // ================================================================
 // PRODUCT PUBLISH
 // ================================================================
 async function publishProduct() {
-  const name     = document.getElementById('pName').value.trim();
-  const cat      = document.getElementById('pCat').value;
-  const type     = document.getElementById('pType').value;
-  const salePrice  = parseFloat(document.getElementById('pSalePrice').value)||0;
-  const rentPrice  = parseFloat(document.getElementById('pRentPrice').value)||0;
-  const desc     = document.getElementById('pDesc').value.trim();
-  const location = document.getElementById('pLocation').value.trim();
-  if(!name||!cat) { toast('Preencha nome e categoria'); return; }
-  if(type==='sale'&&!salePrice) { toast('Informe o preço de venda'); return; }
-  if(type==='rent'&&!rentPrice) { toast('Informe o preço de aluguel'); return; }
+  const name      = document.getElementById('pName').value.trim();
+  const cat       = document.getElementById('pCat').value;
+  const type      = document.getElementById('pType').value;
+  const salePrice = parseFloat(document.getElementById('pSalePrice').value) || 0;
+  const rentPrice = parseFloat(document.getElementById('pRentPrice').value) || 0;
+  const desc      = document.getElementById('pDesc').value.trim();
+  const location  = document.getElementById('pLocation').value.trim();
+
+  // Validações
+  if(!name || !cat) { toast('Preencha nome e categoria'); return; }
+  if(type === 'sale' && !salePrice)  { toast('Informe o preço de venda'); return; }
+  if(type === 'rent' && !rentPrice)  { toast('Informe o preço de aluguel'); return; }
+  if(type === 'both' && !salePrice && !rentPrice) { toast('Informe pelo menos um preço'); return; }
+
   const u = DB.currentUser();
-  if(!u) { toast('Faça login primeiro'); return; }
+  if(!u) { toast('Faça login para publicar'); closeModal('modalAddProduct'); openModal('modalLogin'); return; }
+
   const btn = document.getElementById('btnPublish');
-  btn.disabled = true; btn.textContent = 'Publicando...';
+  if(btn) { btn.disabled = true; btn.textContent = 'Publicando...'; }
+
+  let images = [];
+
+  // Upload de imagens (separado do resto para isolar erros)
   try {
-    const images = await uploadAllImages();
+    images = await uploadAllImages();
+    images = (images || []).filter(img => img && img.length > 0);
+  } catch(uploadErr) {
+    console.warn('Erro no upload de imagens, continuando sem fotos:', uploadErr);
+    // Usar previews base64 diretamente como fallback
+    images = (_images || []).map(i => i.preview).filter(Boolean);
+  }
+
+  // Montar e salvar produto
+  try {
     const p = {
-      id: Date.now(), name, cat, type, salePrice, rentPrice, desc, location,
-      images: images.filter(Boolean),
-      mainImage: images.filter(Boolean)[0] || null,
-      ownerId: u.id, ownerName: u.name, ownerEmail: u.email,
-      active: true, createdAt: new Date().toISOString(),
+      id: Date.now(),
+      name, cat, type,
+      salePrice: Number(salePrice),
+      rentPrice: Number(rentPrice),
+      desc, location,
+      images,
+      mainImage: images[0] || null,
+      ownerId: u.id,
+      ownerName: u.name,
+      ownerEmail: u.email,
+      active: true,
+      createdAt: new Date().toISOString(),
     };
+
     const products = DB.products();
     products.unshift(p);
-    DB.saveProducts(products);
-    // Promoção automática para creator
-    if(u.role==='user') {
-      u.role='creator';
+    DB.saveProducts(products); // salva local imediatamente
+
+    // Promoção automática para creator (em background)
+    if(u.role === 'user') {
+      u.role = 'creator';
       DB.setSession(u);
       const users = DB.users();
-      const idx = users.findIndex(x=>x.id===u.id);
-      if(idx>=0) { users[idx]=u; DB.saveUsers(users); }
+      const idx = users.findIndex(x => x.id === u.id);
+      if(idx >= 0) { users[idx] = u; DB.saveUsers(users); }
+      renderNav();
     }
+
     closeModal('modalAddProduct');
-    toast('Produto publicado!');
+    toast('Produto publicado com sucesso!');
     resetProductForm();
-    renderNav();
     goTo('creatorDashboard');
+
   } catch(err) {
-    toast('Erro ao publicar. Tente novamente.');
+    console.error('Erro ao salvar produto:', err);
+    toast('Erro ao salvar produto. Verifique sua conexão e tente novamente.');
   } finally {
-    btn.disabled = false; btn.textContent = 'Publicar produto';
+    if(btn) { btn.disabled = false; btn.textContent = 'Publicar produto'; }
   }
 }
 function resetProductForm() {
