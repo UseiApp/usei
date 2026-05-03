@@ -298,6 +298,7 @@ tr:hover td{background:var(--surface2)}
 @media(max-width:360px){
   .products-grid{grid-template-columns:1fr}
 }
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -487,31 +488,124 @@ tr:hover td{background:var(--surface2)}
 
 <script>
 // ================================================================
-// DB — camada de acesso ao localStorage
+// DB — banco compartilhado via JSONBin.io + localStorage para sessão
 // ================================================================
 const DB = {
   PREFIX: 'usei2_',
-  get(k) { try { return JSON.parse(localStorage.getItem(this.PREFIX + k)); } catch { return null; } },
-  set(k, v) { localStorage.setItem(this.PREFIX + k, JSON.stringify(v)); },
-  rm(k) { localStorage.removeItem(this.PREFIX + k); },
+
+  // --- LOCAL (sessão e config) ---
+  getLocal(k)    { try { return JSON.parse(localStorage.getItem(this.PREFIX + k)); } catch { return null; } },
+  setLocal(k, v) { localStorage.setItem(this.PREFIX + k, JSON.stringify(v)); },
+  rmLocal(k)     { localStorage.removeItem(this.PREFIX + k); },
+
+  // --- JSONBin config ---
+  getBinConfig() { return this.getLocal('bin_config') || null; },
+  setBinConfig(cfg) { this.setLocal('bin_config', cfg); },
+
+  // --- Cache local para leitura rápida ---
+  _cache: {},
+  _cacheTime: {},
+  CACHE_TTL: 15000, // 15s
+
+  // --- Ler do JSONBin ---
+  async _read() {
+    const cfg = this.getBinConfig();
+    if(!cfg || !cfg.binId || !cfg.apiKey) return this._readLocal();
+    const now = Date.now();
+    if(this._cache.data && (now - this._cacheTime.data) < this.CACHE_TTL) return this._cache.data;
+    try {
+      const res = await fetch(`https://api.jsonbin.io/v3/b/${cfg.binId}/latest`, {
+        headers: { 'X-Master-Key': cfg.apiKey }
+      });
+      if(!res.ok) return this._readLocal();
+      const json = await res.json();
+      const data = json.record;
+      this._cache.data = data;
+      this._cacheTime.data = now;
+      // Sincronizar local
+      ['users','products','orders','txs'].forEach(k => {
+        if(data[k]) this.setLocal(k, data[k]);
+      });
+      return data;
+    } catch { return this._readLocal(); }
+  },
+
+  _readLocal() {
+    return {
+      users:    this.getLocal('users')    || [],
+      products: this.getLocal('products') || [],
+      orders:   this.getLocal('orders')   || [],
+      txs:      this.getLocal('txs')      || [],
+    };
+  },
+
+  // --- Escrever no JSONBin ---
+  async _write(data) {
+    const cfg = this.getBinConfig();
+    // Sempre salva local primeiro
+    ['users','products','orders','txs'].forEach(k => {
+      if(data[k] !== undefined) this.setLocal(k, data[k]);
+    });
+    this._cache.data = data;
+    this._cacheTime.data = Date.now();
+    if(!cfg || !cfg.binId || !cfg.apiKey) return;
+    try {
+      await fetch(`https://api.jsonbin.io/v3/b/${cfg.binId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type':'application/json', 'X-Master-Key': cfg.apiKey },
+        body: JSON.stringify(data)
+      });
+    } catch(e) { console.warn('JSONBin write failed:', e.message); }
+  },
+
+  // --- Estado carregado em memória ---
+  _state: null,
+
+  async load() {
+    this._state = await this._read();
+    return this._state;
+  },
+
+  getState() { return this._state || this._readLocal(); },
+
+  async saveAll(patch) {
+    const current = this.getState();
+    const next = { ...current, ...patch };
+    this._state = next;
+    await this._write(next);
+  },
+
+  // --- API síncrona (usa estado em memória) ---
+  users()    { return this.getState().users    || []; },
+  products() { return this.getState().products || []; },
+  orders()   { return this.getState().orders   || []; },
+  txs()      { return this.getState().txs      || []; },
+
+  // --- Salvar (async — lança em background) ---
+  saveUsers(v)    { this._state = {...this.getState(), users: v};    this._write(this._state); this.setLocal('users', v); this._cacheTime={};},
+  saveProducts(v) { this._state = {...this.getState(), products: v}; this._write(this._state); this.setLocal('products', v); this._cacheTime={};},
+  saveOrders(v)   { this._state = {...this.getState(), orders: v};   this._write(this._state); this.setLocal('orders', v); this._cacheTime={};},
+  saveTxs(v)      { this._state = {...this.getState(), txs: v};      this._write(this._state); this.setLocal('txs', v); this._cacheTime={};},
+
+  // --- Sessão (sempre local) ---
+  currentUser()    { return this.getLocal('session'); },
+  setSession(u)    { this.setLocal('session', u); },
+  clearSession()   { this.rmLocal('session'); },
+
+  // --- Configurações (sempre local) ---
+  get(k)    { return this.getLocal(k); },
+  set(k, v) { this.setLocal(k, v); },
+
+  // --- Reset (mantém admin config) ---
   clear() {
-    const keep = ['admin_config','admin_emails','cloudinary'];
+    const keep = ['admin_config','admin_emails','cloudinary','bin_config'];
     Object.keys(localStorage).filter(k => k.startsWith(this.PREFIX)).forEach(k => {
       const short = k.replace(this.PREFIX,'');
       if(!keep.includes(short)) localStorage.removeItem(k);
     });
+    this._state = null;
+    this._cache = {};
   },
-  users()    { return this.get('users')    || []; },
-  products() { return this.get('products') || []; },
-  orders()   { return this.get('orders')   || []; },
-  txs()      { return this.get('txs')      || []; },
-  currentUser() { return this.get('session'); },
-  saveUsers(v)    { this.set('users', v); },
-  saveProducts(v) { this.set('products', v); },
-  saveOrders(v)   { this.set('orders', v); },
-  saveTxs(v)      { this.set('txs', v); },
-  setSession(u)   { this.set('session', u); },
-  clearSession()  { this.rm('session'); },
 };
 
 // ================================================================
@@ -563,7 +657,8 @@ function goTo(page) {
   if(page === 'catalog')           renderCatalog();
   if(page === 'userArea')          renderUserArea();
   if(page === 'creatorDashboard')  renderCreator();
-  if(page === 'admin')             renderAdmin();
+  if(page === 'admin')             { renderAdmin(); startAdminAutoRefresh(); }
+  else                             stopAdminAutoRefresh();
 }
 
 function updateMobileNav(page) {
@@ -1012,57 +1107,70 @@ let checkoutData = {};
 function startCheckout(productId, type) {
   const u = DB.currentUser();
   if(!u) { openModal('modalLogin'); return; }
-  const p = DB.products().find(x=>x.id===productId);
-  if(!p) return;
+  // Garantir comparação correta de ID (number ou string)
+  const pid = Number(productId);
+  const allProducts = DB.products();
+  const p = allProducts.find(x => Number(x.id) === pid);
+  if(!p) { toast('Produto não encontrado'); return; }
   checkoutData = { product: p, type };
   const isRent = type === 'rent';
-  const price = isRent ? p.rentPrice : p.salePrice;
+  const price = Number(isRent ? p.rentPrice : p.salePrice) || 0;
   const fee = price * 0.08;
-  document.getElementById('checkoutBody').innerHTML = `
+  // Montar HTML do checkout
+  const html = `
     <div style="display:flex;gap:14px;align-items:flex-start;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:16px">
-      ${p.mainImage?`<img src="${p.mainImage}" style="width:72px;height:72px;border-radius:var(--radius);object-fit:cover" onerror="this.style.display='none'">`:''}
+      ${p.mainImage||p.images?.[0]?`<img src="${p.mainImage||p.images[0]}" style="width:72px;height:72px;border-radius:var(--radius);object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:'<div style="width:72px;height:72px;border-radius:var(--radius);background:var(--surface3);flex-shrink:0"></div>'}
       <div>
-        <div style="font-weight:700;color:var(--text)">${p.name}</div>
+        <div style="font-weight:700;color:var(--text);margin-bottom:4px">${p.name}</div>
         <div style="font-size:0.8rem;color:var(--text3)">${isRent?'Aluguel':'Compra'}</div>
+        <div style="font-size:0.8rem;color:var(--text3)">${p.ownerName||''}</div>
       </div>
     </div>
-    ${isRent?`<div class="form-group"><label class="form-label">Período de aluguel</label>
+    ${isRent?`<div class="form-group">
+      <label class="form-label">Período de aluguel</label>
       <div style="display:flex;gap:8px;align-items:center">
-        <input class="form-input" id="rentDays" type="number" min="1" value="1" style="width:80px" oninput="updateCheckoutTotal()">
+        <input class="form-input" id="rentDays" type="number" min="1" max="365" value="1" style="width:90px" oninput="updateCheckoutTotal()">
         <span style="color:var(--text2);font-size:0.875rem">dia(s)</span>
-      </div></div>`:''}
+      </div>
+    </div>`:''}
     <div style="background:var(--surface2);border-radius:var(--radius);padding:14px">
-      <div style="display:flex;justify-content:space-between;font-size:0.875rem;margin-bottom:6px">
-        <span style="color:var(--text2)">${isRent?'Valor/dia':'Preço'}</span>
-        <span>R$ ${Number(price).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+      <div style="display:flex;justify-content:space-between;font-size:0.875rem;margin-bottom:8px">
+        <span style="color:var(--text2)">${isRent?'Valor por dia':'Preço do produto'}</span>
+        <span style="color:var(--text);font-weight:600">R$ ${Number(price).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:0.875rem;margin-bottom:10px">
-        <span style="color:var(--text2)">Taxa de serviço</span>
+        <span style="color:var(--text2)">Taxa de serviço (8%)</span>
         <span id="checkoutFee">R$ ${Number(fee).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
       </div>
-      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:1rem;border-top:1px solid var(--border);padding-top:10px">
+      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:1.05rem;border-top:1px solid var(--border);padding-top:10px;color:var(--text)">
         <span>Total</span>
         <span id="checkoutTotal">R$ ${Number(price+fee).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
       </div>
     </div>`;
+  const body = document.getElementById('checkoutBody');
+  if(!body) { toast('Erro ao abrir checkout. Recarregue a página.'); return; }
+  body.innerHTML = html;
   openModal('modalCheckout');
 }
 function updateCheckoutTotal() {
-  const p = checkoutData.product;
-  if(!p||checkoutData.type!=='rent') return;
-  const days = parseInt(document.getElementById('rentDays')?.value)||1;
-  const base = p.rentPrice * days;
+  const p = checkoutData?.product;
+  if(!p || checkoutData.type !== 'rent') return;
+  const days = Math.max(1, parseInt(document.getElementById('rentDays')?.value) || 1);
+  const base = Number(p.rentPrice) * days;
   const fee = base * 0.08;
-  document.getElementById('checkoutFee').textContent = 'R$ '+Number(fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
-  document.getElementById('checkoutTotal').textContent = 'R$ '+Number(base+fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  const feeEl = document.getElementById('checkoutFee');
+  const totalEl = document.getElementById('checkoutTotal');
+  if(feeEl) feeEl.textContent = 'R$ ' + Number(fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  if(totalEl) totalEl.textContent = 'R$ ' + Number(base+fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
 }
 function confirmOrder() {
   const u = DB.currentUser();
-  const p = checkoutData.product;
-  if(!u||!p) return;
+  const p = checkoutData?.product;
+  if(!u) { toast('Faça login para continuar'); closeModal('modalCheckout'); openModal('modalLogin'); return; }
+  if(!p) { toast('Erro: produto não encontrado'); closeModal('modalCheckout'); return; }
   const isRent = checkoutData.type === 'rent';
-  const days = isRent ? (parseInt(document.getElementById('rentDays')?.value)||1) : 0;
-  const base = isRent ? p.rentPrice*days : p.salePrice;
+  const days = isRent ? (Math.max(1, parseInt(document.getElementById('rentDays')?.value) || 1)) : 0;
+  const base = isRent ? Number(p.rentPrice)*days : Number(p.salePrice);
   const fee = base*0.08;
   const total = base+fee;
   const startDate = new Date();
@@ -1256,6 +1364,7 @@ function renderAdmin() {
         <div class="admin-nav-item ${adminTab==='transactions'?'active':''}" onclick="switchAdminTab('transactions')">Transações</div>
         <div class="admin-nav-sep"></div>
         <div class="admin-sidebar-title">Sistema</div>
+        <div class="admin-nav-item ${adminTab==='sync'?'active':''}" onclick="switchAdminTab('sync')">Sincronização (JSONBin)</div>
         <div class="admin-nav-item ${adminTab==='cloudinary'?'active':''}" onclick="switchAdminTab('cloudinary')">Imagens (Cloudinary)</div>
         <div class="admin-nav-item ${adminTab==='admins'?'active':''}" onclick="switchAdminTab('admins')">Administradores</div>
         <div class="admin-nav-item ${adminTab==='settings'?'active':''}" onclick="switchAdminTab('settings')">Configurações</div>
@@ -1272,6 +1381,52 @@ function switchAdminTab(tab) {
   renderAdmin();
 }
 function renderAdminTab(tab, {users,products,orders,txs,revenue,cfg}) {
+  if(tab==='sync') {
+    const binCfg = DB.getBinConfig() || {};
+    const isConfigured = !!(binCfg.binId && binCfg.apiKey);
+    return `
+    <div style="font-size:1.1rem;font-weight:800;margin-bottom:8px;color:var(--text)">Sincronização em tempo real</div>
+    <div style="font-size:0.875rem;color:var(--text3);margin-bottom:20px">Permite que todos os dispositivos compartilhem os mesmos dados. Cadastros, produtos e pedidos aparecerão em tempo real no admin.</div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <div style="font-weight:700;color:var(--text)">Status</div>
+          ${isConfigured
+            ? '<span class="tag tag-success">Sincronização ativa</span>'
+            : '<span class="tag tag-danger">Não configurado — dados apenas locais</span>'}
+        </div>
+        <div class="form-group"><label class="form-label">JSONBin Bin ID</label>
+          <input class="form-input" id="cfBinId" value="${binCfg.binId||''}" placeholder="ex: 664abc123def456...">
+          <div class="form-hint">ID do seu bin no JSONBin.io</div>
+        </div>
+        <div class="form-group"><label class="form-label">Master API Key</label>
+          <input class="form-input" id="cfBinKey" type="password" value="${binCfg.apiKey||''}" placeholder="$2a$10$...">
+          <div class="form-hint">Sua chave de API do JSONBin (fica salva só neste dispositivo)</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="saveBinConfig()">Salvar e sincronizar</button>
+          ${isConfigured ? '<button class="btn btn-secondary" onclick="forceSyncNow()">Forçar sincronização</button>' : ''}
+          ${isConfigured ? '<button class="btn btn-ghost" style="color:var(--danger)" onclick="clearBinConfig()">Desconectar</button>' : ''}
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div style="font-weight:700;margin-bottom:12px;color:var(--text)">Como configurar (grátis)</div>
+        <ol style="font-size:0.85rem;color:var(--text2);line-height:2.2;padding-left:20px">
+          <li>Acesse <a href="https://jsonbin.io" target="_blank" style="color:var(--brand);font-weight:600">jsonbin.io</a> e crie uma conta grátis</li>
+          <li>Clique em <strong>+ Create Bin</strong>, cole <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">{"users":[],"products":[],"orders":[],"txs":[]}</code> e salve</li>
+          <li>Copie o <strong>Bin ID</strong> que aparece na URL ou no painel</li>
+          <li>Vá em <strong>API Keys</strong> → copie sua <strong>Master Key</strong></li>
+          <li>Cole os dois campos acima e clique em Salvar</li>
+        </ol>
+        <div style="margin-top:14px;padding:12px;background:var(--warning-light);border-radius:var(--radius);font-size:0.8rem;color:var(--warning)">
+          <strong>Plano gratuito:</strong> 10.000 requests/mês, ideal para MVP e testes. Quando crescer, migre para Firebase.
+        </div>
+      </div>
+    </div>`;
+  }
+
   if(tab==='dashboard') return `
     <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Dashboard</div>
     <div class="stats-grid">
@@ -1565,6 +1720,58 @@ function resetPlatform() {
 }
 
 // ================================================================
+// JSONBIN HELPERS
+// ================================================================
+async function saveBinConfig() {
+  const binId = document.getElementById('cfBinId')?.value?.trim();
+  const apiKey = document.getElementById('cfBinKey')?.value?.trim();
+  if(!binId || !apiKey) { toast('Preencha Bin ID e API Key'); return; }
+  DB.setBinConfig({ binId, apiKey });
+  toast('Salvando e sincronizando...');
+  // Enviar dados locais para o JSONBin
+  const state = DB._readLocal();
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type':'application/json', 'X-Master-Key': apiKey },
+      body: JSON.stringify(state)
+    });
+    if(res.ok) { toast('Sincronização ativa!'); DB._cache = {}; await DB.load(); renderAdmin(); }
+    else { const err = await res.json(); toast('Erro: ' + (err.message||'verifique as credenciais')); }
+  } catch { toast('Erro de conexão'); }
+}
+async function forceSyncNow() {
+  toast('Sincronizando...');
+  DB._cache = {};
+  await DB.load();
+  renderAdmin();
+  toast('Dados atualizados!');
+}
+function clearBinConfig() {
+  if(!confirm('Desconectar JSONBin? Os dados ficam apenas locais.')) return;
+  DB.rmLocal('bin_config');
+  renderAdmin();
+  toast('JSONBin desconectado');
+}
+
+// Auto-refresh do admin a cada 30s quando na aba admin
+let _adminRefreshInterval = null;
+function startAdminAutoRefresh() {
+  stopAdminAutoRefresh();
+  _adminRefreshInterval = setInterval(async () => {
+    if(currentPage !== 'admin') { stopAdminAutoRefresh(); return; }
+    const cfg = DB.getBinConfig();
+    if(!cfg) return;
+    DB._cache = {};
+    await DB.load();
+    renderAdmin();
+  }, 30000);
+}
+function stopAdminAutoRefresh() {
+  if(_adminRefreshInterval) { clearInterval(_adminRefreshInterval); _adminRefreshInterval = null; }
+}
+
+// ================================================================
 // SEED DATA
 // ================================================================
 function seedData() {
@@ -1592,8 +1799,20 @@ function seedData() {
 // ================================================================
 initTheme();
 
-// Pre-seed admin master account
-(function() {
+// Inicializar: carregar dados compartilhados e renderizar
+(async function init() {
+  // Mostrar loading enquanto carrega
+  document.getElementById('page-landing').innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:14px">
+      <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:spin 0.8s linear infinite"></div>
+      <div style="color:var(--text3);font-size:0.875rem">Carregando...</div>
+    </div>`;
+  document.getElementById('page-landing').classList.add('active');
+
+  // Carregar dados do JSONBin (ou localStorage se não configurado)
+  await DB.load();
+
+  // Pre-seed admin master account
   if(!DB.get('admin_config')) {
     const adminUser = { id:1, name:'Admin USEI', email:'usei.contato@gmail.com', phone:'', password:'Useisince2025', role:'admin', createdAt: new Date().toISOString() };
     DB.set('admin_config', { name: adminUser.name, email: adminUser.email, createdAt: adminUser.createdAt });
@@ -1601,12 +1820,12 @@ initTheme();
     users.unshift(adminUser);
     DB.saveUsers(users);
   }
-})();
 
-seedData();
-checkAdminSetup();
-renderNav();
-goTo('landing');
+  seedData();
+  checkAdminSetup();
+  renderNav();
+  goTo('landing');
+})();
 </script>
 </body>
 </html>
