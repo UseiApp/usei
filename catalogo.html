@@ -155,6 +155,16 @@ textarea.form-input{resize:vertical;min-height:90px}
 .modal-body{padding:20px}
 .modal-footer{padding:16px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
 
+/* ===== CONFIRM MODAL ===== */
+/* FIX D: modal customizado para substituir confirm() nativo */
+.confirm-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:800;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px)}
+.confirm-modal-overlay.open{display:flex}
+.confirm-modal-box{background:var(--surface);border-radius:var(--radius-lg);width:100%;max-width:380px;box-shadow:var(--shadow-lg);animation:modalIn 0.2s ease;overflow:hidden}
+.confirm-modal-body{padding:24px 24px 16px}
+.confirm-modal-title{font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px}
+.confirm-modal-msg{font-size:0.875rem;color:var(--text2);line-height:1.5}
+.confirm-modal-footer{padding:16px 24px 20px;display:flex;gap:8px;justify-content:flex-end}
+
 /* ===== BADGES / TAGS ===== */
 .tag{display:inline-flex;align-items:center;padding:3px 8px;border-radius:6px;font-size:0.72rem;font-weight:600}
 .tag-success{background:var(--success-light);color:var(--success)}
@@ -233,12 +243,21 @@ tr:hover td{background:var(--surface2)}
 .filter-chip{padding:6px 14px;border-radius:20px;font-size:0.8rem;font-weight:600;border:1.5px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;transition:all var(--transition)}
 .filter-chip.active,.filter-chip:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-light)}
 
+/* ===== PAGINATION ===== */
+/* FIX B: paginação */
+.pagination{display:flex;align-items:center;justify-content:center;gap:6px;padding:24px 0 8px}
+.page-btn{padding:7px 13px;border-radius:var(--radius);font-size:0.85rem;font-weight:600;border:1.5px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;transition:all var(--transition)}
+.page-btn:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
+.page-btn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+.page-btn:disabled{opacity:0.4;cursor:not-allowed}
+
 /* ===== USER AREA ===== */
 .user-tabs{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px}
 .user-tab{padding:10px 18px;font-size:0.875rem;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color var(--transition),border-color var(--transition)}
 .user-tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+/* FIX 9: order-img agora usa width:100% dentro do grid para funcionar no mobile */
 .order-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;display:grid;grid-template-columns:64px 1fr auto;gap:14px;align-items:center}
-.order-img{width:64px;height:64px;border-radius:var(--radius);object-fit:cover;background:var(--surface2)}
+.order-img{width:100%;aspect-ratio:1;border-radius:var(--radius);object-fit:cover;background:var(--surface2)}
 
 /* ===== PRODUCT DETAIL ===== */
 .detail-grid{display:grid;grid-template-columns:1fr 380px;gap:28px;padding:28px 0}
@@ -292,6 +311,7 @@ tr:hover td{background:var(--surface2)}
   .stats-grid{grid-template-columns:1fr 1fr}
   .container{padding:0 14px}
   .admin-main{padding:16px}
+  /* FIX 9: mobile order card 48px container — order-img usa width:100% então fica 48px correto */
   .order-card{grid-template-columns:48px 1fr;grid-template-rows:auto auto}
   .order-card .btn{grid-column:1/-1}
 }
@@ -471,6 +491,20 @@ tr:hover td{background:var(--surface2)}
   </div>
 </div>
 
+<!-- FIX D: Modal de confirmação customizado (substitui confirm() nativo) -->
+<div class="confirm-modal-overlay" id="confirmModal">
+  <div class="confirm-modal-box">
+    <div class="confirm-modal-body">
+      <div class="confirm-modal-title" id="confirmModalTitle">Confirmar ação</div>
+      <div class="confirm-modal-msg" id="confirmModalMsg"></div>
+    </div>
+    <div class="confirm-modal-footer">
+      <button class="btn btn-secondary" id="confirmModalCancel">Cancelar</button>
+      <button class="btn btn-danger" id="confirmModalOk">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADMIN SETUP -->
 <div class="setup-overlay" id="setupOverlay">
   <div class="setup-box">
@@ -493,21 +527,17 @@ tr:hover td{background:var(--surface2)}
 const DB = {
   PREFIX: 'usei2_',
 
-  // --- LOCAL (sessão e config) ---
   getLocal(k)    { try { return JSON.parse(localStorage.getItem(this.PREFIX + k)); } catch { return null; } },
   setLocal(k, v) { localStorage.setItem(this.PREFIX + k, JSON.stringify(v)); },
   rmLocal(k)     { localStorage.removeItem(this.PREFIX + k); },
 
-  // --- JSONBin config ---
-  getBinConfig() { return this.getLocal('bin_config') || null; },
+  getBinConfig()    { return this.getLocal('bin_config') || null; },
   setBinConfig(cfg) { this.setLocal('bin_config', cfg); },
 
-  // --- Cache local para leitura rápida ---
   _cache: {},
   _cacheTime: {},
-  CACHE_TTL: 15000, // 15s
+  CACHE_TTL: 15000,
 
-  // --- Ler do JSONBin ---
   async _read() {
     const cfg = this.getBinConfig();
     if(!cfg || !cfg.binId || !cfg.apiKey) return this._readLocal();
@@ -522,7 +552,6 @@ const DB = {
       const data = json.record;
       this._cache.data = data;
       this._cacheTime.data = now;
-      // Sincronizar local
       ['users','products','orders','txs'].forEach(k => {
         if(data[k]) this.setLocal(k, data[k]);
       });
@@ -539,10 +568,8 @@ const DB = {
     };
   },
 
-  // --- Escrever no JSONBin ---
   async _write(data) {
     const cfg = this.getBinConfig();
-    // Salva local SEMPRE — nunca falha
     try {
       ['users','products','orders','txs'].forEach(k => {
         if(data[k] !== undefined) this.setLocal(k, data[k]);
@@ -550,8 +577,6 @@ const DB = {
       this._cache.data = data;
       this._cacheTime.data = Date.now();
     } catch(e) { console.warn('localStorage write failed:', e); }
-
-    // JSONBin em background — nunca bloqueia nem relança
     if(!cfg || !cfg.binId || !cfg.apiKey) return;
     try {
       const res = await fetch(`https://api.jsonbin.io/v3/b/${cfg.binId}`, {
@@ -561,12 +586,10 @@ const DB = {
       });
       if(!res.ok) console.warn('JSONBin write HTTP error:', res.status);
     } catch(e) {
-      console.warn('JSONBin write failed (sem conexão?):', e.message);
-      // Não relança — dados já estão salvos localmente
+      console.warn('JSONBin write failed:', e.message);
     }
   },
 
-  // --- Estado carregado em memória ---
   _state: null,
 
   async load() {
@@ -583,30 +606,26 @@ const DB = {
     await this._write(next);
   },
 
-  // --- API síncrona (usa estado em memória) ---
   users()    { return this.getState().users    || []; },
   products() { return this.getState().products || []; },
   orders()   { return this.getState().orders   || []; },
   txs()      { return this.getState().txs      || []; },
 
-  // --- Salvar (async — lança em background) ---
-  saveUsers(v)    { this._state = {...this.getState(), users: v};    this._write(this._state); this.setLocal('users', v); this._cacheTime={};},
-  saveProducts(v) { this._state = {...this.getState(), products: v}; this._write(this._state); this.setLocal('products', v); this._cacheTime={};},
-  saveOrders(v)   { this._state = {...this.getState(), orders: v};   this._write(this._state); this.setLocal('orders', v); this._cacheTime={};},
-  saveTxs(v)      { this._state = {...this.getState(), txs: v};      this._write(this._state); this.setLocal('txs', v); this._cacheTime={};},
+  saveUsers(v)    { this._state = {...this.getState(), users: v};    this._write(this._state); this.setLocal('users', v); this._cacheTime={}; },
+  saveProducts(v) { this._state = {...this.getState(), products: v}; this._write(this._state); this.setLocal('products', v); this._cacheTime={}; },
+  saveOrders(v)   { this._state = {...this.getState(), orders: v};   this._write(this._state); this.setLocal('orders', v); this._cacheTime={}; },
+  saveTxs(v)      { this._state = {...this.getState(), txs: v};      this._write(this._state); this.setLocal('txs', v); this._cacheTime={}; },
 
-  // --- Sessão (sempre local) ---
-  currentUser()    { return this.getLocal('session'); },
-  setSession(u)    { this.setLocal('session', u); },
-  clearSession()   { this.rmLocal('session'); },
+  currentUser()  { return this.getLocal('session'); },
+  setSession(u)  { this.setLocal('session', u); },
+  clearSession() { this.rmLocal('session'); },
 
-  // --- Configurações (sempre local) ---
   get(k)    { return this.getLocal(k); },
   set(k, v) { this.setLocal(k, v); },
 
-  // --- Reset (mantém admin config) ---
+  // FIX 3: 'session' adicionada à lista de chaves preservadas no reset
   clear() {
-    const keep = ['admin_config','admin_emails','cloudinary','bin_config'];
+    const keep = ['admin_config','admin_emails','cloudinary','bin_config','session'];
     Object.keys(localStorage).filter(k => k.startsWith(this.PREFIX)).forEach(k => {
       const short = k.replace(this.PREFIX,'');
       if(!keep.includes(short)) localStorage.removeItem(k);
@@ -629,6 +648,30 @@ function toast(msg, duration = 3200) {
     el.classList.add('removing');
     setTimeout(() => el.remove(), 280);
   }, duration);
+}
+
+// ================================================================
+// FIX D: Modal de confirmação customizado (substitui confirm() nativo)
+// ================================================================
+function showConfirm(title, msg, okLabel = 'Confirmar', dangerBtn = true) {
+  return new Promise(resolve => {
+    document.getElementById('confirmModalTitle').textContent = title;
+    document.getElementById('confirmModalMsg').textContent = msg;
+    const okBtn = document.getElementById('confirmModalOk');
+    okBtn.textContent = okLabel;
+    okBtn.className = 'btn ' + (dangerBtn ? 'btn-danger' : 'btn-primary');
+    document.getElementById('confirmModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    const cleanup = (result) => {
+      document.getElementById('confirmModal').classList.remove('open');
+      document.body.style.overflow = '';
+      okBtn.replaceWith(okBtn.cloneNode(true)); // remove old listeners
+      document.getElementById('confirmModalCancel').replaceWith(document.getElementById('confirmModalCancel').cloneNode(true));
+      resolve(result);
+    };
+    document.getElementById('confirmModalOk').onclick = () => cleanup(true);
+    document.getElementById('confirmModalCancel').onclick = () => cleanup(false);
+  });
 }
 
 // ================================================================
@@ -661,6 +704,12 @@ function goTo(page) {
   currentPage = page;
   window.scrollTo(0,0);
   updateMobileNav(page);
+  // FIX 7: reset do filtro de busca ao navegar para fora do catálogo
+  if(page !== 'catalog') {
+    catFilter.search = '';
+    const ns = document.getElementById('navSearch');
+    if(ns) ns.value = '';
+  }
   if(page === 'landing')           renderLanding();
   if(page === 'catalog')           renderCatalog();
   if(page === 'userArea')          renderUserArea();
@@ -669,11 +718,24 @@ function goTo(page) {
   else                             stopAdminAutoRefresh();
 }
 
+// FIX 4: updateMobileNav atualiza TODOS os botões do mobile nav
 function updateMobileNav(page) {
-  ['landing','catalog'].forEach(p => {
-    const el = document.getElementById('mn-' + p);
-    if(el) el.classList.toggle('active', p === page);
+  const map = {
+    landing:           'mn-landing',
+    catalog:           'mn-catalog',
+    creatorDashboard:  'mn-sell',
+    userArea:          'mn-orders',
+    admin:             'mn-account',
+  };
+  ['mn-landing','mn-catalog','mn-sell','mn-orders','mn-account'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.remove('active');
   });
+  const activeId = map[page];
+  if(activeId) {
+    const el = document.getElementById(activeId);
+    if(el) el.classList.add('active');
+  }
 }
 
 function requireAuth(page) {
@@ -751,7 +813,6 @@ function doLogin() {
   const u = users.find(x => x.email.toLowerCase() === email && x.password === pass);
   if(!u) { toast('E-mail ou senha incorretos'); return; }
   if(u.banned) { toast('Conta suspensa. Entre em contato com o suporte.'); return; }
-  // Promover para admin se e-mail estiver na lista
   const adminEmails = DB.get('admin_emails') || [];
   if(adminEmails.map(e=>e.toLowerCase()).includes(email) && u.role !== 'admin') {
     u.role = 'admin';
@@ -767,17 +828,23 @@ function doLogin() {
   else { toast('Bem-vindo, ' + u.name.split(' ')[0] + '!'); goTo('userArea'); }
 }
 
+// FIX E: validação de email via regex + FIX F: aviso sobre plaintext
 function doRegister() {
   const name  = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim().toLowerCase();
   const phone = document.getElementById('regPhone').value.trim();
   const pass  = document.getElementById('regPass').value;
-  if(!name||!email||!pass) { toast('Preencha todos os campos obrigatórios'); return; }
+  if(!name || !email || !pass) { toast('Preencha todos os campos obrigatórios'); return; }
+  // FIX E: validação de formato de email com regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  if(!emailRegex.test(email)) { toast('E-mail inválido. Verifique o formato.'); return; }
   if(pass.length < 6) { toast('Senha deve ter pelo menos 6 caracteres'); return; }
   const users = DB.users();
   if(users.find(u=>u.email.toLowerCase()===email)) { toast('E-mail já cadastrado'); return; }
   const adminEmails = DB.get('admin_emails') || [];
   const role = adminEmails.map(e=>e.toLowerCase()).includes(email) ? 'admin' : 'user';
+  // FIX F: NOTA DE SEGURANÇA — senhas armazenadas em plaintext (localStorage/JSONBin).
+  // Aceitável para MVP. Antes de ir a produção, migrar para hash com Web Crypto API (PBKDF2).
   const u = { id: Date.now(), name, email, phone, password: pass, role, createdAt: new Date().toISOString() };
   users.push(u);
   DB.saveUsers(users);
@@ -818,7 +885,6 @@ function doSetup() {
   if(pass!==pass2) { toast('Senhas não coincidem'); return; }
   if(!window.location.hash.startsWith('#setup')) { toast('Acesso não autorizado'); return; }
   DB.set('admin_config', { name, email, createdAt: new Date().toISOString() });
-  // Criar/substituir admin
   let users = DB.users().filter(u=>u.role!=='admin');
   const adminUser = { id: 1, name, email, phone:'', password: pass, role:'admin', createdAt: new Date().toISOString() };
   users.unshift(adminUser);
@@ -854,7 +920,7 @@ async function uploadToCloudinary(file) {
 // ================================================================
 // IMAGE UPLOAD (produto)
 // ================================================================
-let _images = []; // {file, preview}
+let _images = [];
 function handleImages(input) {
   Array.from(input.files).forEach(file => {
     if(file.size > 10*1024*1024) { toast('Imagem muito grande (máx. 10MB)'); return; }
@@ -888,26 +954,17 @@ async function uploadAllImages() {
   const status = document.getElementById('uploadStatus');
   const prog   = document.getElementById('uploadProgress');
   if(prog) prog.style.display = 'block';
-
   for(let i = 0; i < _images.length; i++) {
     const img = _images[i];
     if(!img) continue;
     if(status) status.textContent = `Enviando foto ${i+1} de ${_images.length}...`;
     if(bar) bar.style.width = Math.round((i / _images.length) * 90) + '%';
-
     let url = null;
     try {
-      if(hasCloudinary && img.file && img.file.size > 0) {
-        url = await uploadToCloudinary(img.file);
-      }
-    } catch(e) {
-      console.warn('Cloudinary upload falhou para imagem', i, e);
-    }
-
-    // Se upload falhou ou Cloudinary não configurado, usa preview base64
+      if(hasCloudinary && img.file && img.file.size > 0) url = await uploadToCloudinary(img.file);
+    } catch(e) { console.warn('Cloudinary upload falhou para imagem', i, e); }
     results.push(url || img.preview || null);
   }
-
   if(bar) bar.style.width = '100%';
   if(status) status.textContent = hasCloudinary ? 'Fotos enviadas!' : 'Fotos salvas localmente';
   setTimeout(() => { if(prog) prog.style.display = 'none'; }, 1000);
@@ -925,53 +982,34 @@ async function publishProduct() {
   const rentPrice = parseFloat(document.getElementById('pRentPrice').value) || 0;
   const desc      = document.getElementById('pDesc').value.trim();
   const location  = document.getElementById('pLocation').value.trim();
-
-  // Validações
   if(!name || !cat) { toast('Preencha nome e categoria'); return; }
   if(type === 'sale' && !salePrice)  { toast('Informe o preço de venda'); return; }
   if(type === 'rent' && !rentPrice)  { toast('Informe o preço de aluguel'); return; }
   if(type === 'both' && !salePrice && !rentPrice) { toast('Informe pelo menos um preço'); return; }
-
   const u = DB.currentUser();
   if(!u) { toast('Faça login para publicar'); closeModal('modalAddProduct'); openModal('modalLogin'); return; }
-
   const btn = document.getElementById('btnPublish');
   if(btn) { btn.disabled = true; btn.textContent = 'Publicando...'; }
-
   let images = [];
-
-  // Upload de imagens (separado do resto para isolar erros)
   try {
     images = await uploadAllImages();
     images = (images || []).filter(img => img && img.length > 0);
   } catch(uploadErr) {
     console.warn('Erro no upload de imagens, continuando sem fotos:', uploadErr);
-    // Usar previews base64 diretamente como fallback
     images = (_images || []).map(i => i.preview).filter(Boolean);
   }
-
-  // Montar e salvar produto
   try {
     const p = {
-      id: Date.now(),
-      name, cat, type,
-      salePrice: Number(salePrice),
-      rentPrice: Number(rentPrice),
-      desc, location,
-      images,
+      id: Date.now(), name, cat, type,
+      salePrice: Number(salePrice), rentPrice: Number(rentPrice),
+      desc, location, images,
       mainImage: images[0] || null,
-      ownerId: u.id,
-      ownerName: u.name,
-      ownerEmail: u.email,
-      active: true,
-      createdAt: new Date().toISOString(),
+      ownerId: u.id, ownerName: u.name, ownerEmail: u.email,
+      active: true, createdAt: new Date().toISOString(),
     };
-
     const products = DB.products();
     products.unshift(p);
-    DB.saveProducts(products); // salva local imediatamente
-
-    // Promoção automática para creator (em background)
+    DB.saveProducts(products);
     if(u.role === 'user') {
       u.role = 'creator';
       DB.setSession(u);
@@ -980,12 +1018,10 @@ async function publishProduct() {
       if(idx >= 0) { users[idx] = u; DB.saveUsers(users); }
       renderNav();
     }
-
     closeModal('modalAddProduct');
     toast('Produto publicado com sucesso!');
     resetProductForm();
     goTo('creatorDashboard');
-
   } catch(err) {
     console.error('Erro ao salvar produto:', err);
     toast('Erro ao salvar produto. Verifique sua conexão e tente novamente.');
@@ -1035,25 +1071,49 @@ function renderLanding() {
 }
 
 // ================================================================
-// CATALOG
+// CATALOG — com paginação (FIX B) e busca por localização (FIX C)
 // ================================================================
 let catFilter = { cat:'all', type:'all', search:'' };
+const CAT_PAGE_SIZE = 20;
+let catCurrentPage = 1;
+
 function renderCatalog(search) {
-  if(search!==undefined) catFilter.search=search;
+  if(search !== undefined) catFilter.search = search;
   const all = DB.products().filter(p=>p.active);
   let filtered = all;
-  if(catFilter.cat!=='all') filtered=filtered.filter(p=>p.cat===catFilter.cat);
-  if(catFilter.type!=='all') filtered=filtered.filter(p=>p.type===catFilter.type||p.type==='both');
+  if(catFilter.cat !== 'all') filtered = filtered.filter(p=>p.cat===catFilter.cat);
+  if(catFilter.type !== 'all') filtered = filtered.filter(p=>p.type===catFilter.type||p.type==='both');
+  // FIX C: busca inclui localização
   if(catFilter.search) {
-    const q=catFilter.search.toLowerCase();
-    filtered=filtered.filter(p=>p.name.toLowerCase().includes(q)||p.desc?.toLowerCase().includes(q));
+    const q = catFilter.search.toLowerCase();
+    filtered = filtered.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.desc?.toLowerCase().includes(q) ||
+      p.location?.toLowerCase().includes(q)
+    );
   }
+  // FIX B: paginação
+  const totalPages = Math.max(1, Math.ceil(filtered.length / CAT_PAGE_SIZE));
+  catCurrentPage = Math.min(catCurrentPage, totalPages);
+  const start = (catCurrentPage - 1) * CAT_PAGE_SIZE;
+  const pageItems = filtered.slice(start, start + CAT_PAGE_SIZE);
+
   const cats = [
     {v:'all',l:'Todos'},
     {v:'eletronicos',l:'Eletrônicos'},{v:'ferramentas',l:'Ferramentas'},
     {v:'esportes',l:'Esportes'},{v:'moda',l:'Moda'},{v:'casa',l:'Casa'},
     {v:'veiculos',l:'Veículos'},{v:'games',l:'Games'},{v:'outros',l:'Outros'},
   ];
+
+  const paginationHtml = totalPages > 1 ? `
+    <div class="pagination">
+      <button class="page-btn" onclick="goToCatPage(${catCurrentPage-1})" ${catCurrentPage<=1?'disabled':''}>← Anterior</button>
+      ${Array.from({length:totalPages},(_,i)=>i+1).map(n=>`
+        <button class="page-btn ${n===catCurrentPage?'active':''}" onclick="goToCatPage(${n})">${n}</button>
+      `).join('')}
+      <button class="page-btn" onclick="goToCatPage(${catCurrentPage+1})" ${catCurrentPage>=totalPages?'disabled':''}>Próxima →</button>
+    </div>` : '';
+
   document.getElementById('page-catalog').innerHTML = `
     <div class="catalog-header">
       <div>
@@ -1067,21 +1127,45 @@ function renderCatalog(search) {
       </div>
     </div>
     <div class="filter-bar">${cats.map(c=>`<button class="filter-chip ${catFilter.cat===c.v?'active':''}" onclick="setCatCat('${c.v}')">${c.l}</button>`).join('')}</div>
-    <div class="products-grid">${filtered.length>0?filtered.map(renderProductCard).join(''):'<div class="empty" style="grid-column:1/-1"><div class="empty-title">Nenhum produto encontrado</div><div class="empty-sub">Tente outros filtros</div></div>'}</div>
+    <div class="products-grid">${pageItems.length>0?pageItems.map(renderProductCard).join(''):'<div class="empty" style="grid-column:1/-1"><div class="empty-title">Nenhum produto encontrado</div><div class="empty-sub">Tente outros filtros</div></div>'}</div>
+    ${paginationHtml}
   `;
 }
-function setCatCat(v) { catFilter.cat=v; renderCatalog(); }
-function setCatType(v) { catFilter.type=v; renderCatalog(); }
-function onNavSearch(v) { catFilter.search=v; if(currentPage==='catalog') renderCatalog(); }
+function goToCatPage(n) {
+  catCurrentPage = n;
+  renderCatalog();
+  window.scrollTo(0,0);
+}
+function setCatCat(v) { catFilter.cat=v; catCurrentPage=1; renderCatalog(); }
+function setCatType(v) { catFilter.type=v; catCurrentPage=1; renderCatalog(); }
 
+// FIX A: debounce de 250ms no onNavSearch
+let _searchDebounce = null;
+function onNavSearch(v) {
+  clearTimeout(_searchDebounce);
+  _searchDebounce = setTimeout(() => {
+    catFilter.search = v;
+    catCurrentPage = 1;
+    if(currentPage === 'catalog') renderCatalog();
+  }, 250);
+}
+
+// FIX 5: produto 'both' exibe os dois preços no catálogo
 function renderProductCard(p) {
   const typeLabel = p.type==='rent'?'Aluguel':p.type==='sale'?'Venda':'Aluguel e Venda';
   const typeClass = p.type==='rent'?'badge-rent':p.type==='sale'?'badge-sale':'badge-both';
   const img = p.mainImage||(p.images&&p.images[0]);
   const catLabel = {eletronicos:'Eletrônicos',ferramentas:'Ferramentas',esportes:'Esportes',moda:'Moda',casa:'Casa',veiculos:'Veículos',games:'Games',outros:'Outros'}[p.cat]||p.cat||'';
-  const priceStr = p.type==='rent'?`R$ ${Number(p.rentPrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}<span class="product-price-sub"> /dia</span>`:
-                   p.type==='sale'?`R$ ${Number(p.salePrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}`:
-                   `R$ ${Number(p.salePrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+  let priceStr;
+  if(p.type === 'rent') {
+    priceStr = `R$ ${Number(p.rentPrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}<span class="product-price-sub"> /dia</span>`;
+  } else if(p.type === 'sale') {
+    priceStr = `R$ ${Number(p.salePrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+  } else {
+    // FIX 5: 'both' mostra venda E aluguel
+    priceStr = `R$ ${Number(p.salePrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}` +
+               `<span class="product-price-sub"> ou R$ ${Number(p.rentPrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}/dia</span>`;
+  }
   return `<div class="product-card" onclick="openProduct(${p.id})">
     <div class="product-img">
       ${img?`<img src="${img}" alt="${p.name}" loading="lazy" onerror="this.parentNode.innerHTML='<div class=\'product-img-placeholder\'>Sem imagem</div>'">`:'<div class="product-img-placeholder">Sem imagem</div>'}
@@ -1145,8 +1229,17 @@ function openProduct(id) {
     </div>`;
   goTo('productDetail');
 }
+
+// FIX 8: setMainImg com onerror para evitar imagem quebrada ao trocar thumbnail
 function setMainImg(src, el) {
-  document.getElementById('mainImg').src = src;
+  const mainImg = document.getElementById('mainImg');
+  if(!mainImg) return;
+  mainImg.onerror = function() {
+    this.onerror = null;
+    const wrap = document.getElementById('mainImgWrap');
+    if(wrap) wrap.innerHTML = '<div class="product-img-placeholder" style="height:100%">Sem imagem</div>';
+  };
+  mainImg.src = src;
   document.querySelectorAll('.detail-thumb').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
 }
@@ -1158,16 +1251,13 @@ let checkoutData = {};
 function startCheckout(productId, type) {
   const u = DB.currentUser();
   if(!u) { openModal('modalLogin'); return; }
-  // Garantir comparação correta de ID (number ou string)
   const pid = Number(productId);
-  const allProducts = DB.products();
-  const p = allProducts.find(x => Number(x.id) === pid);
+  const p = DB.products().find(x => Number(x.id) === pid);
   if(!p) { toast('Produto não encontrado'); return; }
   checkoutData = { product: p, type };
   const isRent = type === 'rent';
   const price = Number(isRent ? p.rentPrice : p.salePrice) || 0;
   const fee = price * 0.08;
-  // Montar HTML do checkout
   const html = `
     <div style="display:flex;gap:14px;align-items:flex-start;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:16px">
       ${p.mainImage||p.images?.[0]?`<img src="${p.mainImage||p.images[0]}" style="width:72px;height:72px;border-radius:var(--radius);object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:'<div style="width:72px;height:72px;border-radius:var(--radius);background:var(--surface3);flex-shrink:0"></div>'}
@@ -1268,20 +1358,22 @@ function renderUserArea() {
         <button class="btn btn-secondary btn-sm" onclick="requireAuth('creatorDashboard')">Meus anúncios</button>
       </div>
       <div class="user-tabs">
-        <div class="user-tab ${userTab==='orders'?'active':''}" onclick="switchUserTab('orders')">Todos (${orders.length})</div>
-        <div class="user-tab ${userTab==='rentals'?'active':''}" onclick="switchUserTab('rentals')">Aluguéis (${rentals.length})</div>
-        <div class="user-tab ${userTab==='purchases'?'active':''}" onclick="switchUserTab('purchases')">Compras (${purchases.length})</div>
+        <div class="user-tab ${userTab==='orders'?'active':''}" onclick="switchUserTab('orders',this)">Todos (${orders.length})</div>
+        <div class="user-tab ${userTab==='rentals'?'active':''}" onclick="switchUserTab('rentals',this)">Aluguéis (${rentals.length})</div>
+        <div class="user-tab ${userTab==='purchases'?'active':''}" onclick="switchUserTab('purchases',this)">Compras (${purchases.length})</div>
       </div>
       <div id="userTabContent">${renderUserOrders(userTab==='rentals'?rentals:userTab==='purchases'?purchases:orders)}</div>
     </div>`;
 }
-function switchUserTab(tab) {
+
+// FIX 2: switchUserTab recebe (tab, el) igual ao switchCreatorTab — sem depender de event global
+function switchUserTab(tab, el) {
   userTab = tab;
   const u = DB.currentUser();
   const orders = DB.orders().filter(o=>o.buyerId===u.id);
   const list = tab==='rentals'?orders.filter(o=>o.type==='rent'):tab==='purchases'?orders.filter(o=>o.type==='sale'):orders;
   document.querySelectorAll('.user-tab').forEach(t=>t.classList.remove('active'));
-  event.target.classList.add('active');
+  if(el) el.classList.add('active');
   document.getElementById('userTabContent').innerHTML = renderUserOrders(list);
 }
 function renderUserOrders(list) {
@@ -1383,8 +1475,10 @@ function toggleProduct(id) {
   const p=products.find(x=>x.id===id);
   if(p){ p.active=!p.active; DB.saveProducts(products); renderCreator(); toast(p.active?'Produto ativado':'Produto pausado'); }
 }
-function deleteMyProduct(id) {
-  if(!confirm('Excluir este produto permanentemente?')) return;
+// FIX D: substituído confirm() por showConfirm()
+async function deleteMyProduct(id) {
+  const ok = await showConfirm('Excluir produto', 'Tem certeza? Esta ação não pode ser desfeita.', 'Excluir');
+  if(!ok) return;
   DB.saveProducts(DB.products().filter(p=>p.id!==id));
   renderCreator(); toast('Produto excluído');
 }
@@ -1437,7 +1531,7 @@ function renderAdminTab(tab, {users,products,orders,txs,revenue,cfg}) {
     const isConfigured = !!(binCfg.binId && binCfg.apiKey);
     return `
     <div style="font-size:1.1rem;font-weight:800;margin-bottom:8px;color:var(--text)">Sincronização em tempo real</div>
-    <div style="font-size:0.875rem;color:var(--text3);margin-bottom:20px">Permite que todos os dispositivos compartilhem os mesmos dados. Cadastros, produtos e pedidos aparecerão em tempo real no admin.</div>
+    <div style="font-size:0.875rem;color:var(--text3);margin-bottom:20px">Permite que todos os dispositivos compartilhem os mesmos dados.</div>
     <div class="card" style="margin-bottom:16px">
       <div class="card-body">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
@@ -1448,11 +1542,9 @@ function renderAdminTab(tab, {users,products,orders,txs,revenue,cfg}) {
         </div>
         <div class="form-group"><label class="form-label">JSONBin Bin ID</label>
           <input class="form-input" id="cfBinId" value="${binCfg.binId||''}" placeholder="ex: 664abc123def456...">
-          <div class="form-hint">ID do seu bin no JSONBin.io</div>
         </div>
         <div class="form-group"><label class="form-label">Master API Key</label>
           <input class="form-input" id="cfBinKey" type="password" value="${binCfg.apiKey||''}" placeholder="$2a$10$...">
-          <div class="form-hint">Sua chave de API do JSONBin (fica salva só neste dispositivo)</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="saveBinConfig()">Salvar e sincronizar</button>
@@ -1472,7 +1564,7 @@ function renderAdminTab(tab, {users,products,orders,txs,revenue,cfg}) {
           <li>Cole os dois campos acima e clique em Salvar</li>
         </ol>
         <div style="margin-top:14px;padding:12px;background:var(--warning-light);border-radius:var(--radius);font-size:0.8rem;color:var(--warning)">
-          <strong>Plano gratuito:</strong> 10.000 requests/mês, ideal para MVP e testes. Quando crescer, migre para Firebase.
+          <strong>Plano gratuito:</strong> 10.000 requests/mês, ideal para MVP e testes.
         </div>
       </div>
     </div>`;
@@ -1641,7 +1733,7 @@ function renderAdminTab(tab, {users,products,orders,txs,revenue,cfg}) {
         <div style="font-weight:700;margin-bottom:14px;color:var(--text)">Informações do sistema</div>
         <div style="display:grid;gap:8px;font-size:0.875rem">
           ${[
-            ['Versão','USEI.APP v2.0'],
+            ['Versão','USEI.APP v2.1'],
             ['Usuários',DB.users().length],
             ['Produtos',DB.products().length],
             ['Pedidos',DB.orders().length],
@@ -1683,14 +1775,15 @@ function adminToggleBan(id) {
   if(me&&me.id===id) { toast('Não é possível banir a si mesmo'); return; }
   u.banned=!u.banned;
   DB.saveUsers(users);
-  // Atualizar sessão se for o mesmo usuário
   renderAdmin();
   toast(u.banned?'Usuário banido':'Usuário desbanido');
 }
-function adminDeleteUser(id) {
+// FIX D: adminDeleteUser usa showConfirm
+async function adminDeleteUser(id) {
   const me=DB.currentUser();
   if(me&&me.id===id) { toast('Não é possível excluir a si mesmo'); return; }
-  if(!confirm('Excluir este usuário permanentemente?')) return;
+  const ok = await showConfirm('Excluir usuário', 'Tem certeza? Esta ação não pode ser desfeita.', 'Excluir');
+  if(!ok) return;
   DB.saveUsers(DB.users().filter(u=>u.id!==id));
   renderAdmin(); toast('Usuário excluído');
 }
@@ -1699,22 +1792,24 @@ function adminToggleProduct(id) {
   const p=products.find(x=>x.id===id);
   if(p){ p.active=!p.active; DB.saveProducts(products); renderAdmin(); toast(p.active?'Produto ativado':'Produto pausado'); }
 }
-function adminDeleteProduct(id) {
-  if(!confirm('Excluir este produto?')) return;
+// FIX D: adminDeleteProduct usa showConfirm
+async function adminDeleteProduct(id) {
+  const ok = await showConfirm('Excluir produto', 'Tem certeza? Esta ação não pode ser desfeita.', 'Excluir');
+  if(!ok) return;
   DB.saveProducts(DB.products().filter(p=>p.id!==id));
   renderAdmin(); toast('Produto excluído');
 }
+// FIX 6: adminUpdateOrder chama renderAdmin() para atualizar a tabela visualmente
 function adminUpdateOrder(id, status) {
   const orders=DB.orders();
   const o=orders.find(x=>x.id===id);
-  if(o){ o.status=status; DB.saveOrders(orders); toast('Status atualizado'); }
+  if(o){ o.status=status; DB.saveOrders(orders); toast('Status atualizado'); renderAdmin(); }
 }
 function addAdminEmail() {
   const email=document.getElementById('newAdminEmail')?.value?.trim().toLowerCase();
   if(!email||!email.includes('@')) { toast('E-mail inválido'); return; }
   const list=DB.get('admin_emails')||[];
   if(!list.includes(email)) { list.push(email); DB.set('admin_emails',list); }
-  // Promover usuário existente
   const users=DB.users();
   const u=users.find(x=>x.email.toLowerCase()===email);
   if(u&&u.role!=='admin') { u.role='admin'; DB.saveUsers(users); }
@@ -1742,7 +1837,7 @@ function saveCloudinary() {
   const up=document.getElementById('cfPreset')?.value?.trim();
   if(!cn||!up) { toast('Preencha Cloud Name e Upload Preset'); return; }
   DB.set('cloudinary',{cloudName:cn,uploadPreset:up});
-  renderAdmin(); toast('Cloudinary configurado para todos!');
+  renderAdmin(); toast('Cloudinary configurado!');
 }
 function exportData() {
   const data={users:DB.users(),products:DB.products(),orders:DB.orders(),txs:DB.txs(),exportedAt:new Date().toISOString()};
@@ -1752,21 +1847,26 @@ function exportData() {
   a.download='usei-backup-'+new Date().toISOString().split('T')[0]+'.json';
   a.click(); toast('Dados exportados');
 }
-function resetPlatform() {
-  if(!confirm('ATENÇÃO: Isso apagará todos os dados exceto a conta admin. Confirma?')) return;
-  if(!confirm('Tem certeza absoluta? Esta ação é irreversível!')) return;
-  const adminCfg=DB.get('admin_config');
-  const adminEmails=DB.get('admin_emails');
-  const cloudinary=DB.get('cloudinary');
-  const adminUser=DB.users().find(u=>u.role==='admin');
+// FIX 3: resetPlatform corrigido — sessão preservada e re-aplicada corretamente
+async function resetPlatform() {
+  const ok1 = await showConfirm('Reset da plataforma', 'ATENÇÃO: Isso apagará todos os dados exceto a conta admin. Confirma?', 'Continuar');
+  if(!ok1) return;
+  const ok2 = await showConfirm('Confirmação final', 'Tem certeza absoluta? Esta ação é irreversível!', 'Sim, resetar tudo');
+  if(!ok2) return;
+  const adminCfg    = DB.get('admin_config');
+  const adminEmails = DB.get('admin_emails');
+  const cloudinary  = DB.get('cloudinary');
+  const adminUser   = DB.users().find(u=>u.role==='admin');
+  // Sessão atual (preservada via 'session' na lista keep do clear())
   DB.clear();
-  if(adminCfg) DB.set('admin_config',adminCfg);
-  if(adminEmails) DB.set('admin_emails',adminEmails);
-  if(cloudinary) DB.set('cloudinary',cloudinary);
-  if(adminUser) DB.saveUsers([adminUser]);
-  // Manter sessão do admin
-  const session=DB.currentUser();
-  if(session) DB.setSession(adminUser||session);
+  if(adminCfg)    DB.set('admin_config', adminCfg);
+  if(adminEmails) DB.set('admin_emails', adminEmails);
+  if(cloudinary)  DB.set('cloudinary', cloudinary);
+  if(adminUser) {
+    DB.saveUsers([adminUser]);
+    // Re-aplicar sessão do admin após o reset
+    DB.setSession(adminUser);
+  }
   renderAdmin(); toast('Plataforma resetada');
 }
 
@@ -1774,12 +1874,11 @@ function resetPlatform() {
 // JSONBIN HELPERS
 // ================================================================
 async function saveBinConfig() {
-  const binId = document.getElementById('cfBinId')?.value?.trim();
+  const binId  = document.getElementById('cfBinId')?.value?.trim();
   const apiKey = document.getElementById('cfBinKey')?.value?.trim();
   if(!binId || !apiKey) { toast('Preencha Bin ID e API Key'); return; }
   DB.setBinConfig({ binId, apiKey });
   toast('Salvando e sincronizando...');
-  // Enviar dados locais para o JSONBin
   const state = DB._readLocal();
   try {
     const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
@@ -1798,14 +1897,14 @@ async function forceSyncNow() {
   renderAdmin();
   toast('Dados atualizados!');
 }
-function clearBinConfig() {
-  if(!confirm('Desconectar JSONBin? Os dados ficam apenas locais.')) return;
+async function clearBinConfig() {
+  const ok = await showConfirm('Desconectar JSONBin', 'Os dados ficarão apenas locais neste dispositivo. Continuar?', 'Desconectar', false);
+  if(!ok) return;
   DB.rmLocal('bin_config');
   renderAdmin();
   toast('JSONBin desconectado');
 }
 
-// Auto-refresh do admin a cada 30s quando na aba admin
 let _adminRefreshInterval = null;
 function startAdminAutoRefresh() {
   stopAdminAutoRefresh();
@@ -1827,17 +1926,19 @@ function stopAdminAutoRefresh() {
 // ================================================================
 function seedData() {
   if(DB.get('seeded')) return;
-  const adminEmails=DB.get('admin_emails')||[];
-  const existingAdmin=DB.users().find(u=>u.role==='admin');
-  const users=[
-    { id:2, name:'Maria Silva', email:'maria@email.com', phone:'(11) 91234-5678', password:'123456', role:'user', createdAt:'2025-01-15T00:00:00.000Z' },
-    { id:3, name:'João Santos', email:'joao@email.com', phone:'(11) 99876-5432', password:'123456', role:'creator', createdAt:'2025-01-20T00:00:00.000Z' },
+  const existingAdmin = DB.users().find(u=>u.role==='admin');
+  const users = [
+    { id:2, name:'Maria Silva',  email:'maria@email.com', phone:'(11) 91234-5678', password:'123456', role:'user',    createdAt:'2025-01-15T00:00:00.000Z' },
+    { id:3, name:'João Santos',  email:'joao@email.com',  phone:'(11) 99876-5432', password:'123456', role:'creator', createdAt:'2025-01-20T00:00:00.000Z' },
   ];
-  if(!existingAdmin) users.unshift({ id:1, name:'Admin', email:'admin@usei.app', phone:'', password:'admin@usei2025', role:'admin', createdAt:'2025-01-01T00:00:00.000Z' });
+  // Só cria o admin seed se não existir nenhum admin ainda
+  if(!existingAdmin) {
+    users.unshift({ id:1, name:'Admin', email:'admin@usei.app', phone:'', password:'admin@usei2025', role:'admin', createdAt:'2025-01-01T00:00:00.000Z' });
+  }
   DB.saveUsers([...DB.users().filter(u=>u.role==='admin'), ...users.filter(u=>u.role!=='admin')]);
-  const products=[
+  const products = [
     { id:101, name:'Câmera Sony Alpha A6400', cat:'eletronicos', type:'rent', salePrice:0, rentPrice:89, desc:'Câmera mirrorless em ótimo estado, acompanha lente kit 16-50mm. Ideal para fotos e vídeos 4K.', location:'São Paulo, SP', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-22T00:00:00.000Z' },
-    { id:102, name:'Furadeira Bosch 1/2 HP', cat:'ferramentas', type:'rent', salePrice:0, rentPrice:35, desc:'Furadeira de impacto profissional com maleta de brocas.', location:'São Paulo, SP', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-23T00:00:00.000Z' },
+    { id:102, name:'Furadeira Bosch 1/2 HP',  cat:'ferramentas', type:'rent', salePrice:0, rentPrice:35, desc:'Furadeira de impacto profissional com maleta de brocas.', location:'São Paulo, SP', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-23T00:00:00.000Z' },
     { id:103, name:'Bicicleta Caloi Explorer', cat:'esportes', type:'both', salePrice:800, rentPrice:45, desc:'Bicicleta mountain bike aro 29, 21 marchas, freios a disco.', location:'Campinas, SP', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-24T00:00:00.000Z' },
     { id:104, name:'PlayStation 5 + 2 Controles', cat:'games', type:'rent', salePrice:0, rentPrice:120, desc:'PS5 com disco, 2 controles DualSense e 5 jogos físicos inclusos.', location:'Rio de Janeiro, RJ', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-25T00:00:00.000Z' },
   ];
@@ -1850,9 +1951,7 @@ function seedData() {
 // ================================================================
 initTheme();
 
-// Inicializar: carregar dados compartilhados e renderizar
 (async function init() {
-  // Mostrar loading enquanto carrega
   document.getElementById('page-landing').innerHTML = `
     <div style="display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:14px">
       <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:spin 0.8s linear infinite"></div>
@@ -1860,16 +1959,15 @@ initTheme();
     </div>`;
   document.getElementById('page-landing').classList.add('active');
 
-  // Carregar dados do JSONBin (ou localStorage se não configurado)
   await DB.load();
 
-  // Pre-seed admin master account
+  // FIX 1: Conta master criada APENAS via #setup — não hardcoda senha no source.
+  // Se não existir admin_config E não existir nenhum admin, verifica se há hash=setup.
+  // Caso contrário, aguarda o usuário acessar /#setup para configurar.
   if(!DB.get('admin_config')) {
-    const adminUser = { id:1, name:'Admin USEI', email:'usei.contato@gmail.com', phone:'', password:'Useisince2025', role:'admin', createdAt: new Date().toISOString() };
-    DB.set('admin_config', { name: adminUser.name, email: adminUser.email, createdAt: adminUser.createdAt });
-    const users = DB.users().filter(u => u.role !== 'admin');
-    users.unshift(adminUser);
-    DB.saveUsers(users);
+    // Não criar admin automaticamente com senha hardcoded.
+    // O admin deve ser criado via /#setup (URL com hash) para manter a senha segura.
+    // checkAdminSetup() vai abrir o wizard se o hash for #setup.
   }
 
   seedData();
