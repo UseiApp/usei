@@ -526,6 +526,2008 @@ tr:hover td{background:var(--surface2)}
 // ================================================================
 const DB = {
   PREFIX: 'usei2_',
+  _FB_KEY:     'AIzaSyAxE8GLkReOTnfIog9phm2lJh8X5eFRRtY',
+  _FB_PROJECT: 'usei-b1b88',
+  _CLOUD_NAME:    'dqrjlxvjq',
+  _UPLOAD_PRESET: 'usei unsigned',
+
+  getLocal(k)    { try { return JSON.parse(localStorage.getItem(this.PREFIX + k)); } catch { return null; } },
+  setLocal(k, v) { localStorage.setItem(this.PREFIX + k, JSON.stringify(v)); },
+  rmLocal(k)     { localStorage.removeItem(this.PREFIX + k); },
+
+  _url(col, id='') {
+    const base = `https://firestore.googleapis.com/v1/projects/${this._FB_PROJECT}/databases/(default)/documents/${col}`;
+    return id ? `${base}/${id}?key=${this._FB_KEY}` : `${base}?key=${this._FB_KEY}&pageSize=500`;
+  },
+
+  _toFS(obj) {
+    const cv = v => {
+      if(v===null||v===undefined) return {nullValue:null};
+      if(typeof v==='boolean')    return {booleanValue:v};
+      if(typeof v==='number')     return {doubleValue:v};
+      if(typeof v==='string')     return {stringValue:v};
+      if(Array.isArray(v))        return {arrayValue:{values:v.length?v.map(cv):[]}};
+      if(typeof v==='object')     return {mapValue:{fields:Object.fromEntries(Object.entries(v).map(([k,val])=>[k,cv(val)]))}};
+      return {stringValue:String(v)};
+    };
+    return {fields:Object.fromEntries(Object.entries(obj).map(([k,v])=>[k,cv(v)]))};
+  },
+
+  _fromFS(fields) {
+    if(!fields) return {};
+    const cv = v => {
+      if(!v) return null;
+      if(v.nullValue!==undefined)    return null;
+      if(v.booleanValue!==undefined) return v.booleanValue;
+      if(v.doubleValue!==undefined)  return v.doubleValue;
+      if(v.integerValue!==undefined) return Number(v.integerValue);
+      if(v.stringValue!==undefined)  return v.stringValue;
+      if(v.arrayValue!==undefined)   return (v.arrayValue.values||[]).map(cv);
+      if(v.mapValue!==undefined)     return this._fromFS(v.mapValue.fields);
+      return null;
+    };
+    return Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,cv(v)]));
+  },
+
+  async _readCol(col) {
+    try {
+      const res = await fetch(this._url(col));
+      if(!res.ok) return [];
+      const json = await res.json();
+      return (json.documents||[]).map(d => this._fromFS(d.fields));
+    } catch { return []; }
+  },
+
+  async _writeDoc(col, id, data) {
+    try {
+      await fetch(this._url(col, String(id)), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this._toFS(data))
+      });
+    } catch(e) { console.warn('FS write failed:', e.message); }
+  },
+
+  async _deleteDoc(col, id) {
+    try { await fetch(this._url(col, String(id)), { method: 'DELETE' }); } catch {}
+  },
+
+  _cache: {}, _cacheAt: {}, _TTL: 15000,
+  _isFresh(col) { return this._cache[col] && (Date.now()-(this._cacheAt[col]||0)) < this._TTL; },
+  _setCache(col, d) { this._cache[col]=d; this._cacheAt[col]=Date.now(); this.setLocal(col,d); },
+
+  async _load(col) {
+    if(this._isFresh(col)) return this._cache[col];
+    const data = await this._readCol(col);
+    if(data.length>0) { this._setCache(col,data); return data; }
+    const local = this.getLocal(col)||[];
+    this._cache[col] = local;
+    return local;
+  },
+
+  _state: null,
+
+  async load() {
+    const [users,products,orders,txs] = await Promise.all([
+      this._load('users'),this._load('products'),this._load('orders'),this._load('txs')
+    ]);
+    this._state = {users,products,orders,txs};
+    return this._state;
+  },
+
+  getState() {
+    return this._state || {
+      users: this._cache.users||this.getLocal('users')||[],
+      products: this._cache.products||this.getLocal('products')||[],
+      orders: this._cache.orders||this.getLocal('orders')||[],
+      txs: this._cache.txs||this.getLocal('txs')||[],
+    };
+  },
+
+  users()    { return this._cache.users    || this.getLocal('users')    || []; },
+  products() { return this._cache.products || this.getLocal('products') || []; },
+  orders()   { return this._cache.orders   || this.getLocal('orders')   || []; },
+  txs()      { return this._cache.txs      || this.getLocal('txs')      || []; },
+
+  _diff(newArr, old, col) {
+    newArr.forEach(x => { const p=old.find(o=>o.id===x.id); if(!p||JSON.stringify(p)!==JSON.stringify(x)) this._writeDoc(col,x.id,x); });
+    old.forEach(x => { if(!newArr.find(o=>o.id===x.id)) this._deleteDoc(col,x.id); });
+  },
+  saveUsers(v)    { const o=this.users();    this._cache.users=v;    this.setLocal('users',v);    if(this._state)this._state.users=v;    this._diff(v,o,'users'); },
+  saveProducts(v) { const o=this.products(); this._cache.products=v; this.setLocal('products',v); if(this._state)this._state.products=v; this._diff(v,o,'products'); },
+  saveOrders(v)   { const o=this.orders();   this._cache.orders=v;   this.setLocal('orders',v);   if(this._state)this._state.orders=v;   this._diff(v,o,'orders'); },
+  saveTxs(v)      { const o=this.txs();      this._cache.txs=v;      this.setLocal('txs',v);      if(this._state)this._state.txs=v;      this._diff(v,o,'txs'); },
+
+  currentUser()  { return this.getLocal('session'); },
+  setSession(u)  { this.setLocal('session', u); },
+  clearSession() { this.rmLocal('session'); },
+
+  get(k)    { return this.getLocal(k); },
+  set(k, v) { this.setLocal(k, v); },
+
+  clear() {
+    const keep = ['admin_config','admin_emails','cloudinary','session'];
+    Object.keys(localStorage).filter(k => k.startsWith(this.PREFIX)).forEach(k => {
+      const short = k.replace(this.PREFIX,'');
+      if(!keep.includes(short)) localStorage.removeItem(k);
+    });
+    this._state = null;
+    this._cache = {};
+    this._cacheAt = {};
+  },
+}
+;
+
+// ================================================================
+// TOAST
+// ================================================================
+function toast(msg, duration = 3200) {
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('removing');
+    setTimeout(() => el.remove(), 280);
+  }, duration);
+}
+
+// ================================================================
+// FIX D: Modal de confirmação customizado (substitui confirm() nativo)
+// ================================================================
+function showConfirm(title, msg, okLabel = 'Confirmar', dangerBtn = true) {
+  return new Promise(resolve => {
+    document.getElementById('confirmModalTitle').textContent = title;
+    document.getElementById('confirmModalMsg').textContent = msg;
+    const okBtn = document.getElementById('confirmModalOk');
+    okBtn.textContent = okLabel;
+    okBtn.className = 'btn ' + (dangerBtn ? 'btn-danger' : 'btn-primary');
+    document.getElementById('confirmModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    const cleanup = (result) => {
+      document.getElementById('confirmModal').classList.remove('open');
+      document.body.style.overflow = '';
+      okBtn.replaceWith(okBtn.cloneNode(true)); // remove old listeners
+      document.getElementById('confirmModalCancel').replaceWith(document.getElementById('confirmModalCancel').cloneNode(true));
+      resolve(result);
+    };
+    document.getElementById('confirmModalOk').onclick = () => cleanup(true);
+    document.getElementById('confirmModalCancel').onclick = () => cleanup(false);
+  });
+}
+
+// ================================================================
+// THEME
+// ================================================================
+function toggleTheme() {
+  const html = document.documentElement;
+  const dark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', dark ? 'light' : 'dark');
+  document.getElementById('themeIcon').textContent = dark ? '🌙' : '☀️';
+  DB.set('theme', dark ? 'light' : 'dark');
+}
+function initTheme() {
+  const saved = DB.get('theme') || (window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', saved);
+  document.getElementById('themeIcon').textContent = saved === 'dark' ? '☀️' : '🌙';
+}
+
+// ================================================================
+// NAVIGATION
+// ================================================================
+const PAGES = ['landing','catalog','productDetail','userArea','creatorDashboard','admin'];
+let currentPage = '';
+
+function goTo(page) {
+  PAGES.forEach(p => {
+    const el = document.getElementById('page-' + p);
+    if(el) { el.classList.toggle('active', p === page); }
+  });
+  currentPage = page;
+  window.scrollTo(0,0);
+  updateMobileNav(page);
+  // FIX 7: reset do filtro de busca ao navegar para fora do catálogo
+  if(page !== 'catalog') {
+    catFilter.search = '';
+    const ns = document.getElementById('navSearch');
+    if(ns) ns.value = '';
+  }
+  if(page === 'landing')           renderLanding();
+  if(page === 'catalog')           renderCatalog();
+  if(page === 'userArea')          renderUserArea();
+  if(page === 'creatorDashboard')  renderCreator();
+  if(page === 'admin')             { renderAdmin(); startAdminAutoRefresh(); }
+  else                             stopAdminAutoRefresh();
+}
+
+// FIX 4: updateMobileNav atualiza TODOS os botões do mobile nav
+function updateMobileNav(page) {
+  const map = {
+    landing:           'mn-landing',
+    catalog:           'mn-catalog',
+    creatorDashboard:  'mn-sell',
+    userArea:          'mn-orders',
+    admin:             'mn-account',
+  };
+  ['mn-landing','mn-catalog','mn-sell','mn-orders','mn-account'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.remove('active');
+  });
+  const activeId = map[page];
+  if(activeId) {
+    const el = document.getElementById(activeId);
+    if(el) el.classList.add('active');
+  }
+}
+
+function requireAuth(page) {
+  if(DB.currentUser()) goTo(page);
+  else openModal('modalLogin');
+}
+
+function mobileAccount() {
+  const u = DB.currentUser();
+  if(!u) openModal('modalLogin');
+  else if(u.role === 'admin') goTo('admin');
+  else goTo('userArea');
+}
+
+// ================================================================
+// MODAIS
+// ================================================================
+function openModal(id) {
+  document.getElementById(id)?.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+  document.getElementById(id)?.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ================================================================
+// NAV AUTH AREA
+// ================================================================
+function renderNav() {
+  const u = DB.currentUser();
+  const area = document.getElementById('navAuthArea');
+  if(!u) {
+    area.innerHTML = `
+      <button class="btn btn-secondary btn-sm" onclick="openModal('modalLogin')">Entrar</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('modalRegister')">Cadastrar</button>`;
+  } else {
+    const initials = u.name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    area.innerHTML = `
+      <div style="position:relative">
+        <div class="nav-avatar" onclick="toggleAvatarMenu()" id="navAvatar">${initials}</div>
+        <div class="nav-avatar-menu" id="avatarMenu">
+          <div style="padding:12px 16px 8px;border-bottom:1px solid var(--border)">
+            <div style="font-weight:700;font-size:0.9rem;color:var(--text)">${u.name}</div>
+            <div style="font-size:0.78rem;color:var(--text3)">${u.email}</div>
+            <span class="tag tag-default" style="margin-top:6px">${u.role==='admin'?'Admin':u.role==='creator'?'Creator':'Usuário'}</span>
+          </div>
+          ${u.role==='admin'?`<div class="nav-avatar-menu-item" onclick="closeAvatarMenu();goTo('admin')">Painel Admin</div>`:''}
+          <div class="nav-avatar-menu-item" onclick="closeAvatarMenu();goTo('creatorDashboard')">Meus anúncios</div>
+          <div class="nav-avatar-menu-item" onclick="closeAvatarMenu();goTo('userArea')">Meus pedidos</div>
+          <div class="nav-avatar-menu-sep"></div>
+          <div class="nav-avatar-menu-item danger" onclick="doLogout()">Sair</div>
+        </div>
+      </div>`;
+  }
+}
+function toggleAvatarMenu() {
+  document.getElementById('avatarMenu')?.classList.toggle('open');
+}
+function closeAvatarMenu() {
+  document.getElementById('avatarMenu')?.classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if(!e.target.closest('#navAvatar') && !e.target.closest('#avatarMenu')) closeAvatarMenu();
+});
+
+// ================================================================
+// AUTH
+// ================================================================
+function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pass  = document.getElementById('loginPass').value;
+  if(!email || !pass) { toast('Preencha e-mail e senha'); return; }
+  const users = DB.users();
+  const u = users.find(x => x.email.toLowerCase() === email && x.password === pass);
+  if(!u) { toast('E-mail ou senha incorretos'); return; }
+  if(u.banned) { toast('Conta suspensa. Entre em contato com o suporte.'); return; }
+  const adminEmails = DB.get('admin_emails') || [];
+  if(adminEmails.map(e=>e.toLowerCase()).includes(email) && u.role !== 'admin') {
+    u.role = 'admin';
+    const idx = users.findIndex(x=>x.id===u.id);
+    if(idx>=0) { users[idx]=u; DB.saveUsers(users); }
+  }
+  DB.setSession(u);
+  closeModal('modalLogin');
+  renderNav();
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPass').value = '';
+  if(u.role === 'admin') goTo('admin');
+  else { toast('Bem-vindo, ' + u.name.split(' ')[0] + '!'); goTo('userArea'); }
+}
+
+// FIX E: validação de email via regex + FIX F: aviso sobre plaintext
+function doRegister() {
+  const name  = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim().toLowerCase();
+  const phone = document.getElementById('regPhone').value.trim();
+  const pass  = document.getElementById('regPass').value;
+  if(!name || !email || !pass) { toast('Preencha todos os campos obrigatórios'); return; }
+  // FIX E: validação de formato de email com regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  if(!emailRegex.test(email)) { toast('E-mail inválido. Verifique o formato.'); return; }
+  if(pass.length < 6) { toast('Senha deve ter pelo menos 6 caracteres'); return; }
+  const users = DB.users();
+  if(users.find(u=>u.email.toLowerCase()===email)) { toast('E-mail já cadastrado'); return; }
+  const adminEmails = DB.get('admin_emails') || [];
+  const role = adminEmails.map(e=>e.toLowerCase()).includes(email) ? 'admin' : 'user';
+  // FIX F: NOTA DE SEGURANÇA — senhas armazenadas em plaintext (localStorage/JSONBin).
+  // Aceitável para MVP. Antes de ir a produção, migrar para hash com Web Crypto API (PBKDF2).
+  const u = { id: Date.now(), name, email, phone, password: pass, role, createdAt: new Date().toISOString() };
+  users.push(u);
+  DB.saveUsers(users);
+  DB.setSession(u);
+  closeModal('modalRegister');
+  renderNav();
+  document.getElementById('regName').value = '';
+  document.getElementById('regEmail').value = '';
+  document.getElementById('regPhone').value = '';
+  document.getElementById('regPass').value = '';
+  toast('Conta criada! Bem-vindo, ' + name.split(' ')[0] + '!');
+  goTo('userArea');
+}
+
+function doLogout() {
+  closeAvatarMenu();
+  DB.clearSession();
+  renderNav();
+  goTo('landing');
+  toast('Até logo!');
+}
+
+// ================================================================
+// ADMIN SETUP
+// ================================================================
+function checkAdminSetup() {
+  if(!DB.get('admin_config') && window.location.hash.startsWith('#setup')) {
+    document.getElementById('setupOverlay').classList.add('open');
+  }
+}
+function doSetup() {
+  const name  = document.getElementById('setupName').value.trim();
+  const email = document.getElementById('setupEmail').value.trim().toLowerCase();
+  const pass  = document.getElementById('setupPass').value;
+  const pass2 = document.getElementById('setupPass2').value;
+  if(!name||!email||!pass) { toast('Preencha todos os campos'); return; }
+  if(pass.length<8) { toast('Senha deve ter pelo menos 8 caracteres'); return; }
+  if(pass!==pass2) { toast('Senhas não coincidem'); return; }
+  if(!window.location.hash.startsWith('#setup')) { toast('Acesso não autorizado'); return; }
+  DB.set('admin_config', { name, email, createdAt: new Date().toISOString() });
+  let users = DB.users().filter(u=>u.role!=='admin');
+  const adminUser = { id: 1, name, email, phone:'', password: pass, role:'admin', createdAt: new Date().toISOString() };
+  users.unshift(adminUser);
+  DB.saveUsers(users);
+  DB.setSession(adminUser);
+  document.getElementById('setupOverlay').classList.remove('open');
+  history.replaceState(null,'',window.location.pathname);
+  renderNav();
+  toast('Conta master criada!');
+  goTo('admin');
+}
+
+// ================================================================
+// CLOUDINARY
+// ================================================================
+function getCloudinaryConfig() {
+  return DB.get('cloudinary') || { cloudName:'', uploadPreset:'' };
+}
+async function uploadToCloudinary(file) {
+  const { cloudName, uploadPreset } = getCloudinaryConfig();
+  if(!cloudName || !uploadPreset || !file || file.size===0) return null;
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', uploadPreset);
+  try {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method:'POST', body:fd });
+    if(!res.ok) return null;
+    const data = await res.json();
+    return data.secure_url || null;
+  } catch { return null; }
+}
+
+// ================================================================
+// IMAGE UPLOAD (produto)
+// ================================================================
+let _images = [];
+function handleImages(input) {
+  Array.from(input.files).forEach(file => {
+    if(file.size > 10*1024*1024) { toast('Imagem muito grande (máx. 10MB)'); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      _images.push({ file, preview: e.target.result });
+      renderImagePreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+function removeImage(i) {
+  _images.splice(i,1);
+  renderImagePreviews();
+}
+function renderImagePreviews() {
+  const wrap = document.getElementById('pImgPreviews');
+  wrap.innerHTML = _images.map((img,i) => `
+    <div class="upload-thumb-wrap">
+      <img class="upload-thumb" src="${img.preview}" onerror="this.src=''">
+      <button class="upload-thumb-rm" onclick="removeImage(${i})">✕</button>
+    </div>`).join('');
+}
+async function uploadAllImages() {
+  if(!_images || _images.length === 0) return [];
+  const cfg = getCloudinaryConfig();
+  const hasCloudinary = !!(cfg.cloudName && cfg.uploadPreset);
+  const results = [];
+  const bar    = document.getElementById('uploadFill');
+  const status = document.getElementById('uploadStatus');
+  const prog   = document.getElementById('uploadProgress');
+  if(prog) prog.style.display = 'block';
+  for(let i = 0; i < _images.length; i++) {
+    const img = _images[i];
+    if(!img) continue;
+    if(status) status.textContent = `Enviando foto ${i+1} de ${_images.length}...`;
+    if(bar) bar.style.width = Math.round((i / _images.length) * 90) + '%';
+    let url = null;
+    try {
+      if(hasCloudinary && img.file && img.file.size > 0) url = await uploadToCloudinary(img.file);
+    } catch(e) { console.warn('Cloudinary upload falhou para imagem', i, e); }
+    results.push(url || img.preview || null);
+  }
+  if(bar) bar.style.width = '100%';
+  if(status) status.textContent = hasCloudinary ? 'Fotos enviadas!' : 'Fotos salvas localmente';
+  setTimeout(() => { if(prog) prog.style.display = 'none'; }, 1000);
+  return results.filter(Boolean);
+}
+
+// ================================================================
+// PRODUCT PUBLISH
+// ================================================================
+async function publishProduct() {
+  const name      = document.getElementById('pName').value.trim();
+  const cat       = document.getElementById('pCat').value;
+  const type      = document.getElementById('pType').value;
+  const salePrice = parseFloat(document.getElementById('pSalePrice').value) || 0;
+  const rentPrice = parseFloat(document.getElementById('pRentPrice').value) || 0;
+  const desc      = document.getElementById('pDesc').value.trim();
+  const location  = document.getElementById('pLocation').value.trim();
+  if(!name || !cat) { toast('Preencha nome e categoria'); return; }
+  if(type === 'sale' && !salePrice)  { toast('Informe o preço de venda'); return; }
+  if(type === 'rent' && !rentPrice)  { toast('Informe o preço de aluguel'); return; }
+  if(type === 'both' && !salePrice && !rentPrice) { toast('Informe pelo menos um preço'); return; }
+  const u = DB.currentUser();
+  if(!u) { toast('Faça login para publicar'); closeModal('modalAddProduct'); openModal('modalLogin'); return; }
+  const btn = document.getElementById('btnPublish');
+  if(btn) { btn.disabled = true; btn.textContent = 'Publicando...'; }
+  let images = [];
+  try {
+    images = await uploadAllImages();
+    images = (images || []).filter(img => img && img.length > 0);
+  } catch(uploadErr) {
+    console.warn('Erro no upload de imagens, continuando sem fotos:', uploadErr);
+    images = (_images || []).map(i => i.preview).filter(Boolean);
+  }
+  try {
+    const p = {
+      id: Date.now(), name, cat, type,
+      salePrice: Number(salePrice), rentPrice: Number(rentPrice),
+      desc, location, images,
+      mainImage: images[0] || null,
+      ownerId: u.id, ownerName: u.name, ownerEmail: u.email,
+      active: true, createdAt: new Date().toISOString(),
+    };
+    const products = DB.products();
+    products.unshift(p);
+    DB.saveProducts(products);
+    if(u.role === 'user') {
+      u.role = 'creator';
+      DB.setSession(u);
+      const users = DB.users();
+      const idx = users.findIndex(x => x.id === u.id);
+      if(idx >= 0) { users[idx] = u; DB.saveUsers(users); }
+      renderNav();
+    }
+    closeModal('modalAddProduct');
+    toast('Produto publicado com sucesso!');
+    resetProductForm();
+    goTo('creatorDashboard');
+  } catch(err) {
+    console.error('Erro ao salvar produto:', err);
+    toast('Erro ao salvar produto. Verifique sua conexão e tente novamente.');
+  } finally {
+    if(btn) { btn.disabled = false; btn.textContent = 'Publicar produto'; }
+  }
+}
+function resetProductForm() {
+  ['pName','pDesc','pLocation','pSalePrice','pRentPrice'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('pCat').selectedIndex=0;
+  document.getElementById('pType').selectedIndex=0;
+  document.getElementById('pImgPreviews').innerHTML='';
+  _images=[];
+}
+
+// ================================================================
+// LANDING
+// ================================================================
+function renderLanding() {
+  const products = DB.products().filter(p=>p.active).slice(0,8);
+  document.getElementById('page-landing').innerHTML = `
+    <div class="hero">
+      <div class="hero-tag">Plataforma P2P</div>
+      <h1 class="hero-h1">Alugue o que precisa.<br><span>Ganhe</span> com o que tem.</h1>
+      <p class="hero-sub">Conectamos pessoas que precisam usar com quem já possui. Simples, rápido e seguro.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary btn-lg" onclick="goTo('catalog')">Explorar produtos</button>
+        <button class="btn btn-secondary btn-lg" onclick="requireAuth('creatorDashboard')">Anunciar agora</button>
+      </div>
+    </div>
+    <div class="features-strip">
+      <div class="feature-item"><div class="feature-dot"></div> Pagamento seguro</div>
+      <div class="feature-item"><div class="feature-dot"></div> Entrega rápida</div>
+      <div class="feature-item"><div class="feature-dot"></div> Aluguel flexível</div>
+      <div class="feature-item"><div class="feature-dot"></div> Suporte 24/7</div>
+    </div>
+    ${products.length>0?`
+    <div style="margin-bottom:40px">
+      <div class="section-label">Destaques</div>
+      <div class="section-title">Produtos em destaque</div>
+      <div class="section-sub">Os mais buscados agora</div>
+      <div class="products-grid">${products.map(renderProductCard).join('')}</div>
+    </div>`:''}
+  `;
+}
+
+// ================================================================
+// CATALOG — com paginação (FIX B) e busca por localização (FIX C)
+// ================================================================
+let catFilter = { cat:'all', type:'all', search:'' };
+const CAT_PAGE_SIZE = 20;
+let catCurrentPage = 1;
+
+function renderCatalog(search) {
+  if(search !== undefined) catFilter.search = search;
+  const all = DB.products().filter(p=>p.active);
+  let filtered = all;
+  if(catFilter.cat !== 'all') filtered = filtered.filter(p=>p.cat===catFilter.cat);
+  if(catFilter.type !== 'all') filtered = filtered.filter(p=>p.type===catFilter.type||p.type==='both');
+  // FIX C: busca inclui localização
+  if(catFilter.search) {
+    const q = catFilter.search.toLowerCase();
+    filtered = filtered.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.desc?.toLowerCase().includes(q) ||
+      p.location?.toLowerCase().includes(q)
+    );
+  }
+  // FIX B: paginação
+  const totalPages = Math.max(1, Math.ceil(filtered.length / CAT_PAGE_SIZE));
+  catCurrentPage = Math.min(catCurrentPage, totalPages);
+  const start = (catCurrentPage - 1) * CAT_PAGE_SIZE;
+  const pageItems = filtered.slice(start, start + CAT_PAGE_SIZE);
+
+  const cats = [
+    {v:'all',l:'Todos'},
+    {v:'eletronicos',l:'Eletrônicos'},{v:'ferramentas',l:'Ferramentas'},
+    {v:'esportes',l:'Esportes'},{v:'moda',l:'Moda'},{v:'casa',l:'Casa'},
+    {v:'veiculos',l:'Veículos'},{v:'games',l:'Games'},{v:'outros',l:'Outros'},
+  ];
+
+  const paginationHtml = totalPages > 1 ? `
+    <div class="pagination">
+      <button class="page-btn" onclick="goToCatPage(${catCurrentPage-1})" ${catCurrentPage<=1?'disabled':''}>← Anterior</button>
+      ${Array.from({length:totalPages},(_,i)=>i+1).map(n=>`
+        <button class="page-btn ${n===catCurrentPage?'active':''}" onclick="goToCatPage(${n})">${n}</button>
+      `).join('')}
+      <button class="page-btn" onclick="goToCatPage(${catCurrentPage+1})" ${catCurrentPage>=totalPages?'disabled':''}>Próxima →</button>
+    </div>` : '';
+
+  document.getElementById('page-catalog').innerHTML = `
+    <div class="catalog-header">
+      <div>
+        <div style="font-size:1.2rem;font-weight:800;color:var(--text)">Explorar</div>
+        <div style="font-size:0.8rem;color:var(--text3)">${filtered.length} produto${filtered.length!==1?'s':''} encontrado${filtered.length!==1?'s':''}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-secondary btn-sm filter-chip ${catFilter.type==='all'?'active':''}" onclick="setCatType('all')">Todos</button>
+        <button class="btn btn-secondary btn-sm filter-chip ${catFilter.type==='rent'?'active':''}" onclick="setCatType('rent')">Aluguel</button>
+        <button class="btn btn-secondary btn-sm filter-chip ${catFilter.type==='sale'?'active':''}" onclick="setCatType('sale')">Venda</button>
+      </div>
+    </div>
+    <div class="filter-bar">${cats.map(c=>`<button class="filter-chip ${catFilter.cat===c.v?'active':''}" onclick="setCatCat('${c.v}')">${c.l}</button>`).join('')}</div>
+    <div class="products-grid">${pageItems.length>0?pageItems.map(renderProductCard).join(''):'<div class="empty" style="grid-column:1/-1"><div class="empty-title">Nenhum produto encontrado</div><div class="empty-sub">Tente outros filtros</div></div>'}</div>
+    ${paginationHtml}
+  `;
+}
+function goToCatPage(n) {
+  catCurrentPage = n;
+  renderCatalog();
+  window.scrollTo(0,0);
+}
+function setCatCat(v) { catFilter.cat=v; catCurrentPage=1; renderCatalog(); }
+function setCatType(v) { catFilter.type=v; catCurrentPage=1; renderCatalog(); }
+
+// FIX A: debounce de 250ms no onNavSearch
+let _searchDebounce = null;
+function onNavSearch(v) {
+  clearTimeout(_searchDebounce);
+  _searchDebounce = setTimeout(() => {
+    catFilter.search = v;
+    catCurrentPage = 1;
+    if(currentPage === 'catalog') renderCatalog();
+  }, 250);
+}
+
+// FIX 5: produto 'both' exibe os dois preços no catálogo
+function renderProductCard(p) {
+  const typeLabel = p.type==='rent'?'Aluguel':p.type==='sale'?'Venda':'Aluguel e Venda';
+  const typeClass = p.type==='rent'?'badge-rent':p.type==='sale'?'badge-sale':'badge-both';
+  const img = p.mainImage||(p.images&&p.images[0]);
+  const catLabel = {eletronicos:'Eletrônicos',ferramentas:'Ferramentas',esportes:'Esportes',moda:'Moda',casa:'Casa',veiculos:'Veículos',games:'Games',outros:'Outros'}[p.cat]||p.cat||'';
+  let priceStr;
+  if(p.type === 'rent') {
+    priceStr = `R$ ${Number(p.rentPrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}<span class="product-price-sub"> /dia</span>`;
+  } else if(p.type === 'sale') {
+    priceStr = `R$ ${Number(p.salePrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+  } else {
+    // FIX 5: 'both' mostra venda E aluguel
+    priceStr = `R$ ${Number(p.salePrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}` +
+               `<span class="product-price-sub"> ou R$ ${Number(p.rentPrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}/dia</span>`;
+  }
+  return `<div class="product-card" onclick="openProduct(${p.id})">
+    <div class="product-img">
+      ${img?`<img src="${img}" alt="${p.name}" loading="lazy" onerror="this.parentNode.innerHTML='<div class=\'product-img-placeholder\'>Sem imagem</div>'">`:'<div class="product-img-placeholder">Sem imagem</div>'}
+      <span class="product-badge ${typeClass}">${typeLabel}</span>
+    </div>
+    <div class="product-info">
+      <div class="product-cat">${catLabel}</div>
+      <div class="product-name">${p.name}</div>
+      <div class="product-price">${priceStr}</div>
+      ${p.location?`<div class="product-location">${p.location}</div>`:''}
+    </div>
+  </div>`;
+}
+
+// ================================================================
+// PRODUCT DETAIL
+// ================================================================
+let currentProductId = null;
+function openProduct(id) {
+  currentProductId = id;
+  const p = DB.products().find(x=>x.id===id);
+  if(!p) { toast('Produto não encontrado'); return; }
+  const images = p.images&&p.images.length>0?p.images:[p.mainImage].filter(Boolean);
+  const typeLabel = p.type==='rent'?'Aluguel':p.type==='sale'?'Venda':'Aluguel e Venda';
+  const typeClass = p.type==='rent'?'badge-rent':p.type==='sale'?'badge-sale':'badge-both';
+  const catLabel = {eletronicos:'Eletrônicos',ferramentas:'Ferramentas',esportes:'Esportes',moda:'Moda',casa:'Casa',veiculos:'Veículos',games:'Games',outros:'Outros'}[p.cat]||p.cat||'';
+  document.getElementById('page-productDetail').innerHTML = `
+    <div style="padding:16px 0">
+      <button class="btn btn-ghost btn-sm" onclick="goTo('catalog')" style="margin-bottom:12px">← Voltar ao catálogo</button>
+      <div class="detail-grid">
+        <div>
+          <div class="detail-main-img" id="mainImgWrap">
+            ${images[0]?`<img id="mainImg" src="${images[0]}" alt="${p.name}" onerror="this.parentNode.innerHTML='<div class=\'product-img-placeholder\' style=\'height:100%\'>Sem imagem</div>'">`:'<div class="product-img-placeholder" style="height:100%">Sem imagem</div>'}
+          </div>
+          ${images.length>1?`<div class="detail-thumbs">${images.map((img,i)=>`<img class="detail-thumb ${i===0?'active':''}" src="${img}" onclick="setMainImg('${img}',this)" onerror="this.style.display='none'">`).join('')}</div>`:''}
+        </div>
+        <div class="detail-info">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <span class="product-badge ${typeClass}" style="position:static">${typeLabel}</span>
+            <span class="tag tag-default">${catLabel}</span>
+          </div>
+          <h1 style="font-size:1.3rem;font-weight:800;color:var(--text);line-height:1.3;margin-bottom:8px">${p.name}</h1>
+          <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:4px">
+            ${p.type!=='rent'?`<div class="detail-price">R$ ${Number(p.salePrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>`:''}
+            ${p.type!=='sale'?`<div class="detail-price" ${p.type==='both'?'style="font-size:1rem;color:var(--text2)"':''}>R$ ${Number(p.rentPrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}<span style="font-size:0.75rem;color:var(--text3);font-weight:400"> /dia</span></div>`:''}
+          </div>
+          ${p.location?`<div style="font-size:0.8rem;color:var(--text3);margin-bottom:14px">${p.location}</div>`:''}
+          ${p.desc?`<div style="font-size:0.875rem;color:var(--text2);line-height:1.6;margin-bottom:16px;padding:14px;background:var(--surface2);border-radius:var(--radius)">${p.desc}</div>`:''}
+          <div style="font-size:0.78rem;color:var(--text3);margin-bottom:20px">Anunciado por <strong style="color:var(--text)">${p.ownerName||'Usuário'}</strong></div>
+          ${p.type==='both'?`
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            ${p.rentPrice?`<button class="btn btn-primary" style="flex:1" onclick="startCheckout(${p.id},'rent')">Alugar por dia</button>`:''}
+            ${p.salePrice?`<button class="btn btn-outline" style="flex:1" onclick="startCheckout(${p.id},'sale')">Comprar</button>`:''}
+          </div>`:`
+          <button class="btn btn-primary btn-full btn-lg" onclick="startCheckout(${p.id},'${p.type}')">
+            ${p.type==='rent'?'Solicitar aluguel':'Comprar agora'}
+          </button>`}
+          <button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="window.open('https://wa.me/5511978250549?text=Olá! Vi o produto ${encodeURIComponent(p.name)} na USEI.APP e tenho interesse.','_blank')">Falar pelo WhatsApp</button>
+        </div>
+      </div>
+    </div>`;
+  goTo('productDetail');
+}
+
+// FIX 8: setMainImg com onerror para evitar imagem quebrada ao trocar thumbnail
+function setMainImg(src, el) {
+  const mainImg = document.getElementById('mainImg');
+  if(!mainImg) return;
+  mainImg.onerror = function() {
+    this.onerror = null;
+    const wrap = document.getElementById('mainImgWrap');
+    if(wrap) wrap.innerHTML = '<div class="product-img-placeholder" style="height:100%">Sem imagem</div>';
+  };
+  mainImg.src = src;
+  document.querySelectorAll('.detail-thumb').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ================================================================
+// CHECKOUT
+// ================================================================
+let checkoutData = {};
+function startCheckout(productId, type) {
+  const u = DB.currentUser();
+  if(!u) { openModal('modalLogin'); return; }
+  const pid = Number(productId);
+  const p = DB.products().find(x => Number(x.id) === pid);
+  if(!p) { toast('Produto não encontrado'); return; }
+  checkoutData = { product: p, type };
+  const isRent = type === 'rent';
+  const price = Number(isRent ? p.rentPrice : p.salePrice) || 0;
+  const fee = price * 0.08;
+  const html = `
+    <div style="display:flex;gap:14px;align-items:flex-start;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:16px">
+      ${p.mainImage||p.images?.[0]?`<img src="${p.mainImage||p.images[0]}" style="width:72px;height:72px;border-radius:var(--radius);object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:'<div style="width:72px;height:72px;border-radius:var(--radius);background:var(--surface3);flex-shrink:0"></div>'}
+      <div>
+        <div style="font-weight:700;color:var(--text);margin-bottom:4px">${p.name}</div>
+        <div style="font-size:0.8rem;color:var(--text3)">${isRent?'Aluguel':'Compra'}</div>
+        <div style="font-size:0.8rem;color:var(--text3)">${p.ownerName||''}</div>
+      </div>
+    </div>
+    ${isRent?`<div class="form-group">
+      <label class="form-label">Período de aluguel</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="form-input" id="rentDays" type="number" min="1" max="365" value="1" style="width:90px" oninput="updateCheckoutTotal()">
+        <span style="color:var(--text2);font-size:0.875rem">dia(s)</span>
+      </div>
+    </div>`:''}
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:14px">
+      <div style="display:flex;justify-content:space-between;font-size:0.875rem;margin-bottom:8px">
+        <span style="color:var(--text2)">${isRent?'Valor por dia':'Preço do produto'}</span>
+        <span style="color:var(--text);font-weight:600">R$ ${Number(price).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:0.875rem;margin-bottom:10px">
+        <span style="color:var(--text2)">Taxa de serviço (8%)</span>
+        <span id="checkoutFee">R$ ${Number(fee).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:1.05rem;border-top:1px solid var(--border);padding-top:10px;color:var(--text)">
+        <span>Total</span>
+        <span id="checkoutTotal">R$ ${Number(price+fee).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+      </div>
+    </div>`;
+  const body = document.getElementById('checkoutBody');
+  if(!body) { toast('Erro ao abrir checkout. Recarregue a página.'); return; }
+  body.innerHTML = html;
+  openModal('modalCheckout');
+}
+function updateCheckoutTotal() {
+  const p = checkoutData?.product;
+  if(!p || checkoutData.type !== 'rent') return;
+  const days = Math.max(1, parseInt(document.getElementById('rentDays')?.value) || 1);
+  const base = Number(p.rentPrice) * days;
+  const fee = base * 0.08;
+  const feeEl = document.getElementById('checkoutFee');
+  const totalEl = document.getElementById('checkoutTotal');
+  if(feeEl) feeEl.textContent = 'R$ ' + Number(fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  if(totalEl) totalEl.textContent = 'R$ ' + Number(base+fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
+}
+function confirmOrder() {
+  const u = DB.currentUser();
+  const p = checkoutData?.product;
+  if(!u) { toast('Faça login para continuar'); closeModal('modalCheckout'); openModal('modalLogin'); return; }
+  if(!p) { toast('Erro: produto não encontrado'); closeModal('modalCheckout'); return; }
+  const isRent = checkoutData.type === 'rent';
+  const days = isRent ? (Math.max(1, parseInt(document.getElementById('rentDays')?.value) || 1)) : 0;
+  const base = isRent ? Number(p.rentPrice)*days : Number(p.salePrice);
+  const fee = base*0.08;
+  const total = base+fee;
+  const startDate = new Date();
+  const endDate = new Date(startDate);
+  if(isRent) endDate.setDate(endDate.getDate()+days);
+  const order = {
+    id: Date.now(), productId: p.id, productName: p.name,
+    productImage: p.mainImage||(p.images&&p.images[0])||null,
+    ownerId: p.ownerId, ownerName: p.ownerName,
+    buyerId: u.id, buyerName: u.name, buyerEmail: u.email,
+    type: checkoutData.type, days, value: total, fee,
+    status: 'pendente', date: startDate.toISOString().split('T')[0],
+    endDate: isRent ? endDate.toISOString().split('T')[0] : null,
+  };
+  const orders = DB.orders(); orders.unshift(order); DB.saveOrders(orders);
+  const tx = {
+    id: Date.now()+1, orderId: order.id, userId: u.id, userName: u.name,
+    productName: p.name, value: total, method: 'Plataforma',
+    status: 'aprovado', date: startDate.toISOString().split('T')[0],
+  };
+  const txs = DB.txs(); txs.unshift(tx); DB.saveTxs(txs);
+  closeModal('modalCheckout');
+  toast('Pedido realizado!');
+  goTo('userArea');
+}
+
+// ================================================================
+// USER AREA
+// ================================================================
+let userTab = 'orders';
+function renderUserArea() {
+  const u = DB.currentUser();
+  if(!u) { goTo('landing'); return; }
+  const orders = DB.orders().filter(o=>o.buyerId===u.id);
+  const rentals = orders.filter(o=>o.type==='rent');
+  const purchases = orders.filter(o=>o.type==='sale');
+  document.getElementById('page-userArea').innerHTML = `
+    <div style="padding:24px 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:1.2rem;font-weight:800;color:var(--text)">Olá, ${u.name.split(' ')[0]}</div>
+          <div style="font-size:0.8rem;color:var(--text3)">${u.email}</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="requireAuth('creatorDashboard')">Meus anúncios</button>
+      </div>
+      <div class="user-tabs">
+        <div class="user-tab ${userTab==='orders'?'active':''}" onclick="switchUserTab('orders',this)">Todos (${orders.length})</div>
+        <div class="user-tab ${userTab==='rentals'?'active':''}" onclick="switchUserTab('rentals',this)">Aluguéis (${rentals.length})</div>
+        <div class="user-tab ${userTab==='purchases'?'active':''}" onclick="switchUserTab('purchases',this)">Compras (${purchases.length})</div>
+      </div>
+      <div id="userTabContent">${renderUserOrders(userTab==='rentals'?rentals:userTab==='purchases'?purchases:orders)}</div>
+    </div>`;
+}
+
+// FIX 2: switchUserTab recebe (tab, el) igual ao switchCreatorTab — sem depender de event global
+function switchUserTab(tab, el) {
+  userTab = tab;
+  const u = DB.currentUser();
+  const orders = DB.orders().filter(o=>o.buyerId===u.id);
+  const list = tab==='rentals'?orders.filter(o=>o.type==='rent'):tab==='purchases'?orders.filter(o=>o.type==='sale'):orders;
+  document.querySelectorAll('.user-tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById('userTabContent').innerHTML = renderUserOrders(list);
+}
+function renderUserOrders(list) {
+  if(!list.length) return '<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">Nenhum pedido ainda</div><div class="empty-sub">Explore os produtos disponíveis</div></div>';
+  const statusMap = {pendente:{cls:'tag-warning',l:'Pendente'},confirmado:{cls:'tag-info',l:'Confirmado'},entregue:{cls:'tag-success',l:'Entregue'},cancelado:{cls:'tag-danger',l:'Cancelado'}};
+  return '<div style="display:flex;flex-direction:column;gap:10px">' + list.map(o=>{
+    const s = statusMap[o.status]||statusMap.pendente;
+    return `<div class="order-card">
+      ${o.productImage?`<img class="order-img" src="${o.productImage}" onerror="this.style.background='var(--surface3)'">`:
+        '<div class="order-img" style="background:var(--surface3)"></div>'}
+      <div>
+        <div style="font-weight:700;color:var(--text);margin-bottom:2px">${o.productName}</div>
+        <div style="font-size:0.78rem;color:var(--text3)">${o.type==='rent'?'Aluguel':'Compra'} · ${o.date}</div>
+        <div style="font-size:0.9rem;font-weight:700;color:var(--text);margin-top:4px">R$ ${Number(o.value).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      </div>
+      <span class="tag ${s.cls}">${s.l}</span>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+// ================================================================
+// CREATOR DASHBOARD
+// ================================================================
+let creatorTab = 'products';
+function renderCreator() {
+  const u = DB.currentUser();
+  if(!u) { goTo('landing'); return; }
+  const myProducts = DB.products().filter(p=>p.ownerId===u.id);
+  const mySales = DB.orders().filter(o=>o.ownerId===u.id);
+  const revenue = mySales.reduce((a,o)=>a+o.value,0);
+  document.getElementById('page-creatorDashboard').innerHTML = `
+    <div style="padding:24px 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:1.2rem;font-weight:800;color:var(--text)">Meus anúncios</div>
+          <div style="font-size:0.8rem;color:var(--text3)">${u.name}</div>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('modalAddProduct')">+ Novo anúncio</button>
+      </div>
+      <div class="stats-grid" style="margin-bottom:24px">
+        <div class="stat-card"><div class="stat-value">${myProducts.length}</div><div class="stat-label">Anúncios</div></div>
+        <div class="stat-card"><div class="stat-value">${myProducts.filter(p=>p.active).length}</div><div class="stat-label">Ativos</div></div>
+        <div class="stat-card"><div class="stat-value">${mySales.length}</div><div class="stat-label">Pedidos</div></div>
+        <div class="stat-card"><div class="stat-value">R$ ${Number(revenue).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="stat-label">Receita</div></div>
+      </div>
+      <div class="creator-tabs">
+        <div class="creator-tab ${creatorTab==='products'?'active':''}" onclick="switchCreatorTab('products',this)">Produtos (${myProducts.length})</div>
+        <div class="creator-tab ${creatorTab==='sales'?'active':''}" onclick="switchCreatorTab('sales',this)">Pedidos (${mySales.length})</div>
+      </div>
+      <div id="creatorTabContent">${creatorTab==='products'?renderCreatorProducts(myProducts):renderCreatorSales(mySales)}</div>
+    </div>`;
+}
+function switchCreatorTab(tab, el) {
+  creatorTab=tab;
+  const u=DB.currentUser();
+  document.querySelectorAll('.creator-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const myProducts=DB.products().filter(p=>p.ownerId===u.id);
+  const mySales=DB.orders().filter(o=>o.ownerId===u.id);
+  document.getElementById('creatorTabContent').innerHTML=tab==='products'?renderCreatorProducts(myProducts):renderCreatorSales(mySales);
+}
+function renderCreatorProducts(list) {
+  if(!list.length) return '<div class="empty"><div class="empty-title">Nenhum anúncio publicado</div><div class="empty-sub">Clique em "Novo anúncio" para começar</div></div>';
+  return '<div class="card"><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Tipo</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+
+    list.map(p=>{
+      const img=p.mainImage||(p.images&&p.images[0]);
+      const price=p.type==='rent'?`R$ ${Number(p.rentPrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}/dia`:
+                  p.type==='sale'?`R$ ${Number(p.salePrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}`:
+                  `R$ ${Number(p.salePrice).toLocaleString('pt-BR',{minimumFractionDigits:2})} / R$ ${Number(p.rentPrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}/dia`;
+      return `<tr>
+        <td><div style="display:flex;align-items:center;gap:8px">
+          ${img?`<img src="${img}" style="width:40px;height:40px;border-radius:6px;object-fit:cover" onerror="this.style.display='none'">`:
+            '<div style="width:40px;height:40px;border-radius:6px;background:var(--surface3)"></div>'}
+          <span class="td-name">${p.name}</span></div></td>
+        <td>${p.type==='rent'?'Aluguel':p.type==='sale'?'Venda':'Ambos'}</td>
+        <td>${price}</td>
+        <td><span class="tag ${p.active?'tag-success':'tag-default'}">${p.active?'Ativo':'Pausado'}</span></td>
+        <td><div style="display:flex;gap:4px">
+          <button class="btn btn-secondary btn-sm" onclick="toggleProduct(${p.id})">${p.active?'Pausar':'Ativar'}</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteMyProduct(${p.id})">Excluir</button>
+        </div></td>
+      </tr>`;
+    }).join('')+'</tbody></table></div></div>';
+}
+function renderCreatorSales(list) {
+  if(!list.length) return '<div class="empty"><div class="empty-title">Nenhum pedido ainda</div></div>';
+  return '<div class="card"><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Comprador</th><th>Tipo</th><th>Valor</th><th>Status</th><th>Data</th></tr></thead><tbody>'+
+    list.map(o=>`<tr>
+      <td class="td-name">${o.productName}</td>
+      <td>${o.buyerName}</td>
+      <td>${o.type==='rent'?'Aluguel':'Venda'}</td>
+      <td style="font-weight:700">R$ ${Number(o.value).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+      <td><span class="tag ${o.status==='entregue'?'tag-success':o.status==='cancelado'?'tag-danger':'tag-warning'}">${o.status}</span></td>
+      <td>${o.date}</td>
+    </tr>`).join('')+'</tbody></table></div></div>';
+}
+function toggleProduct(id) {
+  const products=DB.products();
+  const p=products.find(x=>x.id===id);
+  if(p){ p.active=!p.active; DB.saveProducts(products); renderCreator(); toast(p.active?'Produto ativado':'Produto pausado'); }
+}
+// FIX D: substituído confirm() por showConfirm()
+async function deleteMyProduct(id) {
+  const ok = await showConfirm('Excluir produto', 'Tem certeza? Esta ação não pode ser desfeita.', 'Excluir');
+  if(!ok) return;
+  DB.saveProducts(DB.products().filter(p=>p.id!==id));
+  renderCreator(); toast('Produto excluído');
+}
+
+// ================================================================
+// ADMIN PANEL
+// ================================================================
+let adminTab = 'dashboard';
+function renderAdmin() {
+  const u = DB.currentUser();
+  if(!u||u.role!=='admin') { goTo('landing'); return; }
+  const users    = DB.users();
+  const products = DB.products();
+  const orders   = DB.orders();
+  const txs      = DB.txs();
+  const revenue  = txs.reduce((a,t)=>a+t.value,0);
+  const cfg      = getCloudinaryConfig();
+  document.getElementById('page-admin').innerHTML = `
+    <div class="admin-layout">
+      <aside class="admin-sidebar">
+        <div class="admin-sidebar-title" style="padding:16px 16px 8px">USEI.APP Admin</div>
+        <div class="admin-nav-item ${adminTab==='dashboard'?'active':''}" onclick="switchAdminTab('dashboard')">Dashboard</div>
+        <div class="admin-nav-sep"></div>
+        <div class="admin-sidebar-title">Gestão</div>
+        <div class="admin-nav-item ${adminTab==='users'?'active':''}" onclick="switchAdminTab('users')">Usuários</div>
+        <div class="admin-nav-item ${adminTab==='products'?'active':''}" onclick="switchAdminTab('products')">Produtos</div>
+        <div class="admin-nav-item ${adminTab==='orders'?'active':''}" onclick="switchAdminTab('orders')">Pedidos</div>
+        <div class="admin-nav-item ${adminTab==='transactions'?'active':''}" onclick="switchAdminTab('transactions')">Transações</div>
+        <div class="admin-nav-sep"></div>
+        <div class="admin-sidebar-title">Sistema</div>
+        <div class="admin-nav-item ${adminTab==='cloudinary'?'active':''}" onclick="switchAdminTab('cloudinary')">Imagens (Cloudinary)</div>
+        <div class="admin-nav-item ${adminTab==='admins'?'active':''}" onclick="switchAdminTab('admins')">Administradores</div>
+        <div class="admin-nav-item ${adminTab==='settings'?'active':''}" onclick="switchAdminTab('settings')">Configurações</div>
+        <div class="admin-nav-sep"></div>
+        <div class="admin-nav-item" onclick="goTo('landing')" style="color:var(--text3)">← Voltar ao site</div>
+      </aside>
+      <main class="admin-main">
+        ${renderAdminTab(adminTab, {users,products,orders,txs,revenue,cfg})}
+      </main>
+    </div>`;
+}
+function switchAdminTab(tab) {
+  adminTab=tab;
+  renderAdmin();
+}
+function renderAdminTab(tab, {users,products,orders,txs,revenue,cfg}) {
+  if(tab==='sync') {
+    const binCfg = DB.getBinConfig() || {};
+    const isConfigured = !!(binCfg.binId && binCfg.apiKey);
+    return `
+    <div style="font-size:1.1rem;font-weight:800;margin-bottom:8px;color:var(--text)">Sincronização em tempo real</div>
+    <div style="font-size:0.875rem;color:var(--text3);margin-bottom:20px">Permite que todos os dispositivos compartilhem os mesmos dados.</div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <div style="font-weight:700;color:var(--text)">Status</div>
+          ${isConfigured
+            ? '<span class="tag tag-success">Sincronização ativa</span>'
+            : '<span class="tag tag-danger">Não configurado — dados apenas locais</span>'}
+        </div>
+        <div class="form-group"><label class="form-label">JSONBin Bin ID</label>
+          <input class="form-input" id="cfBinId" value="${binCfg.binId||''}" placeholder="ex: 664abc123def456...">
+        </div>
+        <div class="form-group"><label class="form-label">Master API Key</label>
+          <input class="form-input" id="cfBinKey" type="password" value="${binCfg.apiKey||''}" placeholder="$2a$10$...">
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="saveBinConfig()">Salvar e sincronizar</button>
+          ${isConfigured ? '<button class="btn btn-secondary" onclick="forceSyncNow()">Forçar sincronização</button>' : ''}
+          ${isConfigured ? '<button class="btn btn-ghost" style="color:var(--danger)" onclick="clearBinConfig()">Desconectar</button>' : ''}
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div style="font-weight:700;margin-bottom:12px;color:var(--text)">Como configurar (grátis)</div>
+        <ol style="font-size:0.85rem;color:var(--text2);line-height:2.2;padding-left:20px">
+          <li>Acesse <a href="https://jsonbin.io" target="_blank" style="color:var(--brand);font-weight:600">jsonbin.io</a> e crie uma conta grátis</li>
+          <li>Clique em <strong>+ Create Bin</strong>, cole <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">{"users":[],"products":[],"orders":[],"txs":[]}</code> e salve</li>
+          <li>Copie o <strong>Bin ID</strong> que aparece na URL ou no painel</li>
+          <li>Vá em <strong>API Keys</strong> → copie sua <strong>Master Key</strong></li>
+          <li>Cole os dois campos acima e clique em Salvar</li>
+        </ol>
+        <div style="margin-top:14px;padding:12px;background:var(--warning-light);border-radius:var(--radius);font-size:0.8rem;color:var(--warning)">
+          <strong>Plano gratuito:</strong> 10.000 requests/mês, ideal para MVP e testes.
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if(tab==='dashboard') return `
+    <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Dashboard</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value">${users.length}</div><div class="stat-label">Usuários</div></div>
+      <div class="stat-card"><div class="stat-value">${products.length}</div><div class="stat-label">Produtos</div></div>
+      <div class="stat-card"><div class="stat-value">${orders.length}</div><div class="stat-label">Pedidos</div></div>
+      <div class="stat-card"><div class="stat-value">R$ ${Number(revenue).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="stat-label">Receita total</div></div>
+      <div class="stat-card"><div class="stat-value">${products.filter(p=>p.active).length}</div><div class="stat-label">Produtos ativos</div></div>
+      <div class="stat-card"><div class="stat-value">${orders.filter(o=>o.status==='pendente').length}</div><div class="stat-label">Pedidos pendentes</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Atividade recente</div></div>
+      <div class="table-wrap"><table><thead><tr><th>Evento</th><th>Valor</th><th>Data</th></tr></thead><tbody>
+        ${[...orders].sort((a,b)=>b.id-a.id).slice(0,10).map(o=>`<tr>
+          <td class="td-name">${o.buyerName} — ${o.productName}</td>
+          <td style="font-weight:700">R$ ${Number(o.value).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+          <td style="color:var(--text3)">${o.date}</td>
+        </tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:24px">Sem atividade</td></tr>'}
+      </tbody></table></div>
+    </div>`;
+
+  if(tab==='users') return `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div style="font-size:1.1rem;font-weight:800;color:var(--text)">Usuários (${users.length})</div>
+      <input class="form-input" style="max-width:240px" placeholder="Buscar usuário..." oninput="adminSearchUsers(this.value)">
+    </div>
+    <div class="card" id="adminUsersWrap">
+      <div class="table-wrap"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Cadastro</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody id="adminUsersTbody">${renderUsersRows(users)}</tbody></table></div>
+    </div>`;
+
+  if(tab==='products') return `
+    <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Produtos (${products.length})</div>
+    <div class="card"><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Dono</th><th>Tipo</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead><tbody>
+      ${products.map(p=>{
+        const img=p.mainImage||(p.images&&p.images[0]);
+        return`<tr>
+          <td><div style="display:flex;align-items:center;gap:8px">
+            ${img?`<img src="${img}" style="width:40px;height:40px;border-radius:6px;object-fit:cover" onerror="this.style.display='none'">`:
+              '<div style="width:40px;height:40px;border-radius:6px;background:var(--surface3)"></div>'}
+            <span class="td-name">${p.name}</span></div></td>
+          <td>${p.ownerName||'—'}</td>
+          <td>${p.type==='rent'?'Aluguel':p.type==='sale'?'Venda':'Ambos'}</td>
+          <td>${p.rentPrice?'R$ '+Number(p.rentPrice).toLocaleString('pt-BR',{minimumFractionDigits:2})+'/dia':'R$ '+Number(p.salePrice).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+          <td><span class="tag ${p.active?'tag-success':'tag-default'}">${p.active?'Ativo':'Pausado'}</span></td>
+          <td><div style="display:flex;gap:4px">
+            <button class="btn btn-secondary btn-sm" onclick="adminToggleProduct(${p.id})">${p.active?'Pausar':'Ativar'}</button>
+            <button class="btn btn-danger btn-sm" onclick="adminDeleteProduct(${p.id})">Excluir</button>
+          </div></td>
+        </tr>`;
+      }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nenhum produto</td></tr>'}
+    </tbody></table></div></div>`;
+
+  if(tab==='orders') return `
+    <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Pedidos (${orders.length})</div>
+    <div class="card"><div class="table-wrap"><table><thead><tr><th>#</th><th>Produto</th><th>Comprador</th><th>Tipo</th><th>Valor</th><th>Status</th><th>Data</th></tr></thead><tbody>
+      ${orders.map(o=>`<tr>
+        <td style="color:var(--text3)">#${o.id}</td>
+        <td class="td-name">${o.productName}</td>
+        <td>${o.buyerName}</td>
+        <td>${o.type==='rent'?'Aluguel':'Venda'}</td>
+        <td style="font-weight:700">R$ ${Number(o.value).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+        <td><select class="form-input" style="padding:4px 8px;font-size:0.78rem" onchange="adminUpdateOrder(${o.id},this.value)">
+          ${['pendente','confirmado','entregue','cancelado'].map(s=>`<option value="${s}"${o.status===s?' selected':''}>${s}</option>`).join('')}
+        </select></td>
+        <td style="color:var(--text3)">${o.date}</td>
+      </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Nenhum pedido</td></tr>'}
+    </tbody></table></div></div>`;
+
+  if(tab==='transactions') return `
+    <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Transações (${txs.length})</div>
+    <div class="card"><div class="table-wrap"><table><thead><tr><th>#</th><th>Usuário</th><th>Produto</th><th>Valor</th><th>Método</th><th>Status</th><th>Data</th></tr></thead><tbody>
+      ${txs.map(t=>`<tr>
+        <td style="color:var(--text3)">#${t.id}</td>
+        <td>${t.userName}</td>
+        <td class="td-name">${t.productName}</td>
+        <td style="font-weight:700">R$ ${Number(t.value).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+        <td>${t.method}</td>
+        <td><span class="tag tag-success">${t.status}</span></td>
+        <td style="color:var(--text3)">${t.date}</td>
+      </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Nenhuma transação</td></tr>'}
+    </tbody></table></div></div>`;
+
+  if(tab==='cloudinary') return `
+    <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Imagens — Cloudinary</div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-body">
+        <div style="font-weight:700;margin-bottom:6px;color:var(--text)">Status atual</div>
+        <div style="font-size:0.875rem;margin-bottom:16px">
+          ${cfg.cloudName
+            ? `<span class="tag tag-success">Configurado: ${cfg.cloudName}</span>`
+            : '<span class="tag tag-danger">Não configurado — fotos ficam apenas em base64</span>'}
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Cloud Name</label><input class="form-input" id="cfCloud" value="${cfg.cloudName||''}" placeholder="ex: meu-app"></div>
+          <div class="form-group"><label class="form-label">Upload Preset (Unsigned)</label><input class="form-input" id="cfPreset" value="${cfg.uploadPreset||''}" placeholder="ex: usei_upload"></div>
+        </div>
+        <button class="btn btn-primary" onclick="saveCloudinary()">Salvar configuração</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div style="font-weight:700;margin-bottom:8px;color:var(--text)">Como configurar (grátis)</div>
+        <ol style="font-size:0.85rem;color:var(--text2);line-height:2;padding-left:20px">
+          <li>Acesse <strong>cloudinary.com</strong> e crie uma conta grátis</li>
+          <li>No Dashboard, copie o <strong>Cloud Name</strong></li>
+          <li>Vá em Settings → Upload → Add upload preset</li>
+          <li>Defina como <strong>Unsigned</strong> e copie o nome</li>
+          <li>Cole os valores acima e salve</li>
+        </ol>
+      </div>
+    </div>`;
+
+  if(tab==='admins') {
+    const adminEmails = DB.get('admin_emails')||[];
+    return `
+    <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Administradores</div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-body">
+        <div style="font-weight:700;margin-bottom:4px;color:var(--text)">Conta master</div>
+        <div style="font-size:0.8rem;color:var(--text3);margin-bottom:14px">A conta principal criada no setup inicial.</div>
+        <button class="btn btn-secondary btn-sm" onclick="changeAdminPass()">Alterar senha master</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div style="font-weight:700;margin-bottom:4px;color:var(--text)">E-mails com acesso admin</div>
+        <div style="font-size:0.8rem;color:var(--text3);margin-bottom:14px">Usuários com estes e-mails terão acesso ao painel ao fazer login.</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <input class="form-input" id="newAdminEmail" type="email" placeholder="email@dominio.com" style="flex:1">
+          <button class="btn btn-primary" onclick="addAdminEmail()">Adicionar</button>
+        </div>
+        <div>${adminEmails.length>0?adminEmails.map(e=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.875rem;color:var(--text)">${e}</span>
+            <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="removeAdminEmail('${e}')">Remover</button>
+          </div>`).join(''):'<div style="color:var(--text3);font-size:0.875rem">Nenhum e-mail adicional</div>'}</div>
+      </div>
+    </div>`;
+  }
+
+  if(tab==='settings') return `
+    <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Configurações</div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-body">
+        <div style="font-weight:700;margin-bottom:14px;color:var(--text)">Dados e backup</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--surface2);border-radius:var(--radius)">
+            <div><div style="font-weight:600;font-size:0.875rem">Exportar dados</div><div style="font-size:0.75rem;color:var(--text3)">Baixe todos os dados em JSON</div></div>
+            <button class="btn btn-secondary btn-sm" onclick="exportData()">Exportar</button>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--danger-light);border-radius:var(--radius);border:1px solid #FCA5A5">
+            <div><div style="font-weight:600;font-size:0.875rem;color:var(--danger)">Reset da plataforma</div><div style="font-size:0.75rem;color:var(--danger)">Apaga tudo exceto conta admin</div></div>
+            <button class="btn btn-danger btn-sm" onclick="resetPlatform()">Reset</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div style="font-weight:700;margin-bottom:14px;color:var(--text)">Informações do sistema</div>
+        <div style="display:grid;gap:8px;font-size:0.875rem">
+          ${[
+            ['Versão','USEI.APP v2.1'],
+            ['Usuários',DB.users().length],
+            ['Produtos',DB.products().length],
+            ['Pedidos',DB.orders().length],
+            ['Cloudinary',getCloudinaryConfig().cloudName||'Não configurado'],
+          ].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3)">${k}</span><strong>${v}</strong></div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+  return '';
+}
+
+// Admin helpers
+function renderUsersRows(list) {
+  if(!list.length) return '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Nenhum usuário</td></tr>';
+  const roleMap={admin:'tag-danger',creator:'tag-info',user:'tag-default'};
+  const roleLabel={admin:'Admin',creator:'Creator',user:'Usuário'};
+  return list.map(u=>`<tr>
+    <td class="td-name">${u.name}</td>
+    <td style="color:var(--text3)">${u.email}</td>
+    <td><span class="tag ${roleMap[u.role]||'tag-default'}">${roleLabel[u.role]||u.role}</span></td>
+    <td style="color:var(--text3)">${u.createdAt?u.createdAt.split('T')[0]:''}</td>
+    <td>${u.banned?'<span class="tag tag-danger">Banido</span>':'<span class="tag tag-success">Ativo</span>'}</td>
+    <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+      <button class="btn btn-secondary btn-sm" onclick="adminToggleBan(${u.id})">${u.banned?'Desbanir':'Banir'}</button>
+      <button class="btn btn-danger btn-sm" onclick="adminDeleteUser(${u.id})">Excluir</button>
+    </div></td>
+  </tr>`).join('');
+}
+function adminSearchUsers(q) {
+  const users=DB.users().filter(u=>u.name.toLowerCase().includes(q.toLowerCase())||u.email.toLowerCase().includes(q.toLowerCase()));
+  const tbody=document.getElementById('adminUsersTbody');
+  if(tbody) tbody.innerHTML=renderUsersRows(users);
+}
+function adminToggleBan(id) {
+  const users=DB.users();
+  const u=users.find(x=>x.id===id);
+  if(!u) return;
+  const me=DB.currentUser();
+  if(me&&me.id===id) { toast('Não é possível banir a si mesmo'); return; }
+  u.banned=!u.banned;
+  DB.saveUsers(users);
+  renderAdmin();
+  toast(u.banned?'Usuário banido':'Usuário desbanido');
+}
+// FIX D: adminDeleteUser usa showConfirm
+async function adminDeleteUser(id) {
+  const me=DB.currentUser();
+  if(me&&me.id===id) { toast('Não é possível excluir a si mesmo'); return; }
+  const ok = await showConfirm('Excluir usuário', 'Tem certeza? Esta ação não pode ser desfeita.', 'Excluir');
+  if(!ok) return;
+  DB.saveUsers(DB.users().filter(u=>u.id!==id));
+  renderAdmin(); toast('Usuário excluído');
+}
+function adminToggleProduct(id) {
+  const products=DB.products();
+  const p=products.find(x=>x.id===id);
+  if(p){ p.active=!p.active; DB.saveProducts(products); renderAdmin(); toast(p.active?'Produto ativado':'Produto pausado'); }
+}
+// FIX D: adminDeleteProduct usa showConfirm
+async function adminDeleteProduct(id) {
+  const ok = await showConfirm('Excluir produto', 'Tem certeza? Esta ação não pode ser desfeita.', 'Excluir');
+  if(!ok) return;
+  DB.saveProducts(DB.products().filter(p=>p.id!==id));
+  renderAdmin(); toast('Produto excluído');
+}
+// FIX 6: adminUpdateOrder chama renderAdmin() para atualizar a tabela visualmente
+function adminUpdateOrder(id, status) {
+  const orders=DB.orders();
+  const o=orders.find(x=>x.id===id);
+  if(o){ o.status=status; DB.saveOrders(orders); toast('Status atualizado'); renderAdmin(); }
+}
+function addAdminEmail() {
+  const email=document.getElementById('newAdminEmail')?.value?.trim().toLowerCase();
+  if(!email||!email.includes('@')) { toast('E-mail inválido'); return; }
+  const list=DB.get('admin_emails')||[];
+  if(!list.includes(email)) { list.push(email); DB.set('admin_emails',list); }
+  const users=DB.users();
+  const u=users.find(x=>x.email.toLowerCase()===email);
+  if(u&&u.role!=='admin') { u.role='admin'; DB.saveUsers(users); }
+  renderAdmin(); toast('Admin adicionado');
+}
+function removeAdminEmail(email) {
+  const list=(DB.get('admin_emails')||[]).filter(e=>e!==email);
+  DB.set('admin_emails',list);
+  renderAdmin(); toast('Removido');
+}
+function changeAdminPass() {
+  const np=prompt('Nova senha (mín. 8 caracteres):');
+  if(!np) return;
+  if(np.length<8) { toast('Senha muito curta'); return; }
+  if(prompt('Confirme a nova senha:')!==np) { toast('Senhas não coincidem'); return; }
+  const users=DB.users();
+  const admin=users.find(u=>u.role==='admin');
+  if(admin){ admin.password=np; DB.saveUsers(users); }
+  const session=DB.currentUser();
+  if(session&&session.role==='admin'){ session.password=np; DB.setSession(session); }
+  toast('Senha alterada');
+}
+function saveCloudinary() {
+  const cn=document.getElementById('cfCloud')?.value?.trim();
+  const up=document.getElementById('cfPreset')?.value?.trim();
+  if(!cn||!up) { toast('Preencha Cloud Name e Upload Preset'); return; }
+  DB.set('cloudinary',{cloudName:cn,uploadPreset:up});
+  renderAdmin(); toast('Cloudinary configurado!');
+}
+function exportData() {
+  const data={users:DB.users(),products:DB.products(),orders:DB.orders(),txs:DB.txs(),exportedAt:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='usei-backup-'+new Date().toISOString().split('T')[0]+'.json';
+  a.click(); toast('Dados exportados');
+}
+// FIX 3: resetPlatform corrigido — sessão preservada e re-aplicada corretamente
+async function resetPlatform() {
+  const ok1 = await showConfirm('Reset da plataforma', 'ATENÇÃO: Isso apagará todos os dados exceto a conta admin. Confirma?', 'Continuar');
+  if(!ok1) return;
+  const ok2 = await showConfirm('Confirmação final', 'Tem certeza absoluta? Esta ação é irreversível!', 'Sim, resetar tudo');
+  if(!ok2) return;
+  const adminCfg    = DB.get('admin_config');
+  const adminEmails = DB.get('admin_emails');
+  const cloudinary  = DB.get('cloudinary');
+  const adminUser   = DB.users().find(u=>u.role==='admin');
+  // Sessão atual (preservada via 'session' na lista keep do clear())
+  DB.clear();
+  if(adminCfg)    DB.set('admin_config', adminCfg);
+  if(adminEmails) DB.set('admin_emails', adminEmails);
+  if(cloudinary)  DB.set('cloudinary', cloudinary);
+  if(adminUser) {
+    DB.saveUsers([adminUser]);
+    // Re-aplicar sessão do admin após o reset
+    DB.setSession(adminUser);
+  }
+  renderAdmin(); toast('Plataforma resetada');
+}
+
+// ================================================================
+// JSONBIN HELPERS
+// ================================================================
+async function saveBinConfig() {
+  const binId  = document.getElementById('cfBinId')?.value?.trim();
+  const apiKey = document.getElementById('cfBinKey')?.value?.trim();
+  if(!binId || !apiKey) { toast('Preencha Bin ID e API Key'); return; }
+  DB.setBinConfig({ binId, apiKey });
+  toast('Salvando e sincronizando...');
+  const state = DB._readLocal();
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type':'application/json', 'X-Master-Key': apiKey },
+      body: JSON.stringify(state)
+    });
+    if(res.ok) { toast('Sincronização ativa!'); DB._cache = {}; await DB.load(); renderAdmin(); }
+    else { const err = await res.json(); toast('Erro: ' + (err.message||'verifique as credenciais')); }
+  } catch { toast('Erro de conexão'); }
+}
+async function forceSyncNow() {
+  toast('Sincronizando...');
+  DB._cache = {};
+  await DB.load();
+  renderAdmin();
+  toast('Dados atualizados!');
+}
+async function clearBinConfig() {
+  const ok = await showConfirm('Desconectar JSONBin', 'Os dados ficarão apenas locais neste dispositivo. Continuar?', 'Desconectar', false);
+  if(!ok) return;
+  DB.rmLocal('bin_config');
+  renderAdmin();
+  toast('JSONBin desconectado');
+}
+
+let _adminRefreshInterval = null;
+function startAdminAutoRefresh() {
+  stopAdminAutoRefresh();
+  _adminRefreshInterval = setInterval(async () => {
+    if(currentPage !== 'admin') { stopAdminAutoRefresh(); return; }
+    const cfg = DB.getBinConfig();
+    if(!cfg) return;
+    DB._cache = {};
+    await DB.load();
+    renderAdmin();
+  }, 30000);
+}
+function stopAdminAutoRefresh() {
+  if(_adminRefreshInterval) { clearInterval(_adminRefreshInterval); _adminRefreshInterval = null; }
+}
+
+// ================================================================
+// SEED DATA
+// ================================================================
+function seedData() {
+  if(DB.get('seeded')) return;
+  const existingAdmin = DB.users().find(u=>u.role==='admin');
+  const users = [
+    { id:2, name:'Maria Silva',  email:'maria@email.com', phone:'(11) 91234-5678', password:'123456', role:'user',    createdAt:'2025-01-15T00:00:00.000Z' },
+    { id:3, name:'João Santos',  email:'joao@email.com',  phone:'(11) 99876-5432', password:'123456', role:'creator', createdAt:'2025-01-20T00:00:00.000Z' },
+  ];
+  // Só cria o admin seed se não existir nenhum admin ainda
+  if(!existingAdmin) {
+    users.unshift({ id:1, name:'Admin', email:'admin@usei.app', phone:'', password:'admin@usei2025', role:'admin', createdAt:'2025-01-01T00:00:00.000Z' });
+  }
+  DB.saveUsers([...DB.users().filter(u=>u.role==='admin'), ...users.filter(u=>u.role!=='admin')]);
+  const products = [
+    { id:101, name:'Câmera Sony Alpha A6400', cat:'eletronicos', type:'rent', salePrice:0, rentPrice:89, desc:'Câmera mirrorless em ótimo estado, acompanha lente kit 16-50mm. Ideal para fotos e vídeos 4K.', location:'São Paulo, SP', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-22T00:00:00.000Z' },
+    { id:102, name:'Furadeira Bosch 1/2 HP',  cat:'ferramentas', type:'rent', salePrice:0, rentPrice:35, desc:'Furadeira de impacto profissional com maleta de brocas.', location:'São Paulo, SP', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-23T00:00:00.000Z' },
+    { id:103, name:'Bicicleta Caloi Explorer', cat:'esportes', type:'both', salePrice:800, rentPrice:45, desc:'Bicicleta mountain bike aro 29, 21 marchas, freios a disco.', location:'Campinas, SP', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-24T00:00:00.000Z' },
+    { id:104, name:'PlayStation 5 + 2 Controles', cat:'games', type:'rent', salePrice:0, rentPrice:120, desc:'PS5 com disco, 2 controles DualSense e 5 jogos físicos inclusos.', location:'Rio de Janeiro, RJ', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-25T00:00:00.000Z' },
+  ];
+  DB.saveProducts(products);
+  DB.set('seeded', true);
+}
+
+// ================================================================
+// INIT
+// ================================================================
+initTheme();
+
+(async function init() {
+  document.getElementById('page-landing').innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:14px">
+      <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:spin 0.8s linear infinite"></div>
+      <div style="color:var(--text3);font-size:0.875rem">Carregando...</div>
+    </div>`;
+  document.getElementById('page-landing').classList.add('active');
+
+  await DB.load();
+
+  // FIX 1: Conta master criada APENAS via #setup — não hardcoda senha no source.
+  // Se não existir admin_config E não existir nenhum admin, verifica se há hash=setup.
+  // Caso contrário, aguarda o usuário acessar /#setup para configurar.
+  if(!DB.get('admin_config')) {
+    // Não criar admin automaticamente com senha hardcoded.
+    // O admin deve ser criado via /#setup (URL com hash) para manter a senha segura.
+    // checkAdminSetup() vai abrir o wizard se o hash for #setup.
+  }
+
+  seedData();
+  checkAdminSetup();
+  renderNav();
+  goTo('landing');
+})();
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>USEI.APP — Alugue, Venda, Conecte</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ===== RESET & TOKENS ===== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --brand:#7CB518;
+  --brand-dark:#5C8A10;
+  --brand-light:#F0F7E0;
+  --surface:#FFFFFF;
+  --surface2:#F7F8FA;
+  --surface3:#EDEEF0;
+  --border:#E2E4E8;
+  --text:#111318;
+  --text2:#4B5160;
+  --text3:#9399A6;
+  --danger:#DC2626;
+  --danger-light:#FEF2F2;
+  --success:#16A34A;
+  --success-light:#F0FDF4;
+  --warning:#D97706;
+  --warning-light:#FFFBEB;
+  --info:#2563EB;
+  --info-light:#EFF6FF;
+  --radius:10px;
+  --radius-lg:16px;
+  --shadow:0 1px 4px rgba(0,0,0,0.08),0 4px 16px rgba(0,0,0,0.06);
+  --shadow-lg:0 8px 32px rgba(0,0,0,0.12);
+  --nav-h:60px;
+  --font:'Inter',sans-serif;
+  --transition:0.18s ease;
+}
+[data-theme="dark"]{
+  --surface:#0F1117;
+  --surface2:#171B23;
+  --surface3:#1E2330;
+  --border:#2A2F3D;
+  --text:#F0F2F5;
+  --text2:#9399A6;
+  --text3:#555D6E;
+  --brand:#8FD020;
+  --brand-light:#1A2800;
+  --shadow:0 1px 4px rgba(0,0,0,0.3),0 4px 16px rgba(0,0,0,0.25);
+  --shadow-lg:0 8px 32px rgba(0,0,0,0.4);
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--surface2);color:var(--text);line-height:1.5;min-height:100vh;transition:background var(--transition),color var(--transition)}
+a{color:inherit;text-decoration:none}
+img{max-width:100%}
+button{cursor:pointer;font-family:var(--font)}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--surface2)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ===== LAYOUT ===== */
+.container{max-width:1180px;margin:0 auto;padding:0 20px}
+.page{display:none;min-height:calc(100vh - var(--nav-h));padding-bottom:80px}
+.page.active{display:block}
+
+/* ===== NAV ===== */
+.nav{height:var(--nav-h);background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;transition:background var(--transition)}
+.nav-inner{height:100%;display:flex;align-items:center;gap:24px}
+.nav-logo{font-size:1.25rem;font-weight:800;letter-spacing:-0.5px;color:var(--text);flex-shrink:0}
+.nav-logo span{color:var(--brand)}
+.nav-search{flex:1;max-width:400px;position:relative}
+.nav-search input{width:100%;padding:8px 12px 8px 36px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:0.875rem;font-family:var(--font);transition:border-color var(--transition)}
+.nav-search input:focus{outline:none;border-color:var(--brand)}
+.nav-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);width:16px;height:16px}
+.nav-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.nav-links{display:flex;align-items:center;gap:4px}
+.nav-link{padding:6px 12px;border-radius:var(--radius);font-size:0.875rem;font-weight:500;color:var(--text2);transition:background var(--transition),color var(--transition);cursor:pointer;white-space:nowrap}
+.nav-link:hover{background:var(--surface2);color:var(--text)}
+.nav-avatar{width:34px;height:34px;border-radius:50%;background:var(--brand);color:#fff;font-weight:700;font-size:0.875rem;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;position:relative}
+.nav-avatar-menu{position:absolute;top:calc(100% + 8px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);min-width:200px;overflow:hidden;display:none;z-index:300}
+.nav-avatar-menu.open{display:block}
+.nav-avatar-menu-item{padding:10px 16px;font-size:0.875rem;color:var(--text2);cursor:pointer;transition:background var(--transition)}
+.nav-avatar-menu-item:hover{background:var(--surface2);color:var(--text)}
+.nav-avatar-menu-item.danger{color:var(--danger)}
+.nav-avatar-menu-sep{height:1px;background:var(--border);margin:4px 0}
+.theme-toggle{width:34px;height:34px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:1rem;transition:all var(--transition)}
+.theme-toggle:hover{border-color:var(--brand);color:var(--brand)}
+
+/* ===== BUTTONS ===== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 18px;border-radius:var(--radius);font-size:0.875rem;font-weight:600;border:none;transition:all var(--transition);white-space:nowrap;font-family:var(--font)}
+.btn-sm{padding:6px 12px;font-size:0.8rem}
+.btn-lg{padding:12px 24px;font-size:1rem}
+.btn-full{width:100%}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-primary:hover{background:var(--brand-dark);transform:translateY(-1px)}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{background:var(--surface3);border-color:var(--text3)}
+.btn-outline{background:transparent;color:var(--brand);border:1.5px solid var(--brand)}
+.btn-outline:hover{background:var(--brand-light)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{background:#B91C1C}
+.btn-ghost{background:transparent;color:var(--text2);border:none;padding:6px 10px}
+.btn-ghost:hover{background:var(--surface2);color:var(--text)}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none!important}
+
+/* ===== FORMS ===== */
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:0.8rem;font-weight:600;color:var(--text2);margin-bottom:6px;letter-spacing:0.02em;text-transform:uppercase}
+.form-input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:0.9rem;font-family:var(--font);transition:border-color var(--transition)}
+.form-input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-light)}
+.form-input::placeholder{color:var(--text3)}
+select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%239399A6' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+textarea.form-input{resize:vertical;min-height:90px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-hint{font-size:0.75rem;color:var(--text3);margin-top:4px}
+.form-error{font-size:0.75rem;color:var(--danger);margin-top:4px}
+
+/* ===== CARDS ===== */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+.card-body{padding:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:0.95rem;font-weight:700;color:var(--text)}
+
+/* ===== PRODUCT CARDS ===== */
+.products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.product-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;cursor:pointer;transition:transform var(--transition),box-shadow var(--transition),border-color var(--transition)}
+.product-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);border-color:var(--brand)}
+.product-img{height:200px;background:var(--surface2);position:relative;overflow:hidden}
+.product-img img{width:100%;height:100%;object-fit:cover;transition:transform 0.3s}
+.product-card:hover .product-img img{transform:scale(1.03)}
+.product-img-placeholder{height:100%;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:0.8rem;letter-spacing:0.05em;text-transform:uppercase}
+.product-badge{position:absolute;top:10px;left:10px;padding:3px 8px;border-radius:6px;font-size:0.7rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase}
+.badge-rent{background:var(--info-light);color:var(--info)}
+.badge-sale{background:var(--success-light);color:var(--success)}
+.badge-both{background:var(--warning-light);color:var(--warning)}
+.product-info{padding:14px}
+.product-cat{font-size:0.7rem;font-weight:600;color:var(--brand);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px}
+.product-name{font-size:0.95rem;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.product-price{font-size:1rem;font-weight:800;color:var(--text)}
+.product-price-sub{font-size:0.75rem;font-weight:400;color:var(--text3)}
+.product-location{font-size:0.75rem;color:var(--text3);margin-top:4px}
+
+/* ===== MODAIS ===== */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px)}
+.modal.open{display:flex}
+.modal-box{background:var(--surface);border-radius:var(--radius-lg);width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:modalIn 0.2s ease}
+.modal-box.wide{max-width:640px}
+@keyframes modalIn{from{opacity:0;transform:scale(0.96) translateY(8px)}to{opacity:1;transform:none}}
+.modal-header{padding:20px 20px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.modal-title{font-size:1.1rem;font-weight:700;color:var(--text)}
+.modal-subtitle{font-size:0.8rem;color:var(--text3);margin-top:2px}
+.modal-close{width:28px;height:28px;border-radius:6px;background:var(--surface2);border:none;color:var(--text2);font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background var(--transition)}
+.modal-close:hover{background:var(--surface3)}
+.modal-body{padding:20px}
+.modal-footer{padding:16px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+
+/* ===== CONFIRM MODAL ===== */
+/* FIX D: modal customizado para substituir confirm() nativo */
+.confirm-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:800;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px)}
+.confirm-modal-overlay.open{display:flex}
+.confirm-modal-box{background:var(--surface);border-radius:var(--radius-lg);width:100%;max-width:380px;box-shadow:var(--shadow-lg);animation:modalIn 0.2s ease;overflow:hidden}
+.confirm-modal-body{padding:24px 24px 16px}
+.confirm-modal-title{font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px}
+.confirm-modal-msg{font-size:0.875rem;color:var(--text2);line-height:1.5}
+.confirm-modal-footer{padding:16px 24px 20px;display:flex;gap:8px;justify-content:flex-end}
+
+/* ===== BADGES / TAGS ===== */
+.tag{display:inline-flex;align-items:center;padding:3px 8px;border-radius:6px;font-size:0.72rem;font-weight:600}
+.tag-success{background:var(--success-light);color:var(--success)}
+.tag-danger{background:var(--danger-light);color:var(--danger)}
+.tag-warning{background:var(--warning-light);color:var(--warning)}
+.tag-info{background:var(--info-light);color:var(--info)}
+.tag-default{background:var(--surface3);color:var(--text2)}
+
+/* ===== TABLES ===== */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:0.85rem}
+th{padding:10px 14px;text-align:left;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);border-bottom:2px solid var(--border)}
+td{padding:12px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2)}
+.td-name{color:var(--text);font-weight:600}
+
+/* ===== TOAST ===== */
+.toast-wrap{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.toast{padding:10px 20px;border-radius:var(--radius);background:var(--text);color:var(--surface);font-size:0.875rem;font-weight:500;box-shadow:var(--shadow-lg);animation:toastIn 0.25s ease;pointer-events:all}
+.toast.removing{animation:toastOut 0.25s ease forwards}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes toastOut{to{opacity:0;transform:translateY(12px)}}
+
+/* ===== ADMIN ===== */
+.admin-layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - var(--nav-h))}
+.admin-sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px 0}
+.admin-sidebar-title{padding:0 16px 12px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3)}
+.admin-nav-item{padding:9px 16px;font-size:0.875rem;font-weight:500;color:var(--text2);cursor:pointer;transition:background var(--transition),color var(--transition);display:flex;align-items:center;gap:8px;border-left:3px solid transparent}
+.admin-nav-item:hover{background:var(--surface2);color:var(--text)}
+.admin-nav-item.active{background:var(--brand-light);color:var(--brand-dark);border-left-color:var(--brand);font-weight:600}
+.admin-nav-sep{height:1px;background:var(--border);margin:8px 0}
+.admin-main{padding:28px;overflow-y:auto}
+.admin-tab{display:none}
+.admin-tab.active{display:block}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:24px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;transition:box-shadow var(--transition)}
+.stat-card:hover{box-shadow:var(--shadow)}
+.stat-value{font-size:1.6rem;font-weight:800;color:var(--text);line-height:1}
+.stat-label{font-size:0.75rem;color:var(--text3);margin-top:6px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em}
+.stat-icon{font-size:1.2rem;margin-bottom:8px}
+
+/* ===== UPLOAD ===== */
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius-lg);padding:28px;text-align:center;cursor:pointer;transition:border-color var(--transition),background var(--transition)}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--brand);background:var(--brand-light)}
+.upload-previews{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.upload-thumb{width:72px;height:72px;border-radius:var(--radius);object-fit:cover;border:1px solid var(--border)}
+.upload-thumb-wrap{position:relative;width:72px;height:72px}
+.upload-thumb-rm{position:absolute;top:-4px;right:-4px;width:18px;height:18px;background:var(--danger);color:#fff;border-radius:50%;border:none;font-size:0.65rem;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.progress-bar{height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;margin-top:10px}
+.progress-fill{height:100%;background:var(--brand);border-radius:2px;transition:width 0.3s}
+
+/* ===== CREATOR DASHBOARD ===== */
+.creator-layout{display:grid;grid-template-columns:1fr;gap:20px}
+.creator-tabs{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px}
+.creator-tab{padding:10px 18px;font-size:0.875rem;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color var(--transition),border-color var(--transition)}
+.creator-tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+
+/* ===== LANDING ===== */
+.hero{padding:60px 0 48px;text-align:center}
+.hero-tag{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--brand-light);color:var(--brand-dark);font-size:0.78rem;font-weight:600;margin-bottom:20px}
+.hero-h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;letter-spacing:-1.5px;line-height:1.1;color:var(--text);margin-bottom:16px}
+.hero-h1 span{color:var(--brand)}
+.hero-sub{font-size:1rem;color:var(--text2);max-width:500px;margin:0 auto 28px}
+.hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.features-strip{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;padding:18px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:48px}
+.feature-item{display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--text3);font-weight:500}
+.feature-dot{width:6px;height:6px;border-radius:50%;background:var(--brand)}
+.section-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--brand);margin-bottom:8px}
+.section-title{font-size:1.4rem;font-weight:800;letter-spacing:-0.5px;color:var(--text);margin-bottom:4px}
+.section-sub{font-size:0.875rem;color:var(--text2);margin-bottom:24px}
+
+/* ===== CATALOG ===== */
+.catalog-header{padding:24px 0 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:16px}
+.filter-chip{padding:6px 14px;border-radius:20px;font-size:0.8rem;font-weight:600;border:1.5px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;transition:all var(--transition)}
+.filter-chip.active,.filter-chip:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-light)}
+
+/* ===== PAGINATION ===== */
+/* FIX B: paginação */
+.pagination{display:flex;align-items:center;justify-content:center;gap:6px;padding:24px 0 8px}
+.page-btn{padding:7px 13px;border-radius:var(--radius);font-size:0.85rem;font-weight:600;border:1.5px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;transition:all var(--transition)}
+.page-btn:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
+.page-btn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+.page-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+/* ===== USER AREA ===== */
+.user-tabs{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px}
+.user-tab{padding:10px 18px;font-size:0.875rem;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color var(--transition),border-color var(--transition)}
+.user-tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+/* FIX 9: order-img agora usa width:100% dentro do grid para funcionar no mobile */
+.order-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;display:grid;grid-template-columns:64px 1fr auto;gap:14px;align-items:center}
+.order-img{width:100%;aspect-ratio:1;border-radius:var(--radius);object-fit:cover;background:var(--surface2)}
+
+/* ===== PRODUCT DETAIL ===== */
+.detail-grid{display:grid;grid-template-columns:1fr 380px;gap:28px;padding:28px 0}
+.detail-main-img{aspect-ratio:4/3;border-radius:var(--radius-lg);overflow:hidden;background:var(--surface2)}
+.detail-main-img img{width:100%;height:100%;object-fit:cover}
+.detail-thumbs{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.detail-thumb{width:64px;height:64px;border-radius:var(--radius);object-fit:cover;cursor:pointer;border:2px solid transparent;transition:border-color var(--transition)}
+.detail-thumb.active{border-color:var(--brand)}
+.detail-info{position:sticky;top:calc(var(--nav-h) + 16px)}
+.detail-price{font-size:1.6rem;font-weight:800;color:var(--text);line-height:1}
+.detail-price-label{font-size:0.78rem;color:var(--text3);margin-top:2px}
+
+/* ===== SETUP WIZARD ===== */
+.setup-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:none;align-items:center;justify-content:center;padding:20px}
+.setup-overlay.open{display:flex}
+.setup-box{background:var(--surface);border-radius:var(--radius-lg);padding:36px;max-width:420px;width:100%;box-shadow:var(--shadow-lg)}
+.setup-logo{font-size:1.3rem;font-weight:800;letter-spacing:-0.5px;margin-bottom:24px;color:var(--text)}
+.setup-logo span{color:var(--brand)}
+
+/* ===== MOBILE NAV ===== */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:200;padding:8px 0 env(safe-area-inset-bottom)}
+.mobile-nav-items{display:flex;justify-content:space-around}
+.mobile-nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 12px;border-radius:var(--radius);cursor:pointer;color:var(--text3);transition:color var(--transition);border:none;background:none;font-family:var(--font)}
+.mobile-nav-item.active{color:var(--brand)}
+.mobile-nav-item svg{width:22px;height:22px}
+.mobile-nav-item span{font-size:0.65rem;font-weight:600}
+
+/* ===== EMPTY STATE ===== */
+.empty{text-align:center;padding:48px 20px;color:var(--text3)}
+.empty-icon{font-size:2rem;margin-bottom:12px;opacity:0.5}
+.empty-title{font-size:0.95rem;font-weight:600;color:var(--text2);margin-bottom:6px}
+.empty-sub{font-size:0.8rem}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:900px){
+  .admin-layout{grid-template-columns:1fr}
+  .admin-sidebar{display:none}
+  .detail-grid{grid-template-columns:1fr}
+  .detail-info{position:static}
+}
+@media(max-width:600px){
+  .nav-search,.nav-links{display:none}
+  .mobile-nav{display:block}
+  .products-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  .product-img{height:150px}
+  .hero{padding:36px 0 28px}
+  .hero-h1{font-size:1.8rem}
+  .page{padding-bottom:120px}
+  .form-row{grid-template-columns:1fr}
+  .modal-box{max-height:96vh}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .container{padding:0 14px}
+  .admin-main{padding:16px}
+  /* FIX 9: mobile order card 48px container — order-img usa width:100% então fica 48px correto */
+  .order-card{grid-template-columns:48px 1fr;grid-template-rows:auto auto}
+  .order-card .btn{grid-column:1/-1}
+}
+@media(max-width:360px){
+  .products-grid{grid-template-columns:1fr}
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="container nav-inner">
+    <div class="nav-logo" onclick="goTo('landing')" style="cursor:pointer">USEI<span>.APP</span></div>
+    <div class="nav-search">
+      <svg class="nav-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="navSearch" placeholder="Buscar produtos..." oninput="onNavSearch(this.value)">
+    </div>
+    <div class="nav-links">
+      <div class="nav-link" onclick="goTo('catalog')">Explorar</div>
+      <div class="nav-link" onclick="requireAuth('userArea')">Meus pedidos</div>
+      <div class="nav-link" onclick="requireAuth('creatorDashboard')">Vender</div>
+    </div>
+    <div class="nav-actions">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Alternar tema">
+        <span id="themeIcon">🌙</span>
+      </button>
+      <div id="navAuthArea"></div>
+    </div>
+  </div>
+</nav>
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- PAGES -->
+<div id="page-landing" class="page container"></div>
+<div id="page-catalog" class="page container"></div>
+<div id="page-productDetail" class="page container"></div>
+<div id="page-userArea" class="page container"></div>
+<div id="page-creatorDashboard" class="page container"></div>
+<div id="page-admin" class="page"></div>
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-items">
+    <button class="mobile-nav-item" onclick="goTo('landing')" id="mn-landing">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      <span>Início</span>
+    </button>
+    <button class="mobile-nav-item" onclick="goTo('catalog')" id="mn-catalog">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <span>Explorar</span>
+    </button>
+    <button class="mobile-nav-item" onclick="requireAuth('creatorDashboard')" id="mn-sell">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      <span>Vender</span>
+    </button>
+    <button class="mobile-nav-item" onclick="requireAuth('userArea')" id="mn-orders">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      <span>Pedidos</span>
+    </button>
+    <button class="mobile-nav-item" onclick="mobileAccount()" id="mn-account">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+      <span>Conta</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ===== MODAIS ===== -->
+
+<!-- LOGIN -->
+<div class="modal" id="modalLogin" onclick="if(event.target===this)closeModal('modalLogin')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div><div class="modal-title">Entrar</div><div class="modal-subtitle">Acesse sua conta USEI.APP</div></div>
+      <button class="modal-close" onclick="closeModal('modalLogin')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">E-mail</label><input class="form-input" id="loginEmail" type="email" placeholder="seu@email.com"></div>
+      <div class="form-group"><label class="form-label">Senha</label><input class="form-input" id="loginPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Entrar</button>
+      <div style="text-align:center;margin-top:16px;font-size:0.85rem;color:var(--text3)">Não tem conta? <span style="color:var(--brand);cursor:pointer;font-weight:600" onclick="closeModal('modalLogin');setTimeout(()=>openModal('modalRegister'),160)">Cadastre-se</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- REGISTER -->
+<div class="modal" id="modalRegister" onclick="if(event.target===this)closeModal('modalRegister')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div><div class="modal-title">Criar conta</div><div class="modal-subtitle">Rápido, grátis e sem complicação</div></div>
+      <button class="modal-close" onclick="closeModal('modalRegister')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Nome completo</label><input class="form-input" id="regName" type="text" placeholder="Seu nome"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">E-mail</label><input class="form-input" id="regEmail" type="email" placeholder="seu@email.com"></div>
+        <div class="form-group"><label class="form-label">Telefone</label><input class="form-input" id="regPhone" type="tel" placeholder="(11) 99999-9999"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Senha</label><input class="form-input" id="regPass" type="password" placeholder="Mínimo 6 caracteres" onkeydown="if(event.key==='Enter')doRegister()"></div>
+      <button class="btn btn-primary btn-full btn-lg" onclick="doRegister()">Criar conta</button>
+      <div style="text-align:center;margin-top:16px;font-size:0.85rem;color:var(--text3)">Já tem conta? <span style="color:var(--brand);cursor:pointer;font-weight:600" onclick="closeModal('modalRegister');setTimeout(()=>openModal('modalLogin'),160)">Entrar</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD PRODUCT -->
+<div class="modal" id="modalAddProduct" onclick="if(event.target===this)closeModal('modalAddProduct')">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <div><div class="modal-title">Publicar produto</div><div class="modal-subtitle">Preencha os dados do que deseja anunciar</div></div>
+      <button class="modal-close" onclick="closeModal('modalAddProduct')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Nome do produto *</label><input class="form-input" id="pName" type="text" placeholder="Ex: Câmera Canon EOS R50"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Categoria *</label>
+          <select class="form-input" id="pCat">
+            <option value="">Selecione...</option>
+            <option value="eletronicos">Eletrônicos</option>
+            <option value="ferramentas">Ferramentas</option>
+            <option value="esportes">Esportes</option>
+            <option value="moda">Moda</option>
+            <option value="casa">Casa e Decoração</option>
+            <option value="veiculos">Veículos</option>
+            <option value="games">Games</option>
+            <option value="outros">Outros</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Tipo de anúncio *</label>
+          <select class="form-input" id="pType">
+            <option value="rent">Apenas aluguel</option>
+            <option value="sale">Apenas venda</option>
+            <option value="both">Aluguel e venda</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Preço de venda (R$)</label><input class="form-input" id="pSalePrice" type="number" placeholder="0.00" min="0" step="0.01"></div>
+        <div class="form-group"><label class="form-label">Preço aluguel/dia (R$)</label><input class="form-input" id="pRentPrice" type="number" placeholder="0.00" min="0" step="0.01"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Descrição</label><textarea class="form-input" id="pDesc" placeholder="Descreva o estado, características, condições de uso..."></textarea></div>
+      <div class="form-group"><label class="form-label">Localização</label><input class="form-input" id="pLocation" type="text" placeholder="Ex: São Paulo, SP"></div>
+      <div class="form-group">
+        <label class="form-label">Fotos</label>
+        <div class="upload-zone" onclick="document.getElementById('pImgInput').click()" id="uploadZone">
+          <div style="color:var(--text3);font-size:0.875rem">Clique para adicionar fotos</div>
+          <div style="color:var(--text3);font-size:0.75rem;margin-top:4px">JPG, PNG, WEBP — máx. 10MB cada</div>
+        </div>
+        <input type="file" id="pImgInput" accept="image/*" multiple style="display:none" onchange="handleImages(this)">
+        <div class="upload-previews" id="pImgPreviews"></div>
+        <div class="progress-bar" id="uploadProgress" style="display:none"><div class="progress-fill" id="uploadFill" style="width:0%"></div></div>
+        <div id="uploadStatus" style="font-size:0.75rem;color:var(--text3);margin-top:6px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalAddProduct')">Cancelar</button>
+      <button class="btn btn-primary" id="btnPublish" onclick="publishProduct()">Publicar produto</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHECKOUT -->
+<div class="modal" id="modalCheckout" onclick="if(event.target===this)closeModal('modalCheckout')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div><div class="modal-title">Confirmar pedido</div></div>
+      <button class="modal-close" onclick="closeModal('modalCheckout')">✕</button>
+    </div>
+    <div class="modal-body" id="checkoutBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalCheckout')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmOrder()">Confirmar pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIX D: Modal de confirmação customizado (substitui confirm() nativo) -->
+<div class="confirm-modal-overlay" id="confirmModal">
+  <div class="confirm-modal-box">
+    <div class="confirm-modal-body">
+      <div class="confirm-modal-title" id="confirmModalTitle">Confirmar ação</div>
+      <div class="confirm-modal-msg" id="confirmModalMsg"></div>
+    </div>
+    <div class="confirm-modal-footer">
+      <button class="btn btn-secondary" id="confirmModalCancel">Cancelar</button>
+      <button class="btn btn-danger" id="confirmModalOk">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN SETUP -->
+<div class="setup-overlay" id="setupOverlay">
+  <div class="setup-box">
+    <div class="setup-logo">USEI<span>.APP</span></div>
+    <div style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:6px">Configurar conta master</div>
+    <div style="font-size:0.825rem;color:var(--text3);margin-bottom:24px">Crie a conta de administrador principal da plataforma.</div>
+    <div class="form-group"><label class="form-label">Nome</label><input class="form-input" id="setupName" type="text" placeholder="Seu nome"></div>
+    <div class="form-group"><label class="form-label">E-mail</label><input class="form-input" id="setupEmail" type="email" placeholder="admin@email.com"></div>
+    <div class="form-group"><label class="form-label">Senha (mín. 8 caracteres)</label><input class="form-input" id="setupPass" type="password" placeholder="••••••••"></div>
+    <div class="form-group"><label class="form-label">Confirmar senha</label><input class="form-input" id="setupPass2" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doSetup()"></div>
+    <button class="btn btn-primary btn-full btn-lg" onclick="doSetup()" style="margin-top:4px">Criar conta master</button>
+    <div style="font-size:0.72rem;color:var(--text3);text-align:center;margin-top:14px">Esta configuração é salva localmente. Guarde bem suas credenciais.</div>
+  </div>
+</div>
+
+<script>
+// ================================================================
+// DB — banco compartilhado via JSONBin.io + localStorage para sessão
+// ================================================================
+const DB = {
+  PREFIX: 'usei2_',
 
   getLocal(k)    { try { return JSON.parse(localStorage.getItem(this.PREFIX + k)); } catch { return null; } },
   setLocal(k, v) { localStorage.setItem(this.PREFIX + k, JSON.stringify(v)); },
