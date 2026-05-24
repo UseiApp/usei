@@ -531,32 +531,61 @@ const DB = {
   setLocal(k, v) { localStorage.setItem(this.PREFIX + k, JSON.stringify(v)); },
   rmLocal(k)     { localStorage.removeItem(this.PREFIX + k); },
 
-  getBinConfig()    { return this.getLocal('bin_config') || null; },
-  setBinConfig(cfg) { this.setLocal('bin_config', cfg); },
+  // --- Firebase Firestore — banco global, zero config, funciona em qualquer dispositivo ---
+  _FB_API_KEY:  'AIzaSyAxE8GLkReOTnfIog9phm2lJh8X5eFRRtY',
+  _FB_PROJECT:  'usei-b1b88',
+  _FB_DOC:      'dados/principal',
+  _CLOUD_NAME:    'dqrjlxvjq',
+  _UPLOAD_PRESET: 'usei unsigned',
 
-  _cache: {},
-  _cacheTime: {},
-  CACHE_TTL: 15000,
+  _toFS(obj) {
+    const cv = v => {
+      if(v===null||v===undefined) return {nullValue:null};
+      if(typeof v==='boolean')    return {booleanValue:v};
+      if(typeof v==='number')     return {doubleValue:v};
+      if(typeof v==='string')     return {stringValue:v};
+      if(Array.isArray(v))        return {arrayValue:{values:v.map(cv)}};
+      if(typeof v==='object')     return {mapValue:{fields:Object.fromEntries(Object.entries(v).map(([k,val])=>[k,cv(val)]))}};
+      return {stringValue:String(v)};
+    };
+    return {fields:Object.fromEntries(Object.entries(obj).map(([k,v])=>[k,cv(v)]))};
+  },
+  _fromFS(fields) {
+    if(!fields) return {};
+    const cv = v => {
+      if(v.nullValue!==undefined)    return null;
+      if(v.booleanValue!==undefined) return v.booleanValue;
+      if(v.doubleValue!==undefined)  return v.doubleValue;
+      if(v.integerValue!==undefined) return Number(v.integerValue);
+      if(v.stringValue!==undefined)  return v.stringValue;
+      if(v.arrayValue!==undefined)   return (v.arrayValue.values||[]).map(cv);
+      if(v.mapValue!==undefined)     return this._fromFS(v.mapValue.fields);
+      return null;
+    };
+    return Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,cv(v)]));
+  },
+  _fsUrl() {
+    return `https://firestore.googleapis.com/v1/projects/${this._FB_PROJECT}/databases/(default)/documents/${this._FB_DOC}?key=${this._FB_API_KEY}`;
+  },
 
   async _read() {
-    const cfg = this.getBinConfig();
-    if(!cfg || !cfg.binId || !cfg.apiKey) return this._readLocal();
-    const now = Date.now();
-    if(this._cache.data && (now - this._cacheTime.data) < this.CACHE_TTL) return this._cache.data;
+    const cachedAt = this.getLocal('_cache_at') || 0;
+    const cached   = this.getLocal('_cache');
+    if(cached && (Date.now() - cachedAt) < 10000) return cached;
     try {
-      const res = await fetch(`https://api.jsonbin.io/v3/b/${cfg.binId}/latest`, {
-        headers: { 'X-Master-Key': cfg.apiKey }
-      });
+      const res = await fetch(this._fsUrl());
       if(!res.ok) return this._readLocal();
       const json = await res.json();
-      const data = json.record;
-      this._cache.data = data;
-      this._cacheTime.data = now;
-      ['users','products','orders','txs'].forEach(k => {
-        if(data[k]) this.setLocal(k, data[k]);
-      });
+      if(!json.fields) return this._readLocal();
+      const data = this._fromFS(json.fields);
+      this.setLocal('_cache', data);
+      this.setLocal('_cache_at', Date.now());
+      ['users','products','orders','txs'].forEach(k => { if(data[k]) this.setLocal(k,data[k]); });
       return data;
-    } catch { return this._readLocal(); }
+    } catch(e) {
+      console.warn('Firestore read failed:', e.message);
+      return this._readLocal();
+    }
   },
 
   _readLocal() {
@@ -569,25 +598,16 @@ const DB = {
   },
 
   async _write(data) {
-    const cfg = this.getBinConfig();
+    ['users','products','orders','txs'].forEach(k => { if(data[k]!==undefined) this.setLocal(k,data[k]); });
+    this.setLocal('_cache', data);
+    this.setLocal('_cache_at', Date.now());
     try {
-      ['users','products','orders','txs'].forEach(k => {
-        if(data[k] !== undefined) this.setLocal(k, data[k]);
+      await fetch(this._fsUrl(), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this._toFS(data))
       });
-      this._cache.data = data;
-      this._cacheTime.data = Date.now();
-    } catch(e) { console.warn('localStorage write failed:', e); }
-    if(!cfg || !cfg.binId || !cfg.apiKey) return;
-    try {
-      const res = await fetch(`https://api.jsonbin.io/v3/b/${cfg.binId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-Master-Key': cfg.apiKey },
-        body: JSON.stringify(data)
-      });
-      if(!res.ok) console.warn('JSONBin write HTTP error:', res.status);
-    } catch(e) {
-      console.warn('JSONBin write failed:', e.message);
-    }
+    } catch(e) { console.warn('Firestore write failed:', e.message); }
   },
 
   _state: null,
@@ -611,10 +631,10 @@ const DB = {
   orders()   { return this.getState().orders   || []; },
   txs()      { return this.getState().txs      || []; },
 
-  saveUsers(v)    { this._state = {...this.getState(), users: v};    this._write(this._state); this.setLocal('users', v); this._cacheTime={}; },
-  saveProducts(v) { this._state = {...this.getState(), products: v}; this._write(this._state); this.setLocal('products', v); this._cacheTime={}; },
-  saveOrders(v)   { this._state = {...this.getState(), orders: v};   this._write(this._state); this.setLocal('orders', v); this._cacheTime={}; },
-  saveTxs(v)      { this._state = {...this.getState(), txs: v};      this._write(this._state); this.setLocal('txs', v); this._cacheTime={}; },
+  saveUsers(v)    { this._state = {...this.getState(), users: v};    this._write(this._state); },
+  saveProducts(v) { this._state = {...this.getState(), products: v}; this._write(this._state); },
+  saveOrders(v)   { this._state = {...this.getState(), orders: v};   this._write(this._state); },
+  saveTxs(v)      { this._state = {...this.getState(), txs: v};      this._write(this._state); },
 
   currentUser()  { return this.getLocal('session'); },
   setSession(u)  { this.setLocal('session', u); },
@@ -631,7 +651,7 @@ const DB = {
       if(!keep.includes(short)) localStorage.removeItem(k);
     });
     this._state = null;
-    this._cache = {};
+    this.setLocal('_cache_at', 0);
   },
 };
 
@@ -1509,7 +1529,6 @@ function renderAdmin() {
         <div class="admin-nav-item ${adminTab==='transactions'?'active':''}" onclick="switchAdminTab('transactions')">Transações</div>
         <div class="admin-nav-sep"></div>
         <div class="admin-sidebar-title">Sistema</div>
-        <div class="admin-nav-item ${adminTab==='sync'?'active':''}" onclick="switchAdminTab('sync')">Sincronização (JSONBin)</div>
         <div class="admin-nav-item ${adminTab==='cloudinary'?'active':''}" onclick="switchAdminTab('cloudinary')">Imagens (Cloudinary)</div>
         <div class="admin-nav-item ${adminTab==='admins'?'active':''}" onclick="switchAdminTab('admins')">Administradores</div>
         <div class="admin-nav-item ${adminTab==='settings'?'active':''}" onclick="switchAdminTab('settings')">Configurações</div>
