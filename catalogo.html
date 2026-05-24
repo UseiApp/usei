@@ -1,8 +1,11 @@
-<!DOCTYPE html>
+\<!DOCTYPE html>
 <html lang="pt-BR" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>USEI.APP — Alugue, Venda, Conecte</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -522,7 +525,9 @@ tr:hover td{background:var(--surface2)}
 
 <script>
 // ================================================================
-// DB — banco compartilhado via JSONBin.io + localStorage para sessão
+// DB — Firebase Firestore REST API com COLEÇÕES SEPARADAS
+// Cada registro é um documento próprio — zero conflito de sobrescrita.
+// Qualquer dispositivo que abre a plataforma sincroniza automaticamente.
 // ================================================================
 const DB = {
   PREFIX: 'usei2_',
@@ -531,15 +536,18 @@ const DB = {
   _CLOUD_NAME:    'dqrjlxvjq',
   _UPLOAD_PRESET: 'usei unsigned',
 
+  // --- localStorage (sessão e cache) ---
   getLocal(k)    { try { return JSON.parse(localStorage.getItem(this.PREFIX + k)); } catch { return null; } },
   setLocal(k, v) { localStorage.setItem(this.PREFIX + k, JSON.stringify(v)); },
   rmLocal(k)     { localStorage.removeItem(this.PREFIX + k); },
 
+  // --- URLs das coleções ---
   _url(col, id='') {
     const base = `https://firestore.googleapis.com/v1/projects/${this._FB_PROJECT}/databases/(default)/documents/${col}`;
     return id ? `${base}/${id}?key=${this._FB_KEY}` : `${base}?key=${this._FB_KEY}&pageSize=500`;
   },
 
+  // --- Converter JS → Firestore ---
   _toFS(obj) {
     const cv = v => {
       if(v===null||v===undefined) return {nullValue:null};
@@ -553,6 +561,7 @@ const DB = {
     return {fields:Object.fromEntries(Object.entries(obj).map(([k,v])=>[k,cv(v)]))};
   },
 
+  // --- Converter Firestore → JS ---
   _fromFS(fields) {
     if(!fields) return {};
     const cv = v => {
@@ -569,6 +578,7 @@ const DB = {
     return Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,cv(v)]));
   },
 
+  // --- Ler todos os docs de uma coleção ---
   async _readCol(col) {
     try {
       const res = await fetch(this._url(col));
@@ -578,29 +588,43 @@ const DB = {
     } catch { return []; }
   },
 
+  // --- Escrever/atualizar um doc (keepalive garante que sobrevive à navegação) ---
   async _writeDoc(col, id, data) {
     try {
       await fetch(this._url(col, String(id)), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(this._toFS(data))
+        body: JSON.stringify(this._toFS(data)),
+        keepalive: true
       });
-    } catch(e) { console.warn('FS write failed:', e.message); }
+    } catch(e) { console.warn(`Firestore write ${col}/${id} failed:`, e.message); }
   },
 
+  // --- Deletar um doc ---
   async _deleteDoc(col, id) {
-    try { await fetch(this._url(col, String(id)), { method: 'DELETE' }); } catch {}
+    try {
+      await fetch(this._url(col, String(id)), { method: 'DELETE', keepalive: true });
+    } catch(e) { console.warn(`Firestore delete ${col}/${id} failed:`, e.message); }
   },
 
-  _cache: {}, _cacheAt: {}, _TTL: 15000,
-  _isFresh(col) { return this._cache[col] && (Date.now()-(this._cacheAt[col]||0)) < this._TTL; },
-  _setCache(col, d) { this._cache[col]=d; this._cacheAt[col]=Date.now(); this.setLocal(col,d); },
+  // --- Cache local (15s TTL por coleção) ---
+  _cache: {},
+  _cacheAt: {},
+  _TTL: 15000,
+  _isFresh(col) { return this._cache[col] && (Date.now() - (this._cacheAt[col]||0)) < this._TTL; },
+  _setCache(col, data) { this._cache[col] = data; this._cacheAt[col] = Date.now(); this.setLocal(col, data); },
+  _invalidate(col) { this._cacheAt[col] = 0; },
 
+  // --- Carregar uma coleção (cache ou Firestore) ---
   async _load(col) {
     if(this._isFresh(col)) return this._cache[col];
     const data = await this._readCol(col);
-    if(data.length>0) { this._setCache(col,data); return data; }
-    const local = this.getLocal(col)||[];
+    if(data.length > 0 || !this.getLocal(col)) {
+      this._setCache(col, data);
+      return data;
+    }
+    // Fallback para localStorage se Firestore retornou vazio mas local tem dados
+    const local = this.getLocal(col) || [];
     this._cache[col] = local;
     return local;
   },
@@ -608,19 +632,20 @@ const DB = {
   _state: null,
 
   async load() {
-    const [users,products,orders,txs] = await Promise.all([
-      this._load('users'),this._load('products'),this._load('orders'),this._load('txs')
+    const [users, products, orders, txs] = await Promise.all([
+      this._load('users'), this._load('products'),
+      this._load('orders'), this._load('txs')
     ]);
-    this._state = {users,products,orders,txs};
+    this._state = { users, products, orders, txs };
     return this._state;
   },
 
   getState() {
     return this._state || {
-      users: this._cache.users||this.getLocal('users')||[],
-      products: this._cache.products||this.getLocal('products')||[],
-      orders: this._cache.orders||this.getLocal('orders')||[],
-      txs: this._cache.txs||this.getLocal('txs')||[],
+      users:    this.getLocal('users')    || [],
+      products: this.getLocal('products') || [],
+      orders:   this.getLocal('orders')   || [],
+      txs:      this.getLocal('txs')      || [],
     };
   },
 
@@ -629,14 +654,55 @@ const DB = {
   orders()   { return this._cache.orders   || this.getLocal('orders')   || []; },
   txs()      { return this._cache.txs      || this.getLocal('txs')      || []; },
 
-  _diff(newArr, old, col) {
-    newArr.forEach(x => { const p=old.find(o=>o.id===x.id); if(!p||JSON.stringify(p)!==JSON.stringify(x)) this._writeDoc(col,x.id,x); });
-    old.forEach(x => { if(!newArr.find(o=>o.id===x.id)) this._deleteDoc(col,x.id); });
+  // --- Salvar arrays inteiros (async — aguarda writes no Firestore antes de retornar) ---
+  async saveUsers(newArr) {
+    const old = this.users();
+    this._cache.users = newArr; this.setLocal('users', newArr);
+    if(this._state) this._state.users = newArr;
+    const writes = [];
+    newArr.forEach(u => {
+      const prev = old.find(x => x.id === u.id);
+      if(!prev || JSON.stringify(prev) !== JSON.stringify(u)) writes.push(this._writeDoc('users', u.id, u));
+    });
+    old.forEach(u => { if(!newArr.find(x => x.id === u.id)) writes.push(this._deleteDoc('users', u.id)); });
+    await Promise.all(writes);
   },
-  saveUsers(v)    { const o=this.users();    this._cache.users=v;    this.setLocal('users',v);    if(this._state)this._state.users=v;    this._diff(v,o,'users'); },
-  saveProducts(v) { const o=this.products(); this._cache.products=v; this.setLocal('products',v); if(this._state)this._state.products=v; this._diff(v,o,'products'); },
-  saveOrders(v)   { const o=this.orders();   this._cache.orders=v;   this.setLocal('orders',v);   if(this._state)this._state.orders=v;   this._diff(v,o,'orders'); },
-  saveTxs(v)      { const o=this.txs();      this._cache.txs=v;      this.setLocal('txs',v);      if(this._state)this._state.txs=v;      this._diff(v,o,'txs'); },
+  async saveProducts(newArr) {
+    const old = this.products();
+    this._cache.products = newArr; this.setLocal('products', newArr);
+    if(this._state) this._state.products = newArr;
+    const writes = [];
+    newArr.forEach(p => {
+      const prev = old.find(x => x.id === p.id);
+      if(!prev || JSON.stringify(prev) !== JSON.stringify(p)) writes.push(this._writeDoc('products', p.id, p));
+    });
+    old.forEach(p => { if(!newArr.find(x => x.id === p.id)) writes.push(this._deleteDoc('products', p.id)); });
+    await Promise.all(writes);
+  },
+  async saveOrders(newArr) {
+    const old = this.orders();
+    this._cache.orders = newArr; this.setLocal('orders', newArr);
+    if(this._state) this._state.orders = newArr;
+    const writes = [];
+    newArr.forEach(o => {
+      const prev = old.find(x => x.id === o.id);
+      if(!prev || JSON.stringify(prev) !== JSON.stringify(o)) writes.push(this._writeDoc('orders', o.id, o));
+    });
+    old.forEach(o => { if(!newArr.find(x => x.id === o.id)) writes.push(this._deleteDoc('orders', o.id)); });
+    await Promise.all(writes);
+  },
+  async saveTxs(newArr) {
+    const old = this.txs();
+    this._cache.txs = newArr; this.setLocal('txs', newArr);
+    if(this._state) this._state.txs = newArr;
+    const writes = [];
+    newArr.forEach(t => {
+      const prev = old.find(x => x.id === t.id);
+      if(!prev || JSON.stringify(prev) !== JSON.stringify(t)) writes.push(this._writeDoc('txs', t.id, t));
+    });
+    old.forEach(t => { if(!newArr.find(x => x.id === t.id)) writes.push(this._deleteDoc('txs', t.id)); });
+    await Promise.all(writes);
+  },
 
   currentUser()  { return this.getLocal('session'); },
   setSession(u)  { this.setLocal('session', u); },
@@ -655,8 +721,7 @@ const DB = {
     this._cache = {};
     this._cacheAt = {};
   },
-}
-;
+};
 
 // ================================================================
 // TOAST
@@ -737,7 +802,7 @@ function goTo(page) {
   if(page === 'catalog')           renderCatalog();
   if(page === 'userArea')          renderUserArea();
   if(page === 'creatorDashboard')  renderCreator();
-  if(page === 'admin')             { renderAdmin(); startAdminAutoRefresh(); }
+  if(page === 'admin')             { DB._cache={};DB._cacheAt={};DB.load().then(()=>{renderAdmin();startAdminAutoRefresh();}); }
   else                             stopAdminAutoRefresh();
 }
 
@@ -852,7 +917,7 @@ function doLogin() {
 }
 
 // FIX E: validação de email via regex + FIX F: aviso sobre plaintext
-function doRegister() {
+async function doRegister() {
   const name  = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim().toLowerCase();
   const phone = document.getElementById('regPhone').value.trim();
@@ -866,11 +931,10 @@ function doRegister() {
   if(users.find(u=>u.email.toLowerCase()===email)) { toast('E-mail já cadastrado'); return; }
   const adminEmails = DB.get('admin_emails') || [];
   const role = adminEmails.map(e=>e.toLowerCase()).includes(email) ? 'admin' : 'user';
-  // FIX F: NOTA DE SEGURANÇA — senhas armazenadas em plaintext (localStorage/JSONBin).
-  // Aceitável para MVP. Antes de ir a produção, migrar para hash com Web Crypto API (PBKDF2).
   const u = { id: Date.now(), name, email, phone, password: pass, role, createdAt: new Date().toISOString() };
   users.push(u);
-  DB.saveUsers(users);
+  // AWAIT — garante que o dado chega ao Firestore antes de navegar
+  await DB.saveUsers(users);
   DB.setSession(u);
   closeModal('modalRegister');
   renderNav();
@@ -1327,7 +1391,7 @@ function updateCheckoutTotal() {
   if(feeEl) feeEl.textContent = 'R$ ' + Number(fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
   if(totalEl) totalEl.textContent = 'R$ ' + Number(base+fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
 }
-function confirmOrder() {
+async function confirmOrder() {
   const u = DB.currentUser();
   const p = checkoutData?.product;
   if(!u) { toast('Faça login para continuar'); closeModal('modalCheckout'); openModal('modalLogin'); return; }
@@ -1349,13 +1413,15 @@ function confirmOrder() {
     status: 'pendente', date: startDate.toISOString().split('T')[0],
     endDate: isRent ? endDate.toISOString().split('T')[0] : null,
   };
-  const orders = DB.orders(); orders.unshift(order); DB.saveOrders(orders);
+  const orders = DB.orders(); orders.unshift(order);
   const tx = {
     id: Date.now()+1, orderId: order.id, userId: u.id, userName: u.name,
     productName: p.name, value: total, method: 'Plataforma',
     status: 'aprovado', date: startDate.toISOString().split('T')[0],
   };
-  const txs = DB.txs(); txs.unshift(tx); DB.saveTxs(txs);
+  const txs = DB.txs(); txs.unshift(tx);
+  // AWAIT — garante que orders e txs chegam ao Firestore
+  await Promise.all([DB.saveOrders(orders), DB.saveTxs(txs)]);
   closeModal('modalCheckout');
   toast('Pedido realizado!');
   goTo('userArea');
@@ -1548,49 +1614,6 @@ function switchAdminTab(tab) {
   renderAdmin();
 }
 function renderAdminTab(tab, {users,products,orders,txs,revenue,cfg}) {
-  if(tab==='sync') {
-    const binCfg = DB.getBinConfig() || {};
-    const isConfigured = !!(binCfg.binId && binCfg.apiKey);
-    return `
-    <div style="font-size:1.1rem;font-weight:800;margin-bottom:8px;color:var(--text)">Sincronização em tempo real</div>
-    <div style="font-size:0.875rem;color:var(--text3);margin-bottom:20px">Permite que todos os dispositivos compartilhem os mesmos dados.</div>
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-body">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-          <div style="font-weight:700;color:var(--text)">Status</div>
-          ${isConfigured
-            ? '<span class="tag tag-success">Sincronização ativa</span>'
-            : '<span class="tag tag-danger">Não configurado — dados apenas locais</span>'}
-        </div>
-        <div class="form-group"><label class="form-label">JSONBin Bin ID</label>
-          <input class="form-input" id="cfBinId" value="${binCfg.binId||''}" placeholder="ex: 664abc123def456...">
-        </div>
-        <div class="form-group"><label class="form-label">Master API Key</label>
-          <input class="form-input" id="cfBinKey" type="password" value="${binCfg.apiKey||''}" placeholder="$2a$10$...">
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="saveBinConfig()">Salvar e sincronizar</button>
-          ${isConfigured ? '<button class="btn btn-secondary" onclick="forceSyncNow()">Forçar sincronização</button>' : ''}
-          ${isConfigured ? '<button class="btn btn-ghost" style="color:var(--danger)" onclick="clearBinConfig()">Desconectar</button>' : ''}
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-body">
-        <div style="font-weight:700;margin-bottom:12px;color:var(--text)">Como configurar (grátis)</div>
-        <ol style="font-size:0.85rem;color:var(--text2);line-height:2.2;padding-left:20px">
-          <li>Acesse <a href="https://jsonbin.io" target="_blank" style="color:var(--brand);font-weight:600">jsonbin.io</a> e crie uma conta grátis</li>
-          <li>Clique em <strong>+ Create Bin</strong>, cole <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">{"users":[],"products":[],"orders":[],"txs":[]}</code> e salve</li>
-          <li>Copie o <strong>Bin ID</strong> que aparece na URL ou no painel</li>
-          <li>Vá em <strong>API Keys</strong> → copie sua <strong>Master Key</strong></li>
-          <li>Cole os dois campos acima e clique em Salvar</li>
-        </ol>
-        <div style="margin-top:14px;padding:12px;background:var(--warning-light);border-radius:var(--radius);font-size:0.8rem;color:var(--warning)">
-          <strong>Plano gratuito:</strong> 10.000 requests/mês, ideal para MVP e testes.
-        </div>
-      </div>
-    </div>`;
-  }
 
   if(tab==='dashboard') return `
     <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Dashboard</div>
@@ -1893,48 +1916,23 @@ async function resetPlatform() {
 }
 
 // ================================================================
-// JSONBIN HELPERS
+// FIREBASE SYNC HELPERS
 // ================================================================
-async function saveBinConfig() {
-  const binId  = document.getElementById('cfBinId')?.value?.trim();
-  const apiKey = document.getElementById('cfBinKey')?.value?.trim();
-  if(!binId || !apiKey) { toast('Preencha Bin ID e API Key'); return; }
-  DB.setBinConfig({ binId, apiKey });
-  toast('Salvando e sincronizando...');
-  const state = DB._readLocal();
-  try {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type':'application/json', 'X-Master-Key': apiKey },
-      body: JSON.stringify(state)
-    });
-    if(res.ok) { toast('Sincronização ativa!'); DB._cache = {}; await DB.load(); renderAdmin(); }
-    else { const err = await res.json(); toast('Erro: ' + (err.message||'verifique as credenciais')); }
-  } catch { toast('Erro de conexão'); }
-}
 async function forceSyncNow() {
   toast('Sincronizando...');
   DB._cache = {};
+  DB._cacheAt = {};
   await DB.load();
   renderAdmin();
   toast('Dados atualizados!');
 }
-async function clearBinConfig() {
-  const ok = await showConfirm('Desconectar JSONBin', 'Os dados ficarão apenas locais neste dispositivo. Continuar?', 'Desconectar', false);
-  if(!ok) return;
-  DB.rmLocal('bin_config');
-  renderAdmin();
-  toast('JSONBin desconectado');
-}
-
 let _adminRefreshInterval = null;
 function startAdminAutoRefresh() {
   stopAdminAutoRefresh();
   _adminRefreshInterval = setInterval(async () => {
     if(currentPage !== 'admin') { stopAdminAutoRefresh(); return; }
-    const cfg = DB.getBinConfig();
-    if(!cfg) return;
     DB._cache = {};
+    DB._cacheAt = {};
     await DB.load();
     renderAdmin();
   }, 30000);
@@ -1981,16 +1979,11 @@ initTheme();
     </div>`;
   document.getElementById('page-landing').classList.add('active');
 
-  await DB.load();
+  // Cloudinary sempre correto em todos os dispositivos
+  DB.set('cloudinary', { cloudName: DB._CLOUD_NAME, uploadPreset: DB._UPLOAD_PRESET });
 
-  // FIX 1: Conta master criada APENAS via #setup — não hardcoda senha no source.
-  // Se não existir admin_config E não existir nenhum admin, verifica se há hash=setup.
-  // Caso contrário, aguarda o usuário acessar /#setup para configurar.
-  if(!DB.get('admin_config')) {
-    // Não criar admin automaticamente com senha hardcoded.
-    // O admin deve ser criado via /#setup (URL com hash) para manter a senha segura.
-    // checkAdminSetup() vai abrir o wizard se o hash for #setup.
-  }
+  // Carrega dados do Firestore (global, automático, zero config)
+  await DB.load();
 
   seedData();
   checkAdminSetup();
