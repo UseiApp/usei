@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Perfis de usuário — cada um lê/edita só o próprio; admin lê/edita todos.
+    // Nenhum documento pode conter o campo "password" (a senha vive só no
+    // Firebase Authentication, nunca no Firestore).
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.uid || isAdmin());
+      allow create: if isSignedIn()
+                    && request.auth.uid == request.resource.data.uid
+                    && !('password' in request.resource.data);
+      allow update: if isSignedIn()
+                    && (request.auth.uid == resource.data.uid || isAdmin())
+                    && !('password' in request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Quem é admin de verdade. O primeiro admin é criado manualmente no
+    // Console (fora do app); admins existentes podem promover outras contas
+    // pelo painel.
+    match /admins/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Catálogo — leitura pública (navegar sem login), escrita só autenticada
+    // e só do próprio dono do anúncio (ou admin).
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Pedidos — só quem comprou, o dono do produto, ou admin conseguem ver/mexer.
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (resource.data.buyerUid == request.auth.uid || resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.buyerUid == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Transações — mesmo critério de leitura dos pedidos.
+    match /txs/{txId} {
+      allow read: if isSignedIn() && (resource.data.buyerUid == request.auth.uid || resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.buyerUid == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Coleção usada só durante os testes de migração — pode remover este bloco
+    // se quiser, não é usada pelo site.
+    match /_migration_test/{docId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

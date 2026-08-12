@@ -578,10 +578,12 @@ const DB = {
     return Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,cv(v)]));
   },
 
-  // --- Ler todos os docs de uma coleção ---
+  // --- Ler todos os docs de uma coleção (anexa token quando houver sessão ativa) ---
   async _readCol(col) {
     try {
-      const res = await fetch(this._url(col));
+      const token = await this.getValidToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(this._url(col), { headers });
       if(!res.ok) return [];
       const json = await res.json();
       return (json.documents||[]).map(d => this._fromFS(d.fields));
@@ -591,19 +593,27 @@ const DB = {
   // --- Escrever/atualizar um doc (keepalive garante que sobrevive à navegação) ---
   async _writeDoc(col, id, data) {
     try {
-      await fetch(this._url(col, String(id)), {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = await this.getValidToken();
+      if(token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(this._url(col, String(id)), {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(this._toFS(data)),
         keepalive: true
       });
+      if(!res.ok && res.status === 401) console.warn(`Firestore write ${col}/${id}: não autenticado`);
+      if(!res.ok && res.status === 403) console.warn(`Firestore write ${col}/${id}: sem permissão`);
     } catch(e) { console.warn(`Firestore write ${col}/${id} failed:`, e.message); }
   },
 
   // --- Deletar um doc ---
   async _deleteDoc(col, id) {
     try {
-      await fetch(this._url(col, String(id)), { method: 'DELETE', keepalive: true });
+      const headers = {};
+      const token = await this.getValidToken();
+      if(token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch(this._url(col, String(id)), { method: 'DELETE', headers, keepalive: true });
     } catch(e) { console.warn(`Firestore delete ${col}/${id} failed:`, e.message); }
   },
 
@@ -662,9 +672,10 @@ const DB = {
     const writes = [];
     newArr.forEach(u => {
       const prev = old.find(x => x.id === u.id);
-      if(!prev || JSON.stringify(prev) !== JSON.stringify(u)) writes.push(this._writeDoc('users', u.id, u));
+      // Documento é identificado pelo uid do Firebase Auth (não pelo id numérico legado).
+      if((!prev || JSON.stringify(prev) !== JSON.stringify(u)) && u.uid) writes.push(this._writeDoc('users', u.uid, u));
     });
-    old.forEach(u => { if(!newArr.find(x => x.id === u.id)) writes.push(this._deleteDoc('users', u.id)); });
+    old.forEach(u => { if(!newArr.find(x => x.id === u.id) && u.uid) writes.push(this._deleteDoc('users', u.uid)); });
     await Promise.all(writes);
   },
   async saveProducts(newArr) {
@@ -712,7 +723,7 @@ const DB = {
   set(k, v) { this.setLocal(k, v); },
 
   clear() {
-    const keep = ['admin_config','admin_emails','cloudinary','session'];
+    const keep = ['admin_config','admin_emails','cloudinary','session','auth'];
     Object.keys(localStorage).filter(k => k.startsWith(this.PREFIX)).forEach(k => {
       const short = k.replace(this.PREFIX,'');
       if(!keep.includes(short)) localStorage.removeItem(k);
@@ -720,6 +731,143 @@ const DB = {
     this._state = null;
     this._cache = {};
     this._cacheAt = {};
+  },
+
+  // ================================================================
+  // AUTENTICAÇÃO — Firebase Identity Toolkit (REST, sem SDK)
+  // Substitui o login "de mentira" (senha em texto puro no Firestore)
+  // por autenticação real do Firebase. Senha nunca mais é salva em
+  // nenhum documento do Firestore.
+  // ================================================================
+  _AUTH_BASE:  'https://identitytoolkit.googleapis.com/v1/accounts',
+  _TOKEN_BASE: 'https://securetoken.googleapis.com/v1/token',
+  _authToken: null,
+  _authTokenExpiry: 0,
+
+  async _authRequest(action, body) {
+    const res = await fetch(`${this._AUTH_BASE}:${action}?key=${this._FB_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if(!res.ok) {
+      const code = data.error?.message || 'ERRO_DESCONHECIDO';
+      throw new Error(code);
+    }
+    return data;
+  },
+
+  authSignUp(email, password) {
+    return this._authRequest('signUp', { email, password, returnSecureToken: true });
+  },
+  authSignIn(email, password) {
+    return this._authRequest('signInWithPassword', { email, password, returnSecureToken: true });
+  },
+  async authChangePassword(newPassword) {
+    const token = await this.getValidToken();
+    if(!token) throw new Error('NAO_AUTENTICADO');
+    return this._authRequest('update', { idToken: token, password: newPassword, returnSecureToken: true });
+  },
+
+  // --- Sessão de autenticação (token em memória, refresh token em localStorage) ---
+  setAuthSession(authData) {
+    this._authToken = authData.idToken;
+    const expiresIn = Number(authData.expiresIn || 3600);
+    this._authTokenExpiry = Date.now() + (expiresIn * 1000) - 60000; // 60s de margem
+    this.setLocal('auth', {
+      refreshToken: authData.refreshToken,
+      uid: authData.localId,
+      email: authData.email,
+    });
+  },
+  clearAuthSession() {
+    this._authToken = null;
+    this._authTokenExpiry = 0;
+    this.rmLocal('auth');
+  },
+  getAuthInfo() { return this.getLocal('auth'); },
+
+  // --- Retorna um idToken válido, renovando via refresh token se preciso ---
+  async getValidToken() {
+    if(this._authToken && Date.now() < this._authTokenExpiry) return this._authToken;
+    const auth = this.getLocal('auth');
+    if(!auth || !auth.refreshToken) return null;
+    try {
+      const res = await fetch(`${this._TOKEN_BASE}?key=${this._FB_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(auth.refreshToken)}`,
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error('refresh falhou');
+      this._authToken = data.id_token;
+      this._authTokenExpiry = Date.now() + (Number(data.expires_in || 3600) * 1000) - 60000;
+      auth.refreshToken = data.refresh_token;
+      this.setLocal('auth', auth);
+      return this._authToken;
+    } catch(e) {
+      console.warn('Não foi possível renovar a sessão:', e.message);
+      this.clearAuthSession();
+      return null;
+    }
+  },
+
+  // --- Perfil do usuário (coleção users, documento = uid do Firebase Auth) ---
+  async getUserProfile(uid) {
+    try {
+      const token = await this.getValidToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(this._url('users', uid), { headers });
+      if(!res.ok) return null;
+      const doc = await res.json();
+      return this._fromFS(doc.fields);
+    } catch { return null; }
+  },
+  // --- Salva/atualiza SÓ o próprio perfil (não mexe nos outros usuários) ---
+  async saveUser(u) {
+    await this._writeDoc('users', u.uid, u);
+    this._invalidate('users');
+  },
+  async isAdmin(uid) {
+    try {
+      const token = await this.getValidToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(this._url('admins', uid), { headers });
+      return res.ok;
+    } catch { return false; }
+  },
+
+  // --- Busca um usuário pelo e-mail (usado só pelo painel admin) ---
+  async findUserByEmail(email) {
+    try {
+      const token = await this.getValidToken();
+      const headers = { 'Content-Type': 'application/json' };
+      if(token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(
+        `https://firestore.googleapis.com/v1/projects/${this._FB_PROJECT}/databases/(default)/documents:runQuery?key=${this._FB_KEY}`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            structuredQuery: {
+              from: [{ collectionId: 'users' }],
+              where: { fieldFilter: { field: { fieldPath: 'email' }, op: 'EQUAL', value: { stringValue: email } } },
+              limit: 1,
+            },
+          }),
+        }
+      );
+      if(!res.ok) return null;
+      const results = await res.json();
+      const match = results.find(r => r.document);
+      return match ? this._fromFS(match.document.fields) : null;
+    } catch { return null; }
+  },
+
+  // --- Lista todos os admins (só um admin logado consegue ler, pelas regras) ---
+  async listAdmins() {
+    return this._readCol('admins');
   },
 };
 
@@ -891,22 +1039,29 @@ document.addEventListener('click', e => {
 });
 
 // ================================================================
-// AUTH
+// AUTH — Firebase Authentication real (Identity Toolkit REST)
 // ================================================================
-function doLogin() {
+async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
   const pass  = document.getElementById('loginPass').value;
   if(!email || !pass) { toast('Preencha e-mail e senha'); return; }
-  const users = DB.users();
-  const u = users.find(x => x.email.toLowerCase() === email && x.password === pass);
-  if(!u) { toast('E-mail ou senha incorretos'); return; }
-  if(u.banned) { toast('Conta suspensa. Entre em contato com o suporte.'); return; }
-  const adminEmails = DB.get('admin_emails') || [];
-  if(adminEmails.map(e=>e.toLowerCase()).includes(email) && u.role !== 'admin') {
-    u.role = 'admin';
-    const idx = users.findIndex(x=>x.id===u.id);
-    if(idx>=0) { users[idx]=u; DB.saveUsers(users); }
+  let authData;
+  try {
+    authData = await DB.authSignIn(email, pass);
+  } catch(e) {
+    toast('E-mail ou senha incorretos');
+    return;
   }
+  DB.setAuthSession(authData);
+  let u = await DB.getUserProfile(authData.localId);
+  if(!u) {
+    // Login bem-sucedido no Firebase Auth mas sem perfil salvo ainda — cria um básico.
+    u = { id: Date.now(), uid: authData.localId, name: authData.email.split('@')[0], email: authData.email, phone: '', role: 'user', createdAt: new Date().toISOString() };
+    await DB.saveUser(u);
+  }
+  if(u.banned) { toast('Conta suspensa. Entre em contato com o suporte.'); DB.clearAuthSession(); return; }
+  // Admin de verdade é definido pela coleção "admins" no Firestore, não por um campo local.
+  u.role = (await DB.isAdmin(authData.localId)) ? 'admin' : 'user';
   DB.setSession(u);
   closeModal('modalLogin');
   renderNav();
@@ -916,25 +1071,25 @@ function doLogin() {
   else { toast('Bem-vindo, ' + u.name.split(' ')[0] + '!'); goTo('userArea'); }
 }
 
-// FIX E: validação de email via regex + FIX F: aviso sobre plaintext
 async function doRegister() {
   const name  = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim().toLowerCase();
   const phone = document.getElementById('regPhone').value.trim();
   const pass  = document.getElementById('regPass').value;
   if(!name || !email || !pass) { toast('Preencha todos os campos obrigatórios'); return; }
-  // FIX E: validação de formato de email com regex
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   if(!emailRegex.test(email)) { toast('E-mail inválido. Verifique o formato.'); return; }
   if(pass.length < 6) { toast('Senha deve ter pelo menos 6 caracteres'); return; }
-  const users = DB.users();
-  if(users.find(u=>u.email.toLowerCase()===email)) { toast('E-mail já cadastrado'); return; }
-  const adminEmails = DB.get('admin_emails') || [];
-  const role = adminEmails.map(e=>e.toLowerCase()).includes(email) ? 'admin' : 'user';
-  const u = { id: Date.now(), name, email, phone, password: pass, role, createdAt: new Date().toISOString() };
-  users.push(u);
-  // AWAIT — garante que o dado chega ao Firestore antes de navegar
-  await DB.saveUsers(users);
+  let authData;
+  try {
+    authData = await DB.authSignUp(email, pass);
+  } catch(e) {
+    toast(e.message.includes('EMAIL_EXISTS') ? 'E-mail já cadastrado' : 'Não foi possível criar a conta. Tente novamente.');
+    return;
+  }
+  DB.setAuthSession(authData);
+  const u = { id: Date.now(), uid: authData.localId, name, email, phone, role: 'user', createdAt: new Date().toISOString() };
+  await DB.saveUser(u);
   DB.setSession(u);
   closeModal('modalRegister');
   renderNav();
@@ -949,6 +1104,7 @@ async function doRegister() {
 function doLogout() {
   closeAvatarMenu();
   DB.clearSession();
+  DB.clearAuthSession();
   renderNav();
   goTo('landing');
   toast('Até logo!');
@@ -956,32 +1112,24 @@ function doLogout() {
 
 // ================================================================
 // ADMIN SETUP
+// Por segurança, a promoção a admin não é mais feita pelo próprio
+// navegador (isso permitia qualquer visitante virar admin abrindo
+// catalogo.html#setup). O primeiro admin agora é liberado manualmente
+// no Firebase Console, criando um documento em admins/{uid} com o uid
+// do Firebase Authentication da conta. Admins existentes podem promover
+// outras contas pelo painel (ver addAdminEmail).
 // ================================================================
 function checkAdminSetup() {
-  if(!DB.get('admin_config') && window.location.hash.startsWith('#setup')) {
-    document.getElementById('setupOverlay').classList.add('open');
+  if(window.location.hash.startsWith('#setup')) {
+    history.replaceState(null, '', window.location.pathname);
+    toast('Crie sua conta normalmente e peça para um admin liberar seu acesso.');
   }
 }
 function doSetup() {
-  const name  = document.getElementById('setupName').value.trim();
-  const email = document.getElementById('setupEmail').value.trim().toLowerCase();
-  const pass  = document.getElementById('setupPass').value;
-  const pass2 = document.getElementById('setupPass2').value;
-  if(!name||!email||!pass) { toast('Preencha todos os campos'); return; }
-  if(pass.length<8) { toast('Senha deve ter pelo menos 8 caracteres'); return; }
-  if(pass!==pass2) { toast('Senhas não coincidem'); return; }
-  if(!window.location.hash.startsWith('#setup')) { toast('Acesso não autorizado'); return; }
-  DB.set('admin_config', { name, email, createdAt: new Date().toISOString() });
-  let users = DB.users().filter(u=>u.role!=='admin');
-  const adminUser = { id: 1, name, email, phone:'', password: pass, role:'admin', createdAt: new Date().toISOString() };
-  users.unshift(adminUser);
-  DB.saveUsers(users);
-  DB.setSession(adminUser);
+  // Mantido apenas para não quebrar o botão antigo — não concede mais privilégio.
   document.getElementById('setupOverlay').classList.remove('open');
-  history.replaceState(null,'',window.location.pathname);
-  renderNav();
-  toast('Conta master criada!');
-  goTo('admin');
+  history.replaceState(null, '', window.location.pathname);
+  toast('Cadastre-se normalmente; a promoção a admin agora é feita pelo Firebase Console.');
 }
 
 // ================================================================
@@ -1091,7 +1239,7 @@ async function publishProduct() {
       salePrice: Number(salePrice), rentPrice: Number(rentPrice),
       desc, location, images,
       mainImage: images[0] || null,
-      ownerId: u.id, ownerName: u.name, ownerEmail: u.email,
+      ownerId: u.id, ownerUid: u.uid, ownerName: u.name, ownerEmail: u.email,
       active: true, createdAt: new Date().toISOString(),
     };
     const products = DB.products();
@@ -1407,15 +1555,15 @@ async function confirmOrder() {
   const order = {
     id: Date.now(), productId: p.id, productName: p.name,
     productImage: p.mainImage||(p.images&&p.images[0])||null,
-    ownerId: p.ownerId, ownerName: p.ownerName,
-    buyerId: u.id, buyerName: u.name, buyerEmail: u.email,
+    ownerId: p.ownerId, ownerUid: p.ownerUid||null, ownerName: p.ownerName,
+    buyerId: u.id, buyerUid: u.uid, buyerName: u.name, buyerEmail: u.email,
     type: checkoutData.type, days, value: total, fee,
     status: 'pendente', date: startDate.toISOString().split('T')[0],
     endDate: isRent ? endDate.toISOString().split('T')[0] : null,
   };
   const orders = DB.orders(); orders.unshift(order);
   const tx = {
-    id: Date.now()+1, orderId: order.id, userId: u.id, userName: u.name,
+    id: Date.now()+1, orderId: order.id, userId: u.id, buyerUid: u.uid, ownerUid: p.ownerUid||null, userName: u.name,
     productName: p.name, value: total, method: 'Plataforma',
     status: 'aprovado', date: startDate.toISOString().split('T')[0],
   };
@@ -1576,6 +1724,7 @@ async function deleteMyProduct(id) {
 // ADMIN PANEL
 // ================================================================
 let adminTab = 'dashboard';
+let _adminsListCache = [];
 function renderAdmin() {
   const u = DB.currentUser();
   if(!u||u.role!=='admin') { goTo('landing'); return; }
@@ -1612,6 +1761,9 @@ function renderAdmin() {
 function switchAdminTab(tab) {
   adminTab=tab;
   renderAdmin();
+  if(tab==='admins') {
+    DB.listAdmins().then(list => { _adminsListCache = list; if(adminTab==='admins') renderAdmin(); });
+  }
 }
 function renderAdminTab(tab, {users,products,orders,txs,revenue,cfg}) {
 
@@ -1729,7 +1881,7 @@ function renderAdminTab(tab, {users,products,orders,txs,revenue,cfg}) {
     </div>`;
 
   if(tab==='admins') {
-    const adminEmails = DB.get('admin_emails')||[];
+    const adminEmails = _adminsListCache.map(a=>a.email).filter(Boolean);
     return `
     <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Administradores</div>
     <div class="card" style="margin-bottom:16px">
@@ -1850,32 +2002,35 @@ function adminUpdateOrder(id, status) {
   const o=orders.find(x=>x.id===id);
   if(o){ o.status=status; DB.saveOrders(orders); toast('Status atualizado'); renderAdmin(); }
 }
-function addAdminEmail() {
+// Promove um usuário já cadastrado a admin, criando admins/{uid} no Firestore.
+// Só funciona se quem está logado já for admin (garantido pelas regras do Firestore).
+async function addAdminEmail() {
   const email=document.getElementById('newAdminEmail')?.value?.trim().toLowerCase();
   if(!email||!email.includes('@')) { toast('E-mail inválido'); return; }
-  const list=DB.get('admin_emails')||[];
-  if(!list.includes(email)) { list.push(email); DB.set('admin_emails',list); }
-  const users=DB.users();
-  const u=users.find(x=>x.email.toLowerCase()===email);
-  if(u&&u.role!=='admin') { u.role='admin'; DB.saveUsers(users); }
+  const target = await DB.findUserByEmail(email);
+  if(!target || !target.uid) { toast('Nenhum usuário cadastrado com esse e-mail (precisa ter feito login pelo menos uma vez)'); return; }
+  await DB._writeDoc('admins', target.uid, { email: target.email, promotedAt: new Date().toISOString() });
   renderAdmin(); toast('Admin adicionado');
 }
-function removeAdminEmail(email) {
-  const list=(DB.get('admin_emails')||[]).filter(e=>e!==email);
-  DB.set('admin_emails',list);
+async function removeAdminEmail(email) {
+  const target = await DB.findUserByEmail(email);
+  if(!target || !target.uid) { toast('Usuário não encontrado'); return; }
+  await DB._deleteDoc('admins', target.uid);
   renderAdmin(); toast('Removido');
 }
-function changeAdminPass() {
+// Troca a PRÓPRIA senha do admin logado, via Firebase Authentication real
+// (não é mais possível alterar a senha de outro admin remotamente).
+async function changeAdminPass() {
   const np=prompt('Nova senha (mín. 8 caracteres):');
   if(!np) return;
   if(np.length<8) { toast('Senha muito curta'); return; }
   if(prompt('Confirme a nova senha:')!==np) { toast('Senhas não coincidem'); return; }
-  const users=DB.users();
-  const admin=users.find(u=>u.role==='admin');
-  if(admin){ admin.password=np; DB.saveUsers(users); }
-  const session=DB.currentUser();
-  if(session&&session.role==='admin'){ session.password=np; DB.setSession(session); }
-  toast('Senha alterada');
+  try {
+    await DB.authChangePassword(np);
+    toast('Senha alterada com sucesso!');
+  } catch(e) {
+    toast('Não foi possível alterar a senha. Faça login novamente e tente de novo.');
+  }
 }
 function saveCloudinary() {
   const cn=document.getElementById('cfCloud')?.value?.trim();
@@ -1946,16 +2101,10 @@ function stopAdminAutoRefresh() {
 // ================================================================
 function seedData() {
   if(DB.get('seeded')) return;
-  const existingAdmin = DB.users().find(u=>u.role==='admin');
-  const users = [
-    { id:2, name:'Maria Silva',  email:'maria@email.com', phone:'(11) 91234-5678', password:'123456', role:'user',    createdAt:'2025-01-15T00:00:00.000Z' },
-    { id:3, name:'João Santos',  email:'joao@email.com',  phone:'(11) 99876-5432', password:'123456', role:'creator', createdAt:'2025-01-20T00:00:00.000Z' },
-  ];
-  // Só cria o admin seed se não existir nenhum admin ainda
-  if(!existingAdmin) {
-    users.unshift({ id:1, name:'Admin', email:'admin@usei.app', phone:'', password:'admin@usei2025', role:'admin', createdAt:'2025-01-01T00:00:00.000Z' });
-  }
-  DB.saveUsers([...DB.users().filter(u=>u.role==='admin'), ...users.filter(u=>u.role!=='admin')]);
+  // NOTA DE SEGURANÇA: usuários de demonstração não são mais criados aqui
+  // com senha em texto puro no Firestore. Contas reais são criadas pelo
+  // fluxo normal de cadastro (Firebase Authentication). Os produtos abaixo
+  // usam ownerId/ownerName/ownerEmail apenas como dados de exibição.
   const products = [
     { id:101, name:'Câmera Sony Alpha A6400', cat:'eletronicos', type:'rent', salePrice:0, rentPrice:89, desc:'Câmera mirrorless em ótimo estado, acompanha lente kit 16-50mm. Ideal para fotos e vídeos 4K.', location:'São Paulo, SP', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-22T00:00:00.000Z' },
     { id:102, name:'Furadeira Bosch 1/2 HP',  cat:'ferramentas', type:'rent', salePrice:0, rentPrice:35, desc:'Furadeira de impacto profissional com maleta de brocas.', location:'São Paulo, SP', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-23T00:00:00.000Z' },
