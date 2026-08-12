@@ -659,10 +659,15 @@ const DB = {
     };
   },
 
-  users()    { return this._cache.users    || this.getLocal('users')    || []; },
-  products() { return this._cache.products || this.getLocal('products') || []; },
-  orders()   { return this._cache.orders   || this.getLocal('orders')   || []; },
-  txs()      { return this._cache.txs      || this.getLocal('txs')      || []; },
+  // Retorna uma CÓPIA do array em cache (nunca a referência interna).
+  // Sem isso, código como `const products = DB.products(); products.unshift(x); DB.saveProducts(products)`
+  // muta o cache antes de saveProducts() comparar "antes" com "depois" — e como
+  // os dois viram o mesmo array, a comparação nunca detecta o item novo e ele
+  // nunca é salvo no Firestore (bug real encontrado em produção).
+  users()    { return [...(this._cache.users    || this.getLocal('users')    || [])]; },
+  products() { return [...(this._cache.products || this.getLocal('products') || [])]; },
+  orders()   { return [...(this._cache.orders   || this.getLocal('orders')   || [])]; },
+  txs()      { return [...(this._cache.txs      || this.getLocal('txs')      || [])]; },
 
   // --- Salvar arrays inteiros (async — aguarda writes no Firestore antes de retornar) ---
   async saveUsers(newArr) {
@@ -1108,6 +1113,19 @@ function doLogout() {
   renderNav();
   goTo('landing');
   toast('Até logo!');
+}
+
+// Confere se a sessão salva localmente ainda tem um login de verdade por
+// trás (uid + token válido/renovável). Sessões antigas (de antes da
+// autenticação real) ou com refresh token expirado/revogado são deslogadas
+// automaticamente — sem isso, o site mostraria "logado" enquanto qualquer
+// tentativa de salvar dado falharia silenciosamente por falta de permissão.
+async function validateSession() {
+  const u = DB.currentUser();
+  if(!u) return;
+  if(!u.uid) { DB.clearSession(); DB.clearAuthSession(); return; }
+  const token = await DB.getValidToken();
+  if(!token) { DB.clearSession(); DB.clearAuthSession(); }
 }
 
 // ================================================================
@@ -2133,6 +2151,11 @@ initTheme();
 
   // Carrega dados do Firestore (global, automático, zero config)
   await DB.load();
+
+  // Detecta sessão "fantasma" — de antes da autenticação real ou com token
+  // expirado/inválido — e desloga automaticamente, em vez de deixar o site
+  // mostrar "logado" enquanto toda gravação falha silenciosamente.
+  await validateSession();
 
   seedData();
   checkAdminSetup();
