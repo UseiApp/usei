@@ -7,21 +7,25 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>USEI.APP — Alugue, Venda, Conecte</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
 <style>
 /* ===== RESET & TOKENS ===== */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --brand:#7CB518;
-  --brand-dark:#5C8A10;
-  --brand-light:#F0F7E0;
+  --brand:#8BBF00;
+  --brand-dark:#6E9900;
+  --brand-light:#EEF7CC;
+  --brand2:#0B1F3A;
+  --accent:#0B1F3A;
+  --accent-light:#E6EDF5;
   --surface:#FFFFFF;
-  --surface2:#F7F8FA;
-  --surface3:#EDEEF0;
-  --border:#E2E4E8;
-  --text:#111318;
-  --text2:#4B5160;
-  --text3:#9399A6;
+  --surface2:#F5F7F2;
+  --surface3:#EAEFE2;
+  --border:rgba(11,31,58,0.08);
+  --border2:rgba(11,31,58,0.15);
+  --text:#0B1F3A;
+  --text2:#4A5C72;
+  --text3:#8A9BB0;
   --danger:#DC2626;
   --danger-light:#FEF2F2;
   --success:#16A34A;
@@ -30,12 +34,13 @@
   --warning-light:#FFFBEB;
   --info:#2563EB;
   --info-light:#EFF6FF;
-  --radius:10px;
-  --radius-lg:16px;
-  --shadow:0 1px 4px rgba(0,0,0,0.08),0 4px 16px rgba(0,0,0,0.06);
-  --shadow-lg:0 8px 32px rgba(0,0,0,0.12);
+  --radius:12px;
+  --radius-lg:20px;
+  --shadow:0 2px 16px rgba(11,31,58,0.08);
+  --shadow-lg:0 8px 40px rgba(11,31,58,0.14);
   --nav-h:60px;
-  --font:'Inter',sans-serif;
+  --font:'DM Sans',sans-serif;
+  --font-display:'Syne',sans-serif;
   --transition:0.18s ease;
 }
 [data-theme="dark"]{
@@ -46,8 +51,9 @@
   --text:#F0F2F5;
   --text2:#9399A6;
   --text3:#555D6E;
-  --brand:#8FD020;
-  --brand-light:#1A2800;
+  --brand:#A6DB1A;
+  --brand-light:#1D2A00;
+  --accent-light:#1A2230;
   --shadow:0 1px 4px rgba(0,0,0,0.3),0 4px 16px rgba(0,0,0,0.25);
   --shadow-lg:0 8px 32px rgba(0,0,0,0.4);
 }
@@ -70,7 +76,7 @@ button{cursor:pointer;font-family:var(--font)}
 /* ===== NAV ===== */
 .nav{height:var(--nav-h);background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;transition:background var(--transition)}
 .nav-inner{height:100%;display:flex;align-items:center;gap:24px}
-.nav-logo{font-size:1.25rem;font-weight:800;letter-spacing:-0.5px;color:var(--text);flex-shrink:0}
+.nav-logo{font-family:var(--font-display);font-size:1.25rem;font-weight:800;letter-spacing:-0.5px;color:var(--text);flex-shrink:0}
 .nav-logo span{color:var(--brand)}
 .nav-search{flex:1;max-width:400px;position:relative}
 .nav-search input{width:100%;padding:8px 12px 8px 36px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:0.875rem;font-family:var(--font);transition:border-color var(--transition)}
@@ -229,7 +235,7 @@ tr:hover td{background:var(--surface2)}
 /* ===== LANDING ===== */
 .hero{padding:60px 0 48px;text-align:center}
 .hero-tag{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--brand-light);color:var(--brand-dark);font-size:0.78rem;font-weight:600;margin-bottom:20px}
-.hero-h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;letter-spacing:-1.5px;line-height:1.1;color:var(--text);margin-bottom:16px}
+.hero-h1{font-family:var(--font-display);font-size:clamp(2rem,5vw,3.2rem);font-weight:800;letter-spacing:-1.5px;line-height:1.1;color:var(--text);margin-bottom:16px}
 .hero-h1 span{color:var(--brand)}
 .hero-sub{font-size:1rem;color:var(--text2);max-width:500px;margin:0 auto 28px}
 .hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
@@ -237,7 +243,7 @@ tr:hover td{background:var(--surface2)}
 .feature-item{display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--text3);font-weight:500}
 .feature-dot{width:6px;height:6px;border-radius:50%;background:var(--brand)}
 .section-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--brand);margin-bottom:8px}
-.section-title{font-size:1.4rem;font-weight:800;letter-spacing:-0.5px;color:var(--text);margin-bottom:4px}
+.section-title{font-family:var(--font-display);font-size:1.4rem;font-weight:800;letter-spacing:-0.5px;color:var(--text);margin-bottom:4px}
 .section-sub{font-size:0.875rem;color:var(--text2);margin-bottom:24px}
 
 /* ===== CATALOG ===== */
