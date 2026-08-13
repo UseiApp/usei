@@ -1,8 +1,11 @@
-<!DOCTYPE html>
+\<!DOCTYPE html>
 <html lang="pt-BR" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>USEI.APP — Alugue, Venda, Conecte</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -522,45 +525,133 @@ tr:hover td{background:var(--surface2)}
 
 <script>
 // ================================================================
-// DB — banco compartilhado via JSONBin.io + localStorage para sessão
+// DB — Firebase Firestore REST API com COLEÇÕES SEPARADAS
+// Cada registro é um documento próprio — zero conflito de sobrescrita.
+// Qualquer dispositivo que abre a plataforma sincroniza automaticamente.
 // ================================================================
 const DB = {
   PREFIX: 'usei2_',
+  _FB_KEY:     'AIzaSyAxE8GLkReOTnfIog9phm2lJh8X5eFRRtY',
+  _FB_PROJECT: 'usei-b1b88',
+  _CLOUD_NAME:    'dqrjlxvjq',
+  _UPLOAD_PRESET: 'usei unsigned',
 
+  // --- localStorage (sessão e cache) ---
   getLocal(k)    { try { return JSON.parse(localStorage.getItem(this.PREFIX + k)); } catch { return null; } },
   setLocal(k, v) { localStorage.setItem(this.PREFIX + k, JSON.stringify(v)); },
   rmLocal(k)     { localStorage.removeItem(this.PREFIX + k); },
 
-  getBinConfig()    { return this.getLocal('bin_config') || null; },
-  setBinConfig(cfg) { this.setLocal('bin_config', cfg); },
-
-  _cache: {},
-  _cacheTime: {},
-  CACHE_TTL: 15000,
-
-  async _read() {
-    const cfg = this.getBinConfig();
-    if(!cfg || !cfg.binId || !cfg.apiKey) return this._readLocal();
-    const now = Date.now();
-    if(this._cache.data && (now - this._cacheTime.data) < this.CACHE_TTL) return this._cache.data;
-    try {
-      const res = await fetch(`https://api.jsonbin.io/v3/b/${cfg.binId}/latest`, {
-        headers: { 'X-Master-Key': cfg.apiKey }
-      });
-      if(!res.ok) return this._readLocal();
-      const json = await res.json();
-      const data = json.record;
-      this._cache.data = data;
-      this._cacheTime.data = now;
-      ['users','products','orders','txs'].forEach(k => {
-        if(data[k]) this.setLocal(k, data[k]);
-      });
-      return data;
-    } catch { return this._readLocal(); }
+  // --- URLs das coleções ---
+  _url(col, id='') {
+    const base = `https://firestore.googleapis.com/v1/projects/${this._FB_PROJECT}/databases/(default)/documents/${col}`;
+    return id ? `${base}/${id}?key=${this._FB_KEY}` : `${base}?key=${this._FB_KEY}&pageSize=500`;
   },
 
-  _readLocal() {
-    return {
+  // --- Converter JS → Firestore ---
+  _toFS(obj) {
+    const cv = v => {
+      if(v===null||v===undefined) return {nullValue:null};
+      if(typeof v==='boolean')    return {booleanValue:v};
+      if(typeof v==='number')     return {doubleValue:v};
+      if(typeof v==='string')     return {stringValue:v};
+      if(Array.isArray(v))        return {arrayValue:{values:v.length?v.map(cv):[]}};
+      if(typeof v==='object')     return {mapValue:{fields:Object.fromEntries(Object.entries(v).map(([k,val])=>[k,cv(val)]))}};
+      return {stringValue:String(v)};
+    };
+    return {fields:Object.fromEntries(Object.entries(obj).map(([k,v])=>[k,cv(v)]))};
+  },
+
+  // --- Converter Firestore → JS ---
+  _fromFS(fields) {
+    if(!fields) return {};
+    const cv = v => {
+      if(!v) return null;
+      if(v.nullValue!==undefined)    return null;
+      if(v.booleanValue!==undefined) return v.booleanValue;
+      if(v.doubleValue!==undefined)  return v.doubleValue;
+      if(v.integerValue!==undefined) return Number(v.integerValue);
+      if(v.stringValue!==undefined)  return v.stringValue;
+      if(v.arrayValue!==undefined)   return (v.arrayValue.values||[]).map(cv);
+      if(v.mapValue!==undefined)     return this._fromFS(v.mapValue.fields);
+      return null;
+    };
+    return Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,cv(v)]));
+  },
+
+  // --- Ler todos os docs de uma coleção (anexa token quando houver sessão ativa) ---
+  async _readCol(col) {
+    try {
+      const token = await this.getValidToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(this._url(col), { headers });
+      if(!res.ok) return [];
+      const json = await res.json();
+      return (json.documents||[]).map(d => this._fromFS(d.fields));
+    } catch { return []; }
+  },
+
+  // --- Escrever/atualizar um doc (keepalive garante que sobrevive à navegação) ---
+  async _writeDoc(col, id, data) {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = await this.getValidToken();
+      if(token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(this._url(col, String(id)), {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(this._toFS(data)),
+        keepalive: true
+      });
+      if(!res.ok && res.status === 401) console.warn(`Firestore write ${col}/${id}: não autenticado`);
+      if(!res.ok && res.status === 403) console.warn(`Firestore write ${col}/${id}: sem permissão`);
+    } catch(e) { console.warn(`Firestore write ${col}/${id} failed:`, e.message); }
+  },
+
+  // --- Deletar um doc ---
+  async _deleteDoc(col, id) {
+    try {
+      const headers = {};
+      const token = await this.getValidToken();
+      if(token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch(this._url(col, String(id)), { method: 'DELETE', headers, keepalive: true });
+    } catch(e) { console.warn(`Firestore delete ${col}/${id} failed:`, e.message); }
+  },
+
+  // --- Cache local (15s TTL por coleção) ---
+  _cache: {},
+  _cacheAt: {},
+  _TTL: 15000,
+  _isFresh(col) { return this._cache[col] && (Date.now() - (this._cacheAt[col]||0)) < this._TTL; },
+  _setCache(col, data) { this._cache[col] = data; this._cacheAt[col] = Date.now(); this.setLocal(col, data); },
+  _invalidate(col) { this._cacheAt[col] = 0; },
+
+  // --- Carregar uma coleção (cache ou Firestore) ---
+  async _load(col) {
+    if(this._isFresh(col)) return this._cache[col];
+    const data = await this._readCol(col);
+    if(data.length > 0 || !this.getLocal(col)) {
+      this._setCache(col, data);
+      return data;
+    }
+    // Fallback para localStorage se Firestore retornou vazio mas local tem dados
+    const local = this.getLocal(col) || [];
+    this._cache[col] = local;
+    return local;
+  },
+
+  _state: null,
+
+  async load() {
+    const [users, products, orders, txs] = await Promise.all([
+      this._load('users'), this._load('products'),
+      this._load('orders'), this._load('txs')
+    ]);
+    this._state = { users, products, orders, txs };
+    return this._state;
+  },
+
+  getState() {
+    return this._state || {
       users:    this.getLocal('users')    || [],
       products: this.getLocal('products') || [],
       orders:   this.getLocal('orders')   || [],
@@ -568,53 +659,66 @@ const DB = {
     };
   },
 
-  async _write(data) {
-    const cfg = this.getBinConfig();
-    try {
-      ['users','products','orders','txs'].forEach(k => {
-        if(data[k] !== undefined) this.setLocal(k, data[k]);
-      });
-      this._cache.data = data;
-      this._cacheTime.data = Date.now();
-    } catch(e) { console.warn('localStorage write failed:', e); }
-    if(!cfg || !cfg.binId || !cfg.apiKey) return;
-    try {
-      const res = await fetch(`https://api.jsonbin.io/v3/b/${cfg.binId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-Master-Key': cfg.apiKey },
-        body: JSON.stringify(data)
-      });
-      if(!res.ok) console.warn('JSONBin write HTTP error:', res.status);
-    } catch(e) {
-      console.warn('JSONBin write failed:', e.message);
-    }
+  // Retorna uma CÓPIA do array em cache (nunca a referência interna).
+  // Sem isso, código como `const products = DB.products(); products.unshift(x); DB.saveProducts(products)`
+  // muta o cache antes de saveProducts() comparar "antes" com "depois" — e como
+  // os dois viram o mesmo array, a comparação nunca detecta o item novo e ele
+  // nunca é salvo no Firestore (bug real encontrado em produção).
+  users()    { return [...(this._cache.users    || this.getLocal('users')    || [])]; },
+  products() { return [...(this._cache.products || this.getLocal('products') || [])]; },
+  orders()   { return [...(this._cache.orders   || this.getLocal('orders')   || [])]; },
+  txs()      { return [...(this._cache.txs      || this.getLocal('txs')      || [])]; },
+
+  // --- Salvar arrays inteiros (async — aguarda writes no Firestore antes de retornar) ---
+  async saveUsers(newArr) {
+    const old = this.users();
+    this._cache.users = newArr; this.setLocal('users', newArr);
+    if(this._state) this._state.users = newArr;
+    const writes = [];
+    newArr.forEach(u => {
+      const prev = old.find(x => x.id === u.id);
+      // Documento é identificado pelo uid do Firebase Auth (não pelo id numérico legado).
+      if((!prev || JSON.stringify(prev) !== JSON.stringify(u)) && u.uid) writes.push(this._writeDoc('users', u.uid, u));
+    });
+    old.forEach(u => { if(!newArr.find(x => x.id === u.id) && u.uid) writes.push(this._deleteDoc('users', u.uid)); });
+    await Promise.all(writes);
   },
-
-  _state: null,
-
-  async load() {
-    this._state = await this._read();
-    return this._state;
+  async saveProducts(newArr) {
+    const old = this.products();
+    this._cache.products = newArr; this.setLocal('products', newArr);
+    if(this._state) this._state.products = newArr;
+    const writes = [];
+    newArr.forEach(p => {
+      const prev = old.find(x => x.id === p.id);
+      if(!prev || JSON.stringify(prev) !== JSON.stringify(p)) writes.push(this._writeDoc('products', p.id, p));
+    });
+    old.forEach(p => { if(!newArr.find(x => x.id === p.id)) writes.push(this._deleteDoc('products', p.id)); });
+    await Promise.all(writes);
   },
-
-  getState() { return this._state || this._readLocal(); },
-
-  async saveAll(patch) {
-    const current = this.getState();
-    const next = { ...current, ...patch };
-    this._state = next;
-    await this._write(next);
+  async saveOrders(newArr) {
+    const old = this.orders();
+    this._cache.orders = newArr; this.setLocal('orders', newArr);
+    if(this._state) this._state.orders = newArr;
+    const writes = [];
+    newArr.forEach(o => {
+      const prev = old.find(x => x.id === o.id);
+      if(!prev || JSON.stringify(prev) !== JSON.stringify(o)) writes.push(this._writeDoc('orders', o.id, o));
+    });
+    old.forEach(o => { if(!newArr.find(x => x.id === o.id)) writes.push(this._deleteDoc('orders', o.id)); });
+    await Promise.all(writes);
   },
-
-  users()    { return this.getState().users    || []; },
-  products() { return this.getState().products || []; },
-  orders()   { return this.getState().orders   || []; },
-  txs()      { return this.getState().txs      || []; },
-
-  saveUsers(v)    { this._state = {...this.getState(), users: v};    this._write(this._state); this.setLocal('users', v); this._cacheTime={}; },
-  saveProducts(v) { this._state = {...this.getState(), products: v}; this._write(this._state); this.setLocal('products', v); this._cacheTime={}; },
-  saveOrders(v)   { this._state = {...this.getState(), orders: v};   this._write(this._state); this.setLocal('orders', v); this._cacheTime={}; },
-  saveTxs(v)      { this._state = {...this.getState(), txs: v};      this._write(this._state); this.setLocal('txs', v); this._cacheTime={}; },
+  async saveTxs(newArr) {
+    const old = this.txs();
+    this._cache.txs = newArr; this.setLocal('txs', newArr);
+    if(this._state) this._state.txs = newArr;
+    const writes = [];
+    newArr.forEach(t => {
+      const prev = old.find(x => x.id === t.id);
+      if(!prev || JSON.stringify(prev) !== JSON.stringify(t)) writes.push(this._writeDoc('txs', t.id, t));
+    });
+    old.forEach(t => { if(!newArr.find(x => x.id === t.id)) writes.push(this._deleteDoc('txs', t.id)); });
+    await Promise.all(writes);
+  },
 
   currentUser()  { return this.getLocal('session'); },
   setSession(u)  { this.setLocal('session', u); },
@@ -623,15 +727,152 @@ const DB = {
   get(k)    { return this.getLocal(k); },
   set(k, v) { this.setLocal(k, v); },
 
-  // FIX 3: 'session' adicionada à lista de chaves preservadas no reset
   clear() {
-    const keep = ['admin_config','admin_emails','cloudinary','bin_config','session'];
+    const keep = ['admin_config','admin_emails','cloudinary','session','auth'];
     Object.keys(localStorage).filter(k => k.startsWith(this.PREFIX)).forEach(k => {
       const short = k.replace(this.PREFIX,'');
       if(!keep.includes(short)) localStorage.removeItem(k);
     });
     this._state = null;
     this._cache = {};
+    this._cacheAt = {};
+  },
+
+  // ================================================================
+  // AUTENTICAÇÃO — Firebase Identity Toolkit (REST, sem SDK)
+  // Substitui o login "de mentira" (senha em texto puro no Firestore)
+  // por autenticação real do Firebase. Senha nunca mais é salva em
+  // nenhum documento do Firestore.
+  // ================================================================
+  _AUTH_BASE:  'https://identitytoolkit.googleapis.com/v1/accounts',
+  _TOKEN_BASE: 'https://securetoken.googleapis.com/v1/token',
+  _authToken: null,
+  _authTokenExpiry: 0,
+
+  async _authRequest(action, body) {
+    const res = await fetch(`${this._AUTH_BASE}:${action}?key=${this._FB_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if(!res.ok) {
+      const code = data.error?.message || 'ERRO_DESCONHECIDO';
+      throw new Error(code);
+    }
+    return data;
+  },
+
+  authSignUp(email, password) {
+    return this._authRequest('signUp', { email, password, returnSecureToken: true });
+  },
+  authSignIn(email, password) {
+    return this._authRequest('signInWithPassword', { email, password, returnSecureToken: true });
+  },
+  async authChangePassword(newPassword) {
+    const token = await this.getValidToken();
+    if(!token) throw new Error('NAO_AUTENTICADO');
+    return this._authRequest('update', { idToken: token, password: newPassword, returnSecureToken: true });
+  },
+
+  // --- Sessão de autenticação (token em memória, refresh token em localStorage) ---
+  setAuthSession(authData) {
+    this._authToken = authData.idToken;
+    const expiresIn = Number(authData.expiresIn || 3600);
+    this._authTokenExpiry = Date.now() + (expiresIn * 1000) - 60000; // 60s de margem
+    this.setLocal('auth', {
+      refreshToken: authData.refreshToken,
+      uid: authData.localId,
+      email: authData.email,
+    });
+  },
+  clearAuthSession() {
+    this._authToken = null;
+    this._authTokenExpiry = 0;
+    this.rmLocal('auth');
+  },
+  getAuthInfo() { return this.getLocal('auth'); },
+
+  // --- Retorna um idToken válido, renovando via refresh token se preciso ---
+  async getValidToken() {
+    if(this._authToken && Date.now() < this._authTokenExpiry) return this._authToken;
+    const auth = this.getLocal('auth');
+    if(!auth || !auth.refreshToken) return null;
+    try {
+      const res = await fetch(`${this._TOKEN_BASE}?key=${this._FB_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(auth.refreshToken)}`,
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error('refresh falhou');
+      this._authToken = data.id_token;
+      this._authTokenExpiry = Date.now() + (Number(data.expires_in || 3600) * 1000) - 60000;
+      auth.refreshToken = data.refresh_token;
+      this.setLocal('auth', auth);
+      return this._authToken;
+    } catch(e) {
+      console.warn('Não foi possível renovar a sessão:', e.message);
+      this.clearAuthSession();
+      return null;
+    }
+  },
+
+  // --- Perfil do usuário (coleção users, documento = uid do Firebase Auth) ---
+  async getUserProfile(uid) {
+    try {
+      const token = await this.getValidToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(this._url('users', uid), { headers });
+      if(!res.ok) return null;
+      const doc = await res.json();
+      return this._fromFS(doc.fields);
+    } catch { return null; }
+  },
+  // --- Salva/atualiza SÓ o próprio perfil (não mexe nos outros usuários) ---
+  async saveUser(u) {
+    await this._writeDoc('users', u.uid, u);
+    this._invalidate('users');
+  },
+  async isAdmin(uid) {
+    try {
+      const token = await this.getValidToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(this._url('admins', uid), { headers });
+      return res.ok;
+    } catch { return false; }
+  },
+
+  // --- Busca um usuário pelo e-mail (usado só pelo painel admin) ---
+  async findUserByEmail(email) {
+    try {
+      const token = await this.getValidToken();
+      const headers = { 'Content-Type': 'application/json' };
+      if(token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(
+        `https://firestore.googleapis.com/v1/projects/${this._FB_PROJECT}/databases/(default)/documents:runQuery?key=${this._FB_KEY}`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            structuredQuery: {
+              from: [{ collectionId: 'users' }],
+              where: { fieldFilter: { field: { fieldPath: 'email' }, op: 'EQUAL', value: { stringValue: email } } },
+              limit: 1,
+            },
+          }),
+        }
+      );
+      if(!res.ok) return null;
+      const results = await res.json();
+      const match = results.find(r => r.document);
+      return match ? this._fromFS(match.document.fields) : null;
+    } catch { return null; }
+  },
+
+  // --- Lista todos os admins (só um admin logado consegue ler, pelas regras) ---
+  async listAdmins() {
+    return this._readCol('admins');
   },
 };
 
@@ -714,7 +955,7 @@ function goTo(page) {
   if(page === 'catalog')           renderCatalog();
   if(page === 'userArea')          renderUserArea();
   if(page === 'creatorDashboard')  renderCreator();
-  if(page === 'admin')             { renderAdmin(); startAdminAutoRefresh(); }
+  if(page === 'admin')             { DB._cache={};DB._cacheAt={};DB.load().then(()=>{renderAdmin();startAdminAutoRefresh();}); }
   else                             stopAdminAutoRefresh();
 }
 
@@ -803,22 +1044,29 @@ document.addEventListener('click', e => {
 });
 
 // ================================================================
-// AUTH
+// AUTH — Firebase Authentication real (Identity Toolkit REST)
 // ================================================================
-function doLogin() {
+async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
   const pass  = document.getElementById('loginPass').value;
   if(!email || !pass) { toast('Preencha e-mail e senha'); return; }
-  const users = DB.users();
-  const u = users.find(x => x.email.toLowerCase() === email && x.password === pass);
-  if(!u) { toast('E-mail ou senha incorretos'); return; }
-  if(u.banned) { toast('Conta suspensa. Entre em contato com o suporte.'); return; }
-  const adminEmails = DB.get('admin_emails') || [];
-  if(adminEmails.map(e=>e.toLowerCase()).includes(email) && u.role !== 'admin') {
-    u.role = 'admin';
-    const idx = users.findIndex(x=>x.id===u.id);
-    if(idx>=0) { users[idx]=u; DB.saveUsers(users); }
+  let authData;
+  try {
+    authData = await DB.authSignIn(email, pass);
+  } catch(e) {
+    toast('E-mail ou senha incorretos');
+    return;
   }
+  DB.setAuthSession(authData);
+  let u = await DB.getUserProfile(authData.localId);
+  if(!u) {
+    // Login bem-sucedido no Firebase Auth mas sem perfil salvo ainda — cria um básico.
+    u = { id: Date.now(), uid: authData.localId, name: authData.email.split('@')[0], email: authData.email, phone: '', role: 'user', createdAt: new Date().toISOString() };
+    await DB.saveUser(u);
+  }
+  if(u.banned) { toast('Conta suspensa. Entre em contato com o suporte.'); DB.clearAuthSession(); return; }
+  // Admin de verdade é definido pela coleção "admins" no Firestore, não por um campo local.
+  u.role = (await DB.isAdmin(authData.localId)) ? 'admin' : 'user';
   DB.setSession(u);
   closeModal('modalLogin');
   renderNav();
@@ -828,26 +1076,25 @@ function doLogin() {
   else { toast('Bem-vindo, ' + u.name.split(' ')[0] + '!'); goTo('userArea'); }
 }
 
-// FIX E: validação de email via regex + FIX F: aviso sobre plaintext
-function doRegister() {
+async function doRegister() {
   const name  = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim().toLowerCase();
   const phone = document.getElementById('regPhone').value.trim();
   const pass  = document.getElementById('regPass').value;
   if(!name || !email || !pass) { toast('Preencha todos os campos obrigatórios'); return; }
-  // FIX E: validação de formato de email com regex
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   if(!emailRegex.test(email)) { toast('E-mail inválido. Verifique o formato.'); return; }
   if(pass.length < 6) { toast('Senha deve ter pelo menos 6 caracteres'); return; }
-  const users = DB.users();
-  if(users.find(u=>u.email.toLowerCase()===email)) { toast('E-mail já cadastrado'); return; }
-  const adminEmails = DB.get('admin_emails') || [];
-  const role = adminEmails.map(e=>e.toLowerCase()).includes(email) ? 'admin' : 'user';
-  // FIX F: NOTA DE SEGURANÇA — senhas armazenadas em plaintext (localStorage/JSONBin).
-  // Aceitável para MVP. Antes de ir a produção, migrar para hash com Web Crypto API (PBKDF2).
-  const u = { id: Date.now(), name, email, phone, password: pass, role, createdAt: new Date().toISOString() };
-  users.push(u);
-  DB.saveUsers(users);
+  let authData;
+  try {
+    authData = await DB.authSignUp(email, pass);
+  } catch(e) {
+    toast(e.message.includes('EMAIL_EXISTS') ? 'E-mail já cadastrado' : 'Não foi possível criar a conta. Tente novamente.');
+    return;
+  }
+  DB.setAuthSession(authData);
+  const u = { id: Date.now(), uid: authData.localId, name, email, phone, role: 'user', createdAt: new Date().toISOString() };
+  await DB.saveUser(u);
   DB.setSession(u);
   closeModal('modalRegister');
   renderNav();
@@ -862,39 +1109,45 @@ function doRegister() {
 function doLogout() {
   closeAvatarMenu();
   DB.clearSession();
+  DB.clearAuthSession();
   renderNav();
   goTo('landing');
   toast('Até logo!');
 }
 
+// Confere se a sessão salva localmente ainda tem um login de verdade por
+// trás (uid + token válido/renovável). Sessões antigas (de antes da
+// autenticação real) ou com refresh token expirado/revogado são deslogadas
+// automaticamente — sem isso, o site mostraria "logado" enquanto qualquer
+// tentativa de salvar dado falharia silenciosamente por falta de permissão.
+async function validateSession() {
+  const u = DB.currentUser();
+  if(!u) return;
+  if(!u.uid) { DB.clearSession(); DB.clearAuthSession(); return; }
+  const token = await DB.getValidToken();
+  if(!token) { DB.clearSession(); DB.clearAuthSession(); }
+}
+
 // ================================================================
 // ADMIN SETUP
+// Por segurança, a promoção a admin não é mais feita pelo próprio
+// navegador (isso permitia qualquer visitante virar admin abrindo
+// catalogo.html#setup). O primeiro admin agora é liberado manualmente
+// no Firebase Console, criando um documento em admins/{uid} com o uid
+// do Firebase Authentication da conta. Admins existentes podem promover
+// outras contas pelo painel (ver addAdminEmail).
 // ================================================================
 function checkAdminSetup() {
-  if(!DB.get('admin_config') && window.location.hash.startsWith('#setup')) {
-    document.getElementById('setupOverlay').classList.add('open');
+  if(window.location.hash.startsWith('#setup')) {
+    history.replaceState(null, '', window.location.pathname);
+    toast('Crie sua conta normalmente e peça para um admin liberar seu acesso.');
   }
 }
 function doSetup() {
-  const name  = document.getElementById('setupName').value.trim();
-  const email = document.getElementById('setupEmail').value.trim().toLowerCase();
-  const pass  = document.getElementById('setupPass').value;
-  const pass2 = document.getElementById('setupPass2').value;
-  if(!name||!email||!pass) { toast('Preencha todos os campos'); return; }
-  if(pass.length<8) { toast('Senha deve ter pelo menos 8 caracteres'); return; }
-  if(pass!==pass2) { toast('Senhas não coincidem'); return; }
-  if(!window.location.hash.startsWith('#setup')) { toast('Acesso não autorizado'); return; }
-  DB.set('admin_config', { name, email, createdAt: new Date().toISOString() });
-  let users = DB.users().filter(u=>u.role!=='admin');
-  const adminUser = { id: 1, name, email, phone:'', password: pass, role:'admin', createdAt: new Date().toISOString() };
-  users.unshift(adminUser);
-  DB.saveUsers(users);
-  DB.setSession(adminUser);
+  // Mantido apenas para não quebrar o botão antigo — não concede mais privilégio.
   document.getElementById('setupOverlay').classList.remove('open');
-  history.replaceState(null,'',window.location.pathname);
-  renderNav();
-  toast('Conta master criada!');
-  goTo('admin');
+  history.replaceState(null, '', window.location.pathname);
+  toast('Cadastre-se normalmente; a promoção a admin agora é feita pelo Firebase Console.');
 }
 
 // ================================================================
@@ -1004,7 +1257,7 @@ async function publishProduct() {
       salePrice: Number(salePrice), rentPrice: Number(rentPrice),
       desc, location, images,
       mainImage: images[0] || null,
-      ownerId: u.id, ownerName: u.name, ownerEmail: u.email,
+      ownerId: u.id, ownerUid: u.uid, ownerName: u.name, ownerEmail: u.email,
       active: true, createdAt: new Date().toISOString(),
     };
     const products = DB.products();
@@ -1304,7 +1557,7 @@ function updateCheckoutTotal() {
   if(feeEl) feeEl.textContent = 'R$ ' + Number(fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
   if(totalEl) totalEl.textContent = 'R$ ' + Number(base+fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
 }
-function confirmOrder() {
+async function confirmOrder() {
   const u = DB.currentUser();
   const p = checkoutData?.product;
   if(!u) { toast('Faça login para continuar'); closeModal('modalCheckout'); openModal('modalLogin'); return; }
@@ -1320,19 +1573,21 @@ function confirmOrder() {
   const order = {
     id: Date.now(), productId: p.id, productName: p.name,
     productImage: p.mainImage||(p.images&&p.images[0])||null,
-    ownerId: p.ownerId, ownerName: p.ownerName,
-    buyerId: u.id, buyerName: u.name, buyerEmail: u.email,
+    ownerId: p.ownerId, ownerUid: p.ownerUid||null, ownerName: p.ownerName,
+    buyerId: u.id, buyerUid: u.uid, buyerName: u.name, buyerEmail: u.email,
     type: checkoutData.type, days, value: total, fee,
     status: 'pendente', date: startDate.toISOString().split('T')[0],
     endDate: isRent ? endDate.toISOString().split('T')[0] : null,
   };
-  const orders = DB.orders(); orders.unshift(order); DB.saveOrders(orders);
+  const orders = DB.orders(); orders.unshift(order);
   const tx = {
-    id: Date.now()+1, orderId: order.id, userId: u.id, userName: u.name,
+    id: Date.now()+1, orderId: order.id, userId: u.id, buyerUid: u.uid, ownerUid: p.ownerUid||null, userName: u.name,
     productName: p.name, value: total, method: 'Plataforma',
     status: 'aprovado', date: startDate.toISOString().split('T')[0],
   };
-  const txs = DB.txs(); txs.unshift(tx); DB.saveTxs(txs);
+  const txs = DB.txs(); txs.unshift(tx);
+  // AWAIT — garante que orders e txs chegam ao Firestore
+  await Promise.all([DB.saveOrders(orders), DB.saveTxs(txs)]);
   closeModal('modalCheckout');
   toast('Pedido realizado!');
   goTo('userArea');
@@ -1487,6 +1742,7 @@ async function deleteMyProduct(id) {
 // ADMIN PANEL
 // ================================================================
 let adminTab = 'dashboard';
+let _adminsListCache = [];
 function renderAdmin() {
   const u = DB.currentUser();
   if(!u||u.role!=='admin') { goTo('landing'); return; }
@@ -1509,7 +1765,6 @@ function renderAdmin() {
         <div class="admin-nav-item ${adminTab==='transactions'?'active':''}" onclick="switchAdminTab('transactions')">Transações</div>
         <div class="admin-nav-sep"></div>
         <div class="admin-sidebar-title">Sistema</div>
-        <div class="admin-nav-item ${adminTab==='sync'?'active':''}" onclick="switchAdminTab('sync')">Sincronização (JSONBin)</div>
         <div class="admin-nav-item ${adminTab==='cloudinary'?'active':''}" onclick="switchAdminTab('cloudinary')">Imagens (Cloudinary)</div>
         <div class="admin-nav-item ${adminTab==='admins'?'active':''}" onclick="switchAdminTab('admins')">Administradores</div>
         <div class="admin-nav-item ${adminTab==='settings'?'active':''}" onclick="switchAdminTab('settings')">Configurações</div>
@@ -1524,51 +1779,11 @@ function renderAdmin() {
 function switchAdminTab(tab) {
   adminTab=tab;
   renderAdmin();
+  if(tab==='admins') {
+    DB.listAdmins().then(list => { _adminsListCache = list; if(adminTab==='admins') renderAdmin(); });
+  }
 }
 function renderAdminTab(tab, {users,products,orders,txs,revenue,cfg}) {
-  if(tab==='sync') {
-    const binCfg = DB.getBinConfig() || {};
-    const isConfigured = !!(binCfg.binId && binCfg.apiKey);
-    return `
-    <div style="font-size:1.1rem;font-weight:800;margin-bottom:8px;color:var(--text)">Sincronização em tempo real</div>
-    <div style="font-size:0.875rem;color:var(--text3);margin-bottom:20px">Permite que todos os dispositivos compartilhem os mesmos dados.</div>
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-body">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-          <div style="font-weight:700;color:var(--text)">Status</div>
-          ${isConfigured
-            ? '<span class="tag tag-success">Sincronização ativa</span>'
-            : '<span class="tag tag-danger">Não configurado — dados apenas locais</span>'}
-        </div>
-        <div class="form-group"><label class="form-label">JSONBin Bin ID</label>
-          <input class="form-input" id="cfBinId" value="${binCfg.binId||''}" placeholder="ex: 664abc123def456...">
-        </div>
-        <div class="form-group"><label class="form-label">Master API Key</label>
-          <input class="form-input" id="cfBinKey" type="password" value="${binCfg.apiKey||''}" placeholder="$2a$10$...">
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="saveBinConfig()">Salvar e sincronizar</button>
-          ${isConfigured ? '<button class="btn btn-secondary" onclick="forceSyncNow()">Forçar sincronização</button>' : ''}
-          ${isConfigured ? '<button class="btn btn-ghost" style="color:var(--danger)" onclick="clearBinConfig()">Desconectar</button>' : ''}
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-body">
-        <div style="font-weight:700;margin-bottom:12px;color:var(--text)">Como configurar (grátis)</div>
-        <ol style="font-size:0.85rem;color:var(--text2);line-height:2.2;padding-left:20px">
-          <li>Acesse <a href="https://jsonbin.io" target="_blank" style="color:var(--brand);font-weight:600">jsonbin.io</a> e crie uma conta grátis</li>
-          <li>Clique em <strong>+ Create Bin</strong>, cole <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">{"users":[],"products":[],"orders":[],"txs":[]}</code> e salve</li>
-          <li>Copie o <strong>Bin ID</strong> que aparece na URL ou no painel</li>
-          <li>Vá em <strong>API Keys</strong> → copie sua <strong>Master Key</strong></li>
-          <li>Cole os dois campos acima e clique em Salvar</li>
-        </ol>
-        <div style="margin-top:14px;padding:12px;background:var(--warning-light);border-radius:var(--radius);font-size:0.8rem;color:var(--warning)">
-          <strong>Plano gratuito:</strong> 10.000 requests/mês, ideal para MVP e testes.
-        </div>
-      </div>
-    </div>`;
-  }
 
   if(tab==='dashboard') return `
     <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Dashboard</div>
@@ -1684,7 +1899,7 @@ function renderAdminTab(tab, {users,products,orders,txs,revenue,cfg}) {
     </div>`;
 
   if(tab==='admins') {
-    const adminEmails = DB.get('admin_emails')||[];
+    const adminEmails = _adminsListCache.map(a=>a.email).filter(Boolean);
     return `
     <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Administradores</div>
     <div class="card" style="margin-bottom:16px">
@@ -1805,32 +2020,35 @@ function adminUpdateOrder(id, status) {
   const o=orders.find(x=>x.id===id);
   if(o){ o.status=status; DB.saveOrders(orders); toast('Status atualizado'); renderAdmin(); }
 }
-function addAdminEmail() {
+// Promove um usuário já cadastrado a admin, criando admins/{uid} no Firestore.
+// Só funciona se quem está logado já for admin (garantido pelas regras do Firestore).
+async function addAdminEmail() {
   const email=document.getElementById('newAdminEmail')?.value?.trim().toLowerCase();
   if(!email||!email.includes('@')) { toast('E-mail inválido'); return; }
-  const list=DB.get('admin_emails')||[];
-  if(!list.includes(email)) { list.push(email); DB.set('admin_emails',list); }
-  const users=DB.users();
-  const u=users.find(x=>x.email.toLowerCase()===email);
-  if(u&&u.role!=='admin') { u.role='admin'; DB.saveUsers(users); }
+  const target = await DB.findUserByEmail(email);
+  if(!target || !target.uid) { toast('Nenhum usuário cadastrado com esse e-mail (precisa ter feito login pelo menos uma vez)'); return; }
+  await DB._writeDoc('admins', target.uid, { email: target.email, promotedAt: new Date().toISOString() });
   renderAdmin(); toast('Admin adicionado');
 }
-function removeAdminEmail(email) {
-  const list=(DB.get('admin_emails')||[]).filter(e=>e!==email);
-  DB.set('admin_emails',list);
+async function removeAdminEmail(email) {
+  const target = await DB.findUserByEmail(email);
+  if(!target || !target.uid) { toast('Usuário não encontrado'); return; }
+  await DB._deleteDoc('admins', target.uid);
   renderAdmin(); toast('Removido');
 }
-function changeAdminPass() {
+// Troca a PRÓPRIA senha do admin logado, via Firebase Authentication real
+// (não é mais possível alterar a senha de outro admin remotamente).
+async function changeAdminPass() {
   const np=prompt('Nova senha (mín. 8 caracteres):');
   if(!np) return;
   if(np.length<8) { toast('Senha muito curta'); return; }
   if(prompt('Confirme a nova senha:')!==np) { toast('Senhas não coincidem'); return; }
-  const users=DB.users();
-  const admin=users.find(u=>u.role==='admin');
-  if(admin){ admin.password=np; DB.saveUsers(users); }
-  const session=DB.currentUser();
-  if(session&&session.role==='admin'){ session.password=np; DB.setSession(session); }
-  toast('Senha alterada');
+  try {
+    await DB.authChangePassword(np);
+    toast('Senha alterada com sucesso!');
+  } catch(e) {
+    toast('Não foi possível alterar a senha. Faça login novamente e tente de novo.');
+  }
 }
 function saveCloudinary() {
   const cn=document.getElementById('cfCloud')?.value?.trim();
@@ -1871,48 +2089,23 @@ async function resetPlatform() {
 }
 
 // ================================================================
-// JSONBIN HELPERS
+// FIREBASE SYNC HELPERS
 // ================================================================
-async function saveBinConfig() {
-  const binId  = document.getElementById('cfBinId')?.value?.trim();
-  const apiKey = document.getElementById('cfBinKey')?.value?.trim();
-  if(!binId || !apiKey) { toast('Preencha Bin ID e API Key'); return; }
-  DB.setBinConfig({ binId, apiKey });
-  toast('Salvando e sincronizando...');
-  const state = DB._readLocal();
-  try {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type':'application/json', 'X-Master-Key': apiKey },
-      body: JSON.stringify(state)
-    });
-    if(res.ok) { toast('Sincronização ativa!'); DB._cache = {}; await DB.load(); renderAdmin(); }
-    else { const err = await res.json(); toast('Erro: ' + (err.message||'verifique as credenciais')); }
-  } catch { toast('Erro de conexão'); }
-}
 async function forceSyncNow() {
   toast('Sincronizando...');
   DB._cache = {};
+  DB._cacheAt = {};
   await DB.load();
   renderAdmin();
   toast('Dados atualizados!');
 }
-async function clearBinConfig() {
-  const ok = await showConfirm('Desconectar JSONBin', 'Os dados ficarão apenas locais neste dispositivo. Continuar?', 'Desconectar', false);
-  if(!ok) return;
-  DB.rmLocal('bin_config');
-  renderAdmin();
-  toast('JSONBin desconectado');
-}
-
 let _adminRefreshInterval = null;
 function startAdminAutoRefresh() {
   stopAdminAutoRefresh();
   _adminRefreshInterval = setInterval(async () => {
     if(currentPage !== 'admin') { stopAdminAutoRefresh(); return; }
-    const cfg = DB.getBinConfig();
-    if(!cfg) return;
     DB._cache = {};
+    DB._cacheAt = {};
     await DB.load();
     renderAdmin();
   }, 30000);
@@ -1926,16 +2119,10 @@ function stopAdminAutoRefresh() {
 // ================================================================
 function seedData() {
   if(DB.get('seeded')) return;
-  const existingAdmin = DB.users().find(u=>u.role==='admin');
-  const users = [
-    { id:2, name:'Maria Silva',  email:'maria@email.com', phone:'(11) 91234-5678', password:'123456', role:'user',    createdAt:'2025-01-15T00:00:00.000Z' },
-    { id:3, name:'João Santos',  email:'joao@email.com',  phone:'(11) 99876-5432', password:'123456', role:'creator', createdAt:'2025-01-20T00:00:00.000Z' },
-  ];
-  // Só cria o admin seed se não existir nenhum admin ainda
-  if(!existingAdmin) {
-    users.unshift({ id:1, name:'Admin', email:'admin@usei.app', phone:'', password:'admin@usei2025', role:'admin', createdAt:'2025-01-01T00:00:00.000Z' });
-  }
-  DB.saveUsers([...DB.users().filter(u=>u.role==='admin'), ...users.filter(u=>u.role!=='admin')]);
+  // NOTA DE SEGURANÇA: usuários de demonstração não são mais criados aqui
+  // com senha em texto puro no Firestore. Contas reais são criadas pelo
+  // fluxo normal de cadastro (Firebase Authentication). Os produtos abaixo
+  // usam ownerId/ownerName/ownerEmail apenas como dados de exibição.
   const products = [
     { id:101, name:'Câmera Sony Alpha A6400', cat:'eletronicos', type:'rent', salePrice:0, rentPrice:89, desc:'Câmera mirrorless em ótimo estado, acompanha lente kit 16-50mm. Ideal para fotos e vídeos 4K.', location:'São Paulo, SP', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-22T00:00:00.000Z' },
     { id:102, name:'Furadeira Bosch 1/2 HP',  cat:'ferramentas', type:'rent', salePrice:0, rentPrice:35, desc:'Furadeira de impacto profissional com maleta de brocas.', location:'São Paulo, SP', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-23T00:00:00.000Z' },
@@ -1959,16 +2146,16 @@ initTheme();
     </div>`;
   document.getElementById('page-landing').classList.add('active');
 
+  // Cloudinary sempre correto em todos os dispositivos
+  DB.set('cloudinary', { cloudName: DB._CLOUD_NAME, uploadPreset: DB._UPLOAD_PRESET });
+
+  // Carrega dados do Firestore (global, automático, zero config)
   await DB.load();
 
-  // FIX 1: Conta master criada APENAS via #setup — não hardcoda senha no source.
-  // Se não existir admin_config E não existir nenhum admin, verifica se há hash=setup.
-  // Caso contrário, aguarda o usuário acessar /#setup para configurar.
-  if(!DB.get('admin_config')) {
-    // Não criar admin automaticamente com senha hardcoded.
-    // O admin deve ser criado via /#setup (URL com hash) para manter a senha segura.
-    // checkAdminSetup() vai abrir o wizard se o hash for #setup.
-  }
+  // Detecta sessão "fantasma" — de antes da autenticação real ou com token
+  // expirado/inválido — e desloga automaticamente, em vez de deixar o site
+  // mostrar "logado" enquanto toda gravação falha silenciosamente.
+  await validateSession();
 
   seedData();
   checkAdminSetup();
