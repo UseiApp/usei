@@ -3,735 +3,2279 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>USEI.APP — Alugue. Ganhe. Repita.</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<title>USEI.APP — Alugue, Venda, Conecte</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --black: #0A0A0A; --white: #FAFAFA;
-    --gray-50: #F5F5F5; --gray-100: #E8E8E8; --gray-300: #B0B0B0; --gray-500: #6B6B6B; --gray-700: #3A3A3A;
-    --accent: #1D6AF5; --accent-dark: #1454C4; --accent-light: #EBF1FF;
-    --green: #12A05C; --green-light: #E6F7EF;
-    --radius: 12px; --radius-lg: 20px;
-    --font-display: 'Syne', sans-serif; --font-body: 'DM Sans', sans-serif;
-  }
-  html { scroll-behavior: smooth; }
-  body { font-family: var(--font-body); background: var(--white); color: var(--black); line-height: 1.6; overflow-x: hidden; }
+:root {
+  --brand: #8BBF00;
+  --brand-dark: #6E9900;
+  --brand-light: #EEF7CC;
+  --brand2: #0B1F3A;
+  --accent: #0B1F3A;
+  --accent-light: #E6EDF5;
+  --surface: #FFFFFF;
+  --surface2: #F5F7F2;
+  --surface3: #EAEFE2;
+  --border: rgba(11,31,58,0.08);
+  --border2: rgba(11,31,58,0.15);
+  --text: #0B1F3A;
+  --text2: #4A5C72;
+  --text3: #8A9BB0;
+  --radius: 12px;
+  --radius-lg: 20px;
+  --shadow: 0 2px 16px rgba(11,31,58,0.08);
+  --shadow-lg: 0 8px 40px rgba(11,31,58,0.14);
+  --font-display: 'Syne', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: var(--font-body); background: var(--surface2); color: var(--text); min-height:100vh; }
+a { text-decoration:none; color:inherit; }
+button { cursor:pointer; border:none; font-family:var(--font-body); }
+input, select, textarea { font-family:var(--font-body); }
 
-  header {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-    background: rgba(250,250,250,0.94); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--gray-100); padding: 0 2rem; height: 64px;
-    display: flex; align-items: center; justify-content: space-between; transition: transform 0.3s ease;
-  }
-  .logo { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; color: var(--black); text-decoration: none; letter-spacing: -0.02em; }
-  .logo span { color: var(--accent); }
-  nav { display: flex; align-items: center; gap: 1.75rem; }
-  nav a { font-size: 0.875rem; color: var(--gray-500); text-decoration: none; transition: color 0.2s; }
-  nav a:hover { color: var(--black); }
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0.625rem 1.25rem; border-radius: 8px; font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; cursor: pointer; border: none; text-decoration: none; transition: all 0.2s; white-space: nowrap; }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(29,106,245,0.3); }
-  .btn-green { background: var(--green); color: #fff; }
-  .btn-green:hover { background: #0d8a4f; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(18,160,92,0.3); }
-  .btn-white { background: #fff; color: var(--accent); font-weight: 600; }
-  .btn-white:hover { background: rgba(255,255,255,0.9); transform: translateY(-1px); }
-  .btn-lg { padding: 0.875rem 2rem; font-size: 1rem; border-radius: 10px; }
-  .hamburger { display: none; flex-direction: column; gap: 5px; background: none; border: none; cursor: pointer; padding: 4px; }
-  .hamburger span { display: block; width: 24px; height: 2px; background: var(--black); border-radius: 2px; transition: all 0.3s; }
-  .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-  .hamburger.open span:nth-child(2) { opacity: 0; }
-  .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-  .mobile-menu { display: none; position: fixed; top: 64px; left: 0; right: 0; background: var(--white); border-bottom: 1px solid var(--gray-100); padding: 1.5rem; flex-direction: column; gap: 1rem; z-index: 99; }
-  .mobile-menu.open { display: flex; }
-  .mobile-menu a { font-size: 1rem; color: var(--gray-700); text-decoration: none; padding: 0.5rem 0; border-bottom: 1px solid var(--gray-100); }
-  section { padding: 5rem 2rem; }
-  .container { max-width: 1100px; margin: 0 auto; }
-  .container-sm { max-width: 760px; margin: 0 auto; }
-  .section-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.75rem; }
-  .section-title { font-family: var(--font-display); font-size: clamp(1.75rem, 4vw, 2.75rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; color: var(--black); margin-bottom: 1rem; }
-  .section-sub { font-size: 1.0625rem; color: var(--gray-500); font-weight: 300; max-width: 540px; margin-bottom: 3rem; line-height: 1.6; }
-  .fade-in { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
-  .fade-in.visible { opacity: 1; transform: translateY(0); }
+/* PAGES */
+.page { display:none; min-height:100vh; }
+.page.active { display:block; }
 
-  /* HERO */
-  #hero { padding-top: 9rem; padding-bottom: 6rem; background: var(--white); position: relative; overflow: hidden; }
-  .hero-bg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse 80% 60% at 60% -10%, rgba(29,106,245,0.07) 0%, transparent 70%); pointer-events: none; }
-  .hero-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
-  .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-light); color: var(--accent); font-size: 0.8rem; font-weight: 500; padding: 5px 12px; border-radius: 100px; margin-bottom: 1.5rem; border: 1px solid rgba(29,106,245,0.15); }
-  .hero-badge::before { content: ''; display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.5)} }
-  .hero-title { font-family: var(--font-display); font-size: clamp(2.5rem, 5vw, 4.25rem); font-weight: 800; line-height: 1.08; letter-spacing: -0.03em; color: var(--black); margin-bottom: 1.25rem; }
-  .hero-title em { font-style: normal; color: var(--accent); }
-  .hero-sub { font-size: 1.125rem; color: var(--gray-500); font-weight: 300; max-width: 480px; line-height: 1.65; margin-bottom: 2.5rem; }
-  .hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 2.5rem; }
-  .hero-social-proof { display: flex; align-items: center; gap: 12px; font-size: 0.875rem; color: var(--gray-500); }
-  .avatars { display: flex; }
-  .avatars span { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--white); background: var(--gray-100); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; color: var(--gray-500); margin-left: -8px; }
-  .avatars span:first-child { margin-left: 0; }
-  .hero-cards { display: flex; flex-direction: column; gap: 12px; }
-  .hero-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 1rem 1.25rem; display: flex; align-items: center; gap: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
-  .hero-card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
-  .hero-card-title { font-size: 0.875rem; font-weight: 600; color: var(--black); margin-bottom: 2px; }
-  .hero-card-sub { font-size: 0.78rem; color: var(--gray-500); }
-  .hero-card-value { margin-left: auto; text-align: right; flex-shrink: 0; }
-  .hero-card-num { font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: var(--green); }
-  .hero-card-unit { font-size: 0.72rem; color: var(--gray-300); }
+/* NAVBAR */
+.navbar {
+  position:sticky; top:0; z-index:100;
+  background:rgba(255,255,255,0.92);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  padding:0 1.5rem;
+  height:60px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.nav-logo {
+  font-family:var(--font-display);
+  font-weight:800;
+  font-size:1.3rem;
+  color:var(--brand);
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.nav-logo span { color:var(--text); }
+.nav-links { display:flex; gap:0.25rem; align-items:center; }
+.nav-btn {
+  padding:6px 14px;
+  border-radius:8px;
+  font-size:0.85rem;
+  font-weight:500;
+  background:transparent;
+  color:var(--text2);
+  transition:all 0.15s;
+}
+.nav-btn:hover { background:var(--surface3); color:var(--text); }
+.nav-btn.primary { background:var(--brand); color:#fff; }
+.nav-btn.primary:hover { background:var(--brand-dark); }
+.nav-search {
+  flex:1; max-width:320px; margin:0 1rem;
+  display:flex; align-items:center;
+  background:var(--surface2);
+  border:1px solid var(--border2);
+  border-radius:100px;
+  padding:0 12px;
+  gap:6px;
+}
+.nav-search input {
+  border:none; background:transparent;
+  width:100%; padding:7px 0; font-size:0.85rem; outline:none; color:var(--text);
+}
+.nav-search-icon { color:var(--text3); font-size:14px; }
+.nav-avatar {
+  width:34px; height:34px; border-radius:50%;
+  background:var(--brand2); color:var(--brand);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:600; font-size:0.8rem;
+  cursor:pointer;
+}
 
-  /* CATEGORIAS */
-  #categorias { background: var(--white); }
-  .cat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; }
-  .cat-card { border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 1.25rem 1rem; text-align: center; cursor: pointer; transition: all 0.2s; }
-  .cat-card:hover { border-color: var(--accent); background: var(--accent-light); transform: translateY(-2px); }
-  .cat-icon { font-size: 1.75rem; margin-bottom: 0.5rem; }
-  .cat-name { font-size: 0.8rem; font-weight: 600; color: var(--gray-700); }
-  .cat-desc { font-size: 0.72rem; color: var(--gray-300); margin-top: 2px; }
+/* BUTTONS */
+.btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  padding:10px 20px; border-radius:var(--radius);
+  font-size:0.9rem; font-weight:500;
+  transition:all 0.15s;
+  border:none;
+}
+.btn-primary { background:var(--brand); color:var(--text); font-weight:600; }
+.btn-primary:hover { background:var(--brand-dark); transform:translateY(-1px); box-shadow:0 4px 12px rgba(184,240,0,0.35); }
+.btn-secondary { background:var(--surface); color:var(--text); border:1.5px solid var(--border2); }
+.btn-secondary:hover { border-color:var(--brand); color:var(--brand); }
+.btn-accent { background:var(--accent); color:#fff; }
+.btn-ghost { background:transparent; color:var(--text2); }
+.btn-lg { padding:14px 28px; font-size:1rem; border-radius:var(--radius-lg); }
+.btn-sm { padding:7px 14px; font-size:0.8rem; border-radius:8px; }
+.btn-full { width:100%; }
+.btn-danger { background:#FF3B30; color:#fff; }
 
-  /* COMO FUNCIONA */
-  #como-funciona { background: var(--gray-50); }
-  .how-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-  .how-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg); padding: 2rem; }
-  .how-card-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 6px; margin-bottom: 1.25rem; }
-  .badge-blue { background: var(--accent-light); color: var(--accent); }
-  .badge-green { background: var(--green-light); color: var(--green); }
-  .how-card h3 { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; margin-bottom: 1.25rem; letter-spacing: -0.02em; }
-  .how-steps { display: flex; flex-direction: column; gap: 1rem; }
-  .how-step { display: flex; gap: 12px; align-items: flex-start; }
-  .step-num { min-width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
-  .step-num-blue { background: var(--accent-light); color: var(--accent); }
-  .step-num-green { background: var(--green-light); color: var(--green); }
-  .how-step p { font-size: 0.9375rem; color: var(--gray-700); line-height: 1.55; }
-  .how-step strong { color: var(--black); }
-  .how-divider { margin: 1.5rem 0; border: none; border-top: 1px solid var(--gray-100); }
-  .how-highlight { background: var(--gray-50); border-radius: 8px; padding: 0.875rem 1rem; font-size: 0.875rem; color: var(--gray-700); }
+/* FORMS */
+.form-group { margin-bottom:1rem; }
+.form-label { display:block; font-size:0.85rem; font-weight:500; color:var(--text2); margin-bottom:6px; }
+.form-input {
+  width:100%; padding:11px 14px;
+  border:1.5px solid var(--border2);
+  border-radius:var(--radius);
+  font-size:0.9rem; color:var(--text);
+  background:var(--surface);
+  transition:border-color 0.15s;
+  outline:none;
+}
+.form-input:focus { border-color:var(--brand); }
+.form-input::placeholder { color:var(--text3); }
+select.form-input { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236B6B6B' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:32px; }
+textarea.form-input { resize:vertical; min-height:90px; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
 
-  /* COMO GANHAR */
-  #como-ganhar { background: var(--white); }
-  .ganhar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
-  .ganhar-text h3 { font-family: var(--font-display); font-size: 1.75rem; font-weight: 700; letter-spacing: -0.025em; margin-bottom: 1rem; line-height: 1.2; }
-  .ganhar-text p { font-size: 0.9375rem; color: var(--gray-500); line-height: 1.65; margin-bottom: 1.5rem; }
-  .ganhar-list { list-style: none; display: flex; flex-direction: column; gap: 0.875rem; margin-bottom: 2rem; }
-  .ganhar-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9375rem; color: var(--gray-700); line-height: 1.5; }
-  .ganhar-list li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
-  .ganhar-example { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg); padding: 2rem; }
-  .ganhar-example h4 { font-size: 0.72rem; font-weight: 700; color: var(--gray-300); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1.25rem; }
-  .ganhar-item { display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 0; border-bottom: 1px solid var(--gray-100); }
-  .ganhar-item:last-of-type { border-bottom: none; }
-  .ganhar-item-left { display: flex; align-items: center; gap: 12px; }
-  .ganhar-item-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--gray-50); display: flex; align-items: center; justify-content: center; font-size: 1rem; }
-  .ganhar-item-name { font-size: 0.875rem; font-weight: 500; color: var(--black); }
-  .ganhar-item-freq { font-size: 0.78rem; color: var(--gray-300); }
-  .ganhar-item-value { font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: var(--green); }
-  .ganhar-total { margin-top: 1.25rem; background: var(--green-light); border-radius: 10px; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; }
-  .ganhar-total-label { font-size: 0.875rem; font-weight: 600; color: var(--green); }
-  .ganhar-total-value { font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; color: var(--green); }
+/* CARDS */
+.card {
+  background:var(--surface);
+  border-radius:var(--radius-lg);
+  border:1px solid var(--border);
+  overflow:hidden;
+}
+.card-body { padding:1.25rem; }
 
-  /* BENEFÍCIOS */
-  #beneficios { background: var(--gray-50); }
-  .benefits-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
-  .benefit-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 1.5rem; transition: border-color 0.2s, box-shadow 0.2s; }
-  .benefit-card:hover { border-color: var(--gray-300); box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
-  .benefit-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; margin-bottom: 1rem; }
-  .benefit-card h3 { font-family: var(--font-display); font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
-  .benefit-card p { font-size: 0.875rem; color: var(--gray-500); line-height: 1.55; }
+/* PRODUCT CARD */
+.product-card {
+  background:var(--surface);
+  border-radius:var(--radius-lg);
+  border:1px solid var(--border);
+  overflow:hidden;
+  transition:all 0.2s;
+  cursor:pointer;
+}
+.product-card:hover { box-shadow:var(--shadow-lg); transform:translateY(-3px); border-color:transparent; }
+.product-img {
+  width:100%; aspect-ratio:4/3;
+  object-fit:cover;
+  background:linear-gradient(135deg, #f0ede6, #e8e4db);
+  display:flex; align-items:center; justify-content:center;
+  font-size:3rem;
+  position:relative;
+}
+.product-badge {
+  position:absolute; top:10px; right:10px;
+  padding:3px 10px; border-radius:100px;
+  font-size:0.7rem; font-weight:600;
+  letter-spacing:0.02em;
+}
+.badge-rent { background:#0B1F3A; color:#fff; }
+.badge-sale { background:var(--brand); color:var(--text); }
+.badge-both { background:var(--brand2); color:var(--brand); }
+.product-info { padding:14px; }
+.product-name { font-family:var(--font-display); font-weight:600; font-size:0.95rem; margin-bottom:4px; line-height:1.3; }
+.product-category { font-size:0.75rem; color:var(--text3); margin-bottom:10px; }
+.product-prices { display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; }
+.price-rent { font-size:0.8rem; color:var(--brand2); font-weight:600; }
+.price-sale { font-size:0.95rem; color:var(--brand2); font-weight:700; }
+.product-location { font-size:0.75rem; color:var(--text3); margin-top:6px; }
 
-  /* NÚMEROS */
-  #numeros { background: var(--accent); padding: 4rem 2rem; }
-  .numeros-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; text-align: center; }
-  .num-val { font-family: var(--font-display); font-size: 3rem; font-weight: 800; letter-spacing: -0.04em; color: #fff; }
-  .num-lbl { font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: 4px; }
+/* GRIDS */
+.grid-2 { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:1rem; }
+.grid-3 { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:1rem; }
+.grid-4 { display:grid; grid-template-columns:repeat(4, 1fr); gap:1rem; }
 
-  /* SEGURANÇA */
-  #seguranca { background: var(--black); }
-  #seguranca .section-label { color: #6899fa; }
-  #seguranca .section-title { color: var(--white); }
-  #seguranca .section-sub { color: #888; }
-  .trust-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
-  .trust-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); padding: 1.75rem; }
-  .trust-card h3 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; color: var(--white); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 10px; }
-  .trust-card p { font-size: 0.875rem; color: #888; line-height: 1.6; }
-  .trust-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.08); border-radius: 6px; padding: 5px 10px; font-size: 0.78rem; color: #aaa; margin-top: 1rem; }
+/* BADGES */
+.badge {
+  display:inline-flex; align-items:center;
+  padding:3px 10px; border-radius:100px;
+  font-size:0.72rem; font-weight:600;
+}
+.badge-success { background:#E8F8EE; color:#1A7A3C; }
+.badge-warning { background:#FFF5E0; color:#995500; }
+.badge-danger { background:#FFE9E9; color:#CC2200; }
+.badge-info { background:#E6F0FF; color:#1A4899; }
+.badge-gray { background:var(--surface3); color:var(--text2); }
 
-  /* VALIDAÇÃO */
-  #validacao { background: var(--white); }
-  .options-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 1.5rem; }
-  .option-tag { display: flex; align-items: center; gap: 8px; background: var(--gray-50); border: 1.5px solid var(--gray-100); border-radius: 100px; padding: 8px 18px; font-size: 0.9rem; color: var(--gray-700); cursor: pointer; transition: all 0.2s; user-select: none; }
-  .option-tag:hover, .option-tag.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-light); font-weight: 500; }
-  .validation-result { text-align: center; font-size: 0.9rem; color: var(--gray-500); min-height: 24px; }
+/* SECTION */
+.section { padding:2rem 1.5rem; max-width:1280px; margin:0 auto; }
+.section-sm { padding:1.5rem; }
+.section-title { font-family:var(--font-display); font-size:1.5rem; font-weight:700; margin-bottom:0.25rem; }
+.section-sub { color:var(--text2); font-size:0.9rem; margin-bottom:1.5rem; }
 
-  /* PROVA SOCIAL */
-  #prova-social { background: var(--gray-50); }
-  .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
-  .testimonial-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 1.5rem; }
-  .stars { color: #F59E0B; font-size: 0.85rem; margin-bottom: 0.75rem; }
-  .testimonial-text { font-size: 0.9375rem; color: var(--gray-700); line-height: 1.6; margin-bottom: 1.25rem; font-style: italic; }
-  .testimonial-author { display: flex; align-items: center; gap: 10px; }
-  .author-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent-light); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--accent); }
-  .author-name { font-size: 0.875rem; font-weight: 500; }
-  .author-role { font-size: 0.8rem; color: var(--gray-500); }
+/* TABS */
+.tabs { display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:1.5rem; overflow-x:auto; }
+.tab-btn {
+  padding:10px 18px; background:transparent; border:none;
+  font-size:0.88rem; font-weight:500; color:var(--text2);
+  border-bottom:2px solid transparent; margin-bottom:-2px;
+  transition:all 0.15s; white-space:nowrap;
+}
+.tab-btn.active { color:var(--brand2); border-bottom-color:var(--brand); }
 
-  /* LISTA DE ESPERA */
-  #lista-espera { background: var(--white); }
-  .waitlist-box { background: var(--gray-50); border: 1px solid var(--gray-100); border-radius: var(--radius-lg); padding: 3rem; }
-  .waitlist-split { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
-  .waitlist-left h2 { font-family: var(--font-display); font-size: 1.75rem; font-weight: 700; letter-spacing: -0.025em; margin-bottom: 1rem; line-height: 1.2; }
-  .waitlist-left p { font-size: 0.9375rem; color: var(--gray-500); line-height: 1.65; margin-bottom: 1.5rem; }
-  .waitlist-perks { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
-  .waitlist-perks li { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--gray-700); }
-  .perk-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
-  .waitlist-form-col { display: flex; flex-direction: column; gap: 12px; }
-  .form-input-dark { width: 100%; padding: 0.875rem 1rem; border-radius: 10px; border: 1.5px solid var(--gray-100); background: var(--white); color: var(--black); font-family: var(--font-body); font-size: 0.9375rem; outline: none; transition: border-color 0.2s; }
-  .form-input-dark:focus { border-color: var(--accent); }
-  .form-input-dark::placeholder { color: var(--gray-300); }
-  .form-note { font-size: 0.8rem; color: var(--gray-300); }
+/* MODAL */
+.modal-overlay {
+  display:none; position:fixed; inset:0; z-index:1000;
+  background:rgba(0,0,0,0.45);
+  align-items:center; justify-content:center;
+  padding:1rem;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background:var(--surface);
+  border-radius:var(--radius-lg);
+  width:100%; max-width:520px;
+  max-height:90vh; overflow-y:auto;
+  box-shadow:var(--shadow-lg);
+}
+.modal-header {
+  padding:1.25rem 1.5rem 0;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.modal-title { font-family:var(--font-display); font-size:1.1rem; font-weight:700; }
+.modal-close {
+  width:32px; height:32px; border-radius:50%;
+  background:var(--surface3); border:none;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1rem; cursor:pointer; color:var(--text2);
+}
+.modal-body { padding:1.25rem 1.5rem 1.5rem; }
 
-  /* CTA FINAL */
-  #cta-final { background: var(--accent); text-align: center; }
-  #cta-final .section-title { color: #fff; }
-  #cta-final .section-sub { color: rgba(255,255,255,0.75); margin: 0 auto 2.5rem; }
-  .waitlist-form-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 560px; margin: 0 auto; }
-  .form-input { flex: 1; min-width: 180px; padding: 0.875rem 1rem; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.12); color: #fff; font-family: var(--font-body); font-size: 0.9375rem; outline: none; transition: border-color 0.2s; }
-  .form-input::placeholder { color: rgba(255,255,255,0.55); }
-  .form-input:focus { border-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.18); }
-  .form-success { display: none; padding: 1.25rem 2rem; background: rgba(255,255,255,0.15); border-radius: var(--radius); font-size: 1rem; color: #fff; max-width: 560px; margin: 0 auto; }
-  .form-note-white { font-size: 0.8rem; color: rgba(255,255,255,0.55); margin-top: 1rem; }
+/* STAT CARDS */
+.stat-card {
+  background:var(--surface);
+  border-radius:var(--radius);
+  border:1px solid var(--border);
+  padding:1.25rem;
+}
+.stat-value { font-family:var(--font-display); font-size:1.8rem; font-weight:700; }
+.stat-label { font-size:0.8rem; color:var(--text2); margin-top:2px; }
+.stat-change { font-size:0.78rem; font-weight:600; margin-top:6px; }
+.stat-up { color:#1A7A3C; }
+.stat-down { color:#CC2200; }
 
-  /* FOOTER */
-  footer { background: var(--black); padding: 3rem 2rem 2rem; }
-  .footer-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 2rem; padding-bottom: 2rem; border-bottom: 1px solid #1a1a1a; }
-  .footer-logo { font-family: var(--font-display); font-weight: 800; font-size: 1.125rem; color: var(--white); text-decoration: none; display: block; margin-bottom: 0.75rem; }
-  .footer-logo span { color: var(--accent); }
-  .footer-desc { font-size: 0.875rem; color: #555; line-height: 1.6; }
-  .footer-col h4 { font-size: 0.8rem; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; }
-  .footer-col a { display: block; font-size: 0.875rem; color: #555; text-decoration: none; margin-bottom: 0.5rem; transition: color 0.2s; }
-  .footer-col a:hover { color: #ccc; }
-  .footer-bottom { max-width: 1100px; margin: 1.5rem auto 0; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
-  .footer-copy { font-size: 0.8rem; color: #444; }
+/* TOAST */
+#toast {
+  position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999;
+  background:#0B1F3A; color:#fff;
+  padding:12px 20px; border-radius:var(--radius);
+  font-size:0.88rem; font-weight:500;
+  transform:translateY(80px); opacity:0;
+  transition:all 0.3s;
+  max-width:300px;
+}
+#toast.show { transform:translateY(0); opacity:1; }
 
-  .mobile-sticky-cta { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 90; background: var(--white); border-top: 1px solid var(--gray-100); padding: 0.875rem 1.5rem; }
-  .mobile-sticky-cta .btn { width: 100%; }
+/* CHATBOT */
+#chatbot-toggle {
+  position:fixed; bottom:1.5rem; left:1.5rem; z-index:500;
+  width:52px; height:52px; border-radius:50%;
+  background:var(--brand2); color:var(--brand);
+  border:none; font-size:1.4rem;
+  box-shadow:0 4px 16px rgba(11,31,58,0.35);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:all 0.2s;
+}
+#chatbot-toggle:hover { transform:scale(1.08); }
+#chatbot-widget {
+  position:fixed; bottom:5rem; left:1.5rem; z-index:500;
+  width:320px; background:var(--surface);
+  border-radius:var(--radius-lg);
+  border:1px solid var(--border);
+  box-shadow:var(--shadow-lg);
+  display:none; flex-direction:column;
+  height:420px;
+}
+#chatbot-widget.open { display:flex; }
+.chat-header {
+  padding:14px 16px;
+  background:var(--brand2); color:#fff;
+  border-radius:var(--radius-lg) var(--radius-lg) 0 0;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.chat-title { font-weight:600; font-size:0.9rem; }
+.chat-subtitle { font-size:0.75rem; opacity:0.8; }
+.chat-close { background:transparent; border:none; color:#fff; font-size:1.1rem; cursor:pointer; }
+.chat-messages {
+  flex:1; overflow-y:auto;
+  padding:12px;
+  display:flex; flex-direction:column; gap:8px;
+}
+.chat-msg {
+  max-width:80%; padding:8px 12px;
+  border-radius:12px; font-size:0.83rem; line-height:1.5;
+}
+.msg-bot { background:var(--surface3); color:var(--text); align-self:flex-start; }
+.msg-user { background:var(--brand2); color:#fff; align-self:flex-end; }
+.chat-input-row {
+  padding:10px 12px;
+  border-top:1px solid var(--border);
+  display:flex; gap:8px;
+}
+.chat-input-row input {
+  flex:1; padding:8px 12px;
+  border:1.5px solid var(--border2);
+  border-radius:8px; font-size:0.83rem; outline:none;
+}
+.chat-send {
+  padding:8px 14px;
+  background:var(--brand); color:var(--text);
+  border:none; border-radius:8px; font-size:0.8rem; cursor:pointer; font-weight:600;
+}
+.chat-human-btn {
+  margin:4px 12px 8px; padding:8px;
+  background:var(--brand-light); color:var(--brand2);
+  border:1.5px solid var(--brand); border-radius:8px;
+  font-size:0.8rem; font-weight:600; cursor:pointer; text-align:center;
+}
 
-  @media (max-width: 900px) {
-    .hero-inner, .how-grid, .ganhar-grid, .waitlist-split { grid-template-columns: 1fr; }
-    .hero-cards { display: none; }
-    .cat-grid { grid-template-columns: repeat(3, 1fr); }
-    .numeros-grid { grid-template-columns: repeat(2, 1fr); }
-    .footer-inner { grid-template-columns: 1fr 1fr; }
-  }
-  @media (max-width: 768px) {
-    nav { display: none; }
-    .hamburger { display: flex; }
-    .benefits-grid { grid-template-columns: 1fr 1fr; }
-    .trust-grid, .testimonials-grid { grid-template-columns: 1fr; }
-    .mobile-sticky-cta { display: block; }
-    body { padding-bottom: 80px; }
-    #hero { padding-top: 7rem; }
-    .waitlist-box { padding: 1.5rem; }
-    .waitlist-form-row { flex-direction: column; }
-  }
-  @media (max-width: 480px) {
-    .benefits-grid, .cat-grid { grid-template-columns: 1fr 1fr; }
-    .hero-ctas { flex-direction: column; }
-    .hero-ctas .btn { width: 100%; }
-    .footer-inner { grid-template-columns: 1fr; }
-  }
+/* ============ LANDING PAGE ============ */
+.hero {
+  background:#0B1F3A;
+  color:#fff;
+  padding:6rem 1.5rem 5rem;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+}
+.hero::before {
+  content:'';
+  position:absolute; inset:0;
+  background:radial-gradient(ellipse at 50% 0%, rgba(184,240,0,0.18), transparent 60%);
+}
+.hero-tag {
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.15);
+  border-radius:100px;
+  padding:5px 14px; font-size:0.8rem;
+  margin-bottom:1.5rem;
+}
+.hero h1 {
+  font-family:var(--font-display); font-weight:800;
+  font-size:clamp(2.2rem, 6vw, 4rem);
+  line-height:1.1; margin-bottom:1.25rem;
+  position:relative;
+}
+.hero h1 em { color:var(--brand); font-style:normal; }
+.hero p {
+  font-size:1.1rem; color:rgba(255,255,255,0.65);
+  max-width:560px; margin:0 auto 2rem;
+  position:relative;
+}
+.hero-cta { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; position:relative; }
+.hero-cta .btn-primary { background:var(--brand); color:var(--text); font-size:1rem; padding:14px 28px; border-radius:var(--radius-lg); font-weight:700; }
+.hero-cta .btn-secondary { border-color:rgba(255,255,255,0.2); color:#fff; background:rgba(255,255,255,0.08); }
+
+.features-bar {
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:1.25rem 1.5rem;
+  display:flex; gap:2rem; justify-content:center; flex-wrap:wrap;
+}
+.feat-item { display:flex; align-items:center; gap:8px; font-size:0.85rem; font-weight:500; color:var(--text2); }
+.feat-icon { font-size:1.1rem; }
+
+.how-it-works { background:var(--surface); padding:4rem 1.5rem; }
+.step-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:1.5rem; max-width:960px; margin:2rem auto 0; }
+.step-item { text-align:center; }
+.step-num {
+  width:48px; height:48px; border-radius:50%;
+  background:var(--brand-light);
+  color:var(--brand2); font-family:var(--font-display); font-weight:800; font-size:1.1rem;
+  display:flex; align-items:center; justify-content:center;
+  margin:0 auto 1rem;
+  border:2px solid var(--brand);
+}
+.step-title { font-family:var(--font-display); font-weight:700; font-size:0.95rem; margin-bottom:6px; }
+.step-desc { font-size:0.82rem; color:var(--text2); line-height:1.5; }
+
+/* ============ CATALOG ============ */
+.catalog-header {
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:1rem 1.5rem;
+  display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+}
+.filter-chips { display:flex; gap:6px; flex-wrap:wrap; }
+.chip {
+  padding:5px 14px; border-radius:100px;
+  border:1.5px solid var(--border2);
+  font-size:0.8rem; font-weight:500;
+  background:var(--surface); cursor:pointer;
+  transition:all 0.15s;
+}
+.chip.active { background:var(--brand); color:#fff; border-color:var(--brand); }
+.chip:hover:not(.active) { border-color:var(--brand); color:var(--brand); }
+
+/* ============ PRODUCT DETAIL ============ */
+.product-detail-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:2rem;
+  max-width:1000px; margin:0 auto;
+}
+.product-main-img {
+  width:100%; aspect-ratio:1;
+  background:linear-gradient(135deg,#f0ede6,#e8e4db);
+  border-radius:var(--radius-lg);
+  display:flex; align-items:center; justify-content:center;
+  font-size:6rem;
+  border:1px solid var(--border);
+}
+.product-thumbs { display:flex; gap:8px; margin-top:10px; }
+.thumb {
+  width:60px; height:60px; border-radius:8px;
+  background:var(--surface3); display:flex; align-items:center;
+  justify-content:center; font-size:1.5rem; cursor:pointer;
+  border:2px solid transparent;
+}
+.thumb.active { border-color:var(--brand); }
+.product-price-box {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:1.25rem;
+  margin-top:1rem;
+}
+.price-option {
+  display:flex; align-items:center; gap:10px;
+  padding:10px; border-radius:var(--radius);
+  border:2px solid var(--border);
+  cursor:pointer; transition:all 0.15s; margin-bottom:8px;
+}
+.price-option.selected { border-color:var(--brand); background:var(--brand-light); }
+.price-radio { width:18px; height:18px; border-radius:50%; border:2px solid var(--border2); display:flex; align-items:center; justify-content:center; }
+.price-option.selected .price-radio { border-color:var(--brand); background:var(--brand); }
+.price-option.selected .price-radio::after { content:''; width:8px; height:8px; border-radius:50%; background:#fff; }
+
+/* ============ CHECKOUT ============ */
+.checkout-layout { display:grid; grid-template-columns:1fr 380px; gap:1.5rem; max-width:1000px; margin:0 auto; }
+.order-summary {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:1.25rem;
+  position:sticky; top:80px;
+}
+.summary-row { display:flex; justify-content:space-between; font-size:0.88rem; margin-bottom:8px; }
+.summary-total { font-size:1.1rem; font-weight:700; border-top:1px solid var(--border); padding-top:10px; margin-top:10px; }
+
+/* ============ USER AREA ============ */
+.user-header {
+  background:var(--brand2);
+  color:#fff; padding:2rem 1.5rem;
+  display:flex; align-items:center; gap:1.25rem;
+}
+.user-avatar-lg {
+  width:64px; height:64px; border-radius:50%;
+  background:rgba(255,255,255,0.2);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-display); font-size:1.4rem; font-weight:700;
+}
+.user-name-lg { font-family:var(--font-display); font-size:1.3rem; font-weight:700; }
+.user-email-sm { font-size:0.85rem; opacity:0.8; }
+
+.order-item {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:1rem;
+  display:flex; gap:1rem; align-items:flex-start;
+  margin-bottom:0.75rem;
+}
+.order-emoji { font-size:2rem; width:48px; text-align:center; }
+.order-info { flex:1; }
+.order-name { font-weight:600; font-size:0.9rem; }
+.order-meta { font-size:0.78rem; color:var(--text2); margin-top:3px; }
+.rental-progress {
+  height:6px; background:var(--surface3);
+  border-radius:100px; margin-top:8px; overflow:hidden;
+}
+.rental-bar { height:100%; background:var(--brand); border-radius:100px; transition:width 0.5s; }
+
+/* ============ CREATOR AREA ============ */
+.creator-header {
+  background:linear-gradient(135deg, #0B1F3A, #163354);
+  color:#fff; padding:2rem 1.5rem;
+}
+.metric-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:1rem; margin-top:1.5rem; }
+
+/* ============ ADMIN ============ */
+.admin-layout { display:grid; grid-template-columns:220px 1fr; min-height:calc(100vh - 60px); }
+.admin-sidebar {
+  background:#0B1F3A;
+  padding:1.5rem 1rem;
+  position:sticky; top:60px; height:calc(100vh - 60px); overflow-y:auto;
+}
+.admin-nav-item {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px; border-radius:var(--radius);
+  font-size:0.85rem; color:rgba(255,255,255,0.6);
+  cursor:pointer; transition:all 0.15s; margin-bottom:2px;
+}
+.admin-nav-item:hover { background:rgba(255,255,255,0.08); color:#fff; }
+.admin-nav-item.active { background:var(--brand); color:#fff; }
+.admin-nav-section { font-size:0.7rem; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:0.08em; margin:12px 0 6px 12px; }
+.admin-content { padding:1.5rem; overflow-y:auto; }
+.admin-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+.admin-table th { text-align:left; padding:10px 12px; border-bottom:2px solid var(--border); font-size:0.75rem; color:var(--text2); text-transform:uppercase; letter-spacing:0.04em; }
+.admin-table td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.admin-table tr:hover td { background:var(--surface2); }
+
+/* UPLOAD ZONE */
+.upload-zone {
+  border:2px dashed var(--border2);
+  border-radius:var(--radius);
+  padding:2rem; text-align:center;
+  cursor:pointer; transition:all 0.15s;
+  background:var(--surface2);
+}
+.upload-zone:hover, .upload-zone.drag { border-color:var(--brand); background:var(--brand-light); }
+.upload-zone input { display:none; }
+
+/* PROGRESS BAR */
+.progress { height:6px; background:var(--surface3); border-radius:100px; overflow:hidden; }
+.progress-bar { height:100%; border-radius:100px; transition:width 0.5s; }
+
+/* CHART SIMPLE */
+.bar-chart { display:flex; align-items:flex-end; gap:6px; height:120px; }
+.bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
+.bar-fill { width:100%; border-radius:4px 4px 0 0; transition:height 0.5s; min-height:4px; }
+.bar-label { font-size:0.65rem; color:var(--text3); }
+
+/* MOBILE RESPONSIVE */
+@media(max-width:768px){
+  .product-detail-grid { grid-template-columns:1fr; }
+  .checkout-layout { grid-template-columns:1fr; }
+  .admin-layout { grid-template-columns:1fr; }
+  .admin-sidebar { position:relative; height:auto; }
+  .form-row { grid-template-columns:1fr; }
+  .grid-4 { grid-template-columns:repeat(2,1fr); }
+  .hero h1 { font-size:2rem; }
+  #chatbot-widget { width:calc(100vw - 2rem); left:1rem; }
+}
+@media(max-width:480px){
+  .nav-search { display:none; }
+}
+
+/* ANIMATIONS */
+@keyframes fadeInUp {
+  from { opacity:0; transform:translateY(16px); }
+  to { opacity:1; transform:translateY(0); }
+}
+.animate-in { animation:fadeInUp 0.35s ease both; }
+
+/* EMPTY STATE */
+.empty-state {
+  text-align:center; padding:3rem 1rem;
+  color:var(--text3);
+}
+.empty-state .empty-icon { font-size:3rem; margin-bottom:1rem; }
+.empty-state h3 { font-family:var(--font-display); font-size:1.1rem; color:var(--text2); margin-bottom:6px; }
+.empty-state p { font-size:0.85rem; }
+
+/* DIVIDER */
+.divider { height:1px; background:var(--border); margin:1rem 0; }
+.divider-text { text-align:center; position:relative; margin:1.25rem 0; }
+.divider-text::before { content:''; position:absolute; inset:50% 0 auto; height:1px; background:var(--border); }
+.divider-text span { position:relative; background:var(--surface); padding:0 12px; font-size:0.8rem; color:var(--text3); }
+
+/* PROFILE PIC AREA */
+.profile-pic {
+  width:80px; height:80px; border-radius:50%;
+  background:var(--surface3);
+  display:flex; align-items:center; justify-content:center;
+  font-size:2rem; cursor:pointer;
+  border:3px dashed var(--border2);
+  overflow:hidden; position:relative;
+}
+.profile-pic img { width:100%; height:100%; object-fit:cover; position:absolute; }
 </style>
 </head>
 <body>
 
-<header id="mainHeader">
-  <a href="#" class="logo">USEI<span>.</span>APP</a>
-  <nav>
-    <a href="#como-funciona">Como funciona</a>
-    <a href="#como-ganhar">Ganhe dinheiro</a>
-    <a href="#seguranca">Segurança</a>
-    <a href="#faq">FAQ</a>
-    <a href="#lista-espera" class="btn btn-primary">Entrar na lista</a>
-  </nav>
-  <button class="hamburger" id="hamburger" aria-label="Menu"><span></span><span></span><span></span></button>
-</header>
+<!-- TOAST -->
+<div id="toast"></div>
 
-<div class="mobile-menu" id="mobileMenu">
-  <a href="#como-funciona" onclick="closeMenu()">Como funciona</a>
-  <a href="#como-ganhar" onclick="closeMenu()">Ganhe dinheiro</a>
-  <a href="#seguranca" onclick="closeMenu()">Segurança</a>
-  <a href="#faq" onclick="closeMenu()">FAQ</a>
-  <a href="#lista-espera" class="btn btn-primary" onclick="closeMenu()">Entrar na lista</a>
+<!-- NAVBAR -->
+<nav class="navbar" id="navbar">
+  <div class="nav-logo" onclick="goTo('landing')">USEI<span>.APP</span></div>
+  <div class="nav-search">
+    <span class="nav-search-icon">🔍</span>
+    <input type="text" placeholder="Buscar produtos..." id="globalSearch" oninput="handleSearch(this.value)" onkeydown="if(event.key==='Enter')goTo('catalog')">
+  </div>
+  <div class="nav-links" id="navLinks">
+    <button class="nav-btn" onclick="goTo('catalog')">Explorar</button>
+    <button class="nav-btn" id="navDashBtn" style="display:none" onclick="goTo('user-area')">Minha conta</button>
+    <button class="nav-btn" id="navCreatorBtn" style="display:none" onclick="goTo('creator')">Vender/Alugar</button>
+    <button class="nav-btn" id="navAdminBtn" style="display:none" onclick="goTo('admin')">Admin</button>
+    <button class="nav-btn primary" id="navLoginBtn" onclick="openModal('loginModal')">Entrar</button>
+    <div class="nav-avatar" id="navAvatar" style="display:none" onclick="goTo('user-area')">?</div>
+  </div>
+</nav>
+
+<!-- ==================== LANDING ==================== -->
+<div class="page active" id="page-landing">
+  <div class="hero">
+    <div class="hero-tag">🚀 Plataforma P2P de aluguel e venda</div>
+    <h1>Alugue o que precisa.<br><em>Ganhe</em> com o que tem.</h1>
+    <p>Conectamos pessoas que querem usar com quem já possui. Simples, rápido e seguro.</p>
+    <div class="hero-cta">
+      <button class="btn btn-primary btn-lg" onclick="goTo('catalog')">Explorar produtos →</button>
+      <button class="btn btn-secondary btn-lg" onclick="openModal('loginModal')">Quero vender/alugar</button>
+    </div>
+  </div>
+
+  <div class="features-bar">
+    <div class="feat-item"><span class="feat-icon">🔒</span> Pagamento seguro</div>
+    <div class="feat-item"><span class="feat-icon">⚡</span> Entrega rápida</div>
+    <div class="feat-item"><span class="feat-icon">🔄</span> Aluguel flexível</div>
+    <div class="feat-item"><span class="feat-icon">⭐</span> Avaliações reais</div>
+    <div class="feat-item"><span class="feat-icon">📞</span> Suporte 24/7</div>
+  </div>
+
+  <!-- Featured products -->
+  <div class="section">
+    <h2 class="section-title">Em destaque</h2>
+    <p class="section-sub">Os produtos mais populares agora</p>
+    <div class="grid-2" id="featuredProducts"></div>
+  </div>
+
+  <div class="how-it-works">
+    <div style="text-align:center">
+      <h2 class="section-title">Como funciona?</h2>
+      <p style="color:var(--text2);max-width:480px;margin:0.5rem auto 0">Simples e transparente para compradores e vendedores</p>
+    </div>
+    <div class="step-grid">
+      <div class="step-item"><div class="step-num">1</div><h3 class="step-title">Cadastre-se</h3><p class="step-desc">Crie sua conta gratuitamente em menos de 2 minutos</p></div>
+      <div class="step-item"><div class="step-num">2</div><h3 class="step-title">Encontre</h3><p class="step-desc">Busque entre centenas de produtos disponíveis</p></div>
+      <div class="step-item"><div class="step-num">3</div><h3 class="step-title">Reserve</h3><p class="step-desc">Escolha comprar ou alugar pelo período que precisar</p></div>
+      <div class="step-item"><div class="step-num">4</div><h3 class="step-title">Receba</h3><p class="step-desc">Produto entregue e pagamento protegido para ambos</p></div>
+    </div>
+  </div>
+
+  <div class="section" style="padding-top:3rem; padding-bottom:4rem;">
+    <div style="background:#0B1F3A; border-radius:var(--radius-lg); padding:3rem 2rem; text-align:center; color:#fff;">
+      <h2 style="font-family:var(--font-display);font-weight:800;font-size:1.8rem;margin-bottom:0.75rem">Tem algo para alugar ou vender?</h2>
+      <p style="color:rgba(255,255,255,0.6);margin-bottom:1.5rem">Cadastre seus produtos e comece a ganhar dinheiro hoje mesmo.</p>
+      <button class="btn btn-primary btn-lg" onclick="openModal('registerModal')">Começar agora — é grátis</button>
+    </div>
+  </div>
 </div>
 
-<!-- HERO -->
-<section id="hero">
-  <div class="hero-bg"></div>
-  <div class="container">
-    <div class="hero-inner">
+<!-- ==================== CATALOG ==================== -->
+<div class="page" id="page-catalog">
+  <div class="catalog-header">
+    <div class="filter-chips" id="filterChips">
+      <div class="chip active" onclick="filterProducts('all',this)">Todos</div>
+      <div class="chip" onclick="filterProducts('rent',this)">🔄 Para alugar</div>
+      <div class="chip" onclick="filterProducts('sale',this)">🛒 Para comprar</div>
+      <div class="chip" onclick="filterProducts('electronics',this)">📱 Eletrônicos</div>
+      <div class="chip" onclick="filterProducts('tools',this)">🔧 Ferramentas</div>
+      <div class="chip" onclick="filterProducts('sports',this)">⚽ Esportes</div>
+      <div class="chip" onclick="filterProducts('home',this)">🏠 Casa</div>
+      <div class="chip" onclick="filterProducts('fashion',this)">👗 Moda</div>
+      <div class="chip" onclick="filterProducts('events',this)">🎉 Festas</div>
+    </div>
+  </div>
+  <div class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
       <div>
-        <div class="hero-badge">Plataforma de aluguel P2P · Em breve</div>
-        <h1 class="hero-title">Pare de comprar<br>o que você pode<br><em>usar.</em></h1>
-        <p class="hero-sub">Alugue o que você precisa por quanto tempo quiser — ou ganhe dinheiro alugando o que você já tem e não usa.</p>
-        <div class="hero-ctas">
-          <a href="#lista-espera" class="btn btn-primary btn-lg" data-intent="alugar">Quero alugar</a>
-          <a href="#lista-espera" class="btn btn-green btn-lg" data-intent="ganhar">Quero ganhar dinheiro</a>
+        <h2 class="section-title" id="catalogTitle">Todos os produtos</h2>
+        <p class="section-sub" id="catalogCount"></p>
+      </div>
+      <select class="form-input" style="width:auto;padding:8px 32px 8px 12px;font-size:0.85rem" onchange="sortProducts(this.value)">
+        <option value="newest">Mais recentes</option>
+        <option value="price-asc">Menor preço</option>
+        <option value="price-desc">Maior preço</option>
+        <option value="name">Nome A-Z</option>
+      </select>
+    </div>
+    <div class="grid-2" id="catalogGrid"></div>
+    <div id="catalogEmpty" class="empty-state" style="display:none">
+      <div class="empty-icon">🔍</div>
+      <h3>Nenhum produto encontrado</h3>
+      <p>Tente outros filtros ou termos de busca</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PRODUCT DETAIL ==================== -->
+<div class="page" id="page-product">
+  <div class="section">
+    <button class="btn btn-ghost btn-sm" onclick="goBack()" style="margin-bottom:1rem">← Voltar</button>
+    <div class="product-detail-grid" id="productDetailContent"></div>
+  </div>
+</div>
+
+<!-- ==================== CHECKOUT ==================== -->
+<div class="page" id="page-checkout">
+  <div class="section">
+    <h2 class="section-title" style="margin-bottom:1.5rem">Finalizar pedido</h2>
+    <div class="checkout-layout">
+      <div>
+        <!-- Tipo -->
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-body">
+            <h3 style="font-family:var(--font-display);font-weight:700;margin-bottom:1rem">Tipo de transação</h3>
+            <div id="checkoutTypeOptions"></div>
+          </div>
         </div>
-        <div class="hero-social-proof">
-          <div class="avatars"><span>AJ</span><span>MR</span><span>LS</span><span>PC</span><span>+</span></div>
-          <span>Mais de 200 pessoas já na lista de espera</span>
+        <!-- Período -->
+        <div class="card" style="margin-bottom:1rem" id="rentalPeriodSection">
+          <div class="card-body">
+            <h3 style="font-family:var(--font-display);font-weight:700;margin-bottom:1rem">Período do aluguel</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Data início</label>
+                <input type="date" class="form-input" id="rentStart" oninput="calcRental()">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Data fim</label>
+                <input type="date" class="form-input" id="rentEnd" oninput="calcRental()">
+              </div>
+            </div>
+            <p id="rentalCalc" style="font-size:0.85rem;color:var(--text2)"></p>
+          </div>
+        </div>
+        <!-- Entrega -->
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-body">
+            <h3 style="font-family:var(--font-display);font-weight:700;margin-bottom:1rem">Entrega</h3>
+            <div class="form-group">
+              <label class="form-label">CEP de entrega</label>
+              <div style="display:flex;gap:8px">
+                <input type="text" class="form-input" id="cepInput" placeholder="00000-000" maxlength="9" oninput="formatCEP(this)" style="flex:1">
+                <button class="btn btn-secondary" onclick="calcShipping()">Calcular</button>
+              </div>
+            </div>
+            <div id="shippingResult" style="display:none;margin-top:10px;padding:10px;background:var(--surface2);border-radius:var(--radius)">
+              <div style="font-size:0.85rem;color:var(--text2)">📦 Prazo estimado: <strong id="shippingDays"></strong></div>
+              <div style="font-size:0.85rem;color:var(--text2);margin-top:4px">💰 Frete: <strong id="shippingCost"></strong></div>
+            </div>
+          </div>
+        </div>
+        <!-- Pagamento -->
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-body">
+            <h3 style="font-family:var(--font-display);font-weight:700;margin-bottom:1rem">Pagamento (simulado)</h3>
+            <div class="form-group">
+              <label class="form-label">Número do cartão</label>
+              <input type="text" class="form-input" placeholder="0000 0000 0000 0000" maxlength="19" oninput="formatCard(this)">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Validade</label>
+                <input type="text" class="form-input" placeholder="MM/AA" maxlength="5">
+              </div>
+              <div class="form-group">
+                <label class="form-label">CVV</label>
+                <input type="text" class="form-input" placeholder="000" maxlength="3">
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="hero-cards fade-in">
-        <div class="hero-card">
-          <div class="hero-card-icon" style="background:#EBF1FF;">📷</div>
-          <div><div class="hero-card-title">Câmera Sony A7III</div><div class="hero-card-sub">São Paulo · Disponível agora</div></div>
-          <div class="hero-card-value"><div class="hero-card-num">R$120</div><div class="hero-card-unit">por dia</div></div>
-        </div>
-        <div class="hero-card">
-          <div class="hero-card-icon" style="background:#E6F7EF;">🔧</div>
-          <div><div class="hero-card-title">Furadeira Bosch Pro</div><div class="hero-card-sub">Campinas · Disponível agora</div></div>
-          <div class="hero-card-value"><div class="hero-card-num">R$25</div><div class="hero-card-unit">por dia</div></div>
-        </div>
-        <div class="hero-card">
-          <div class="hero-card-icon" style="background:#FFF7E6;">🏕️</div>
-          <div><div class="hero-card-title">Kit camping completo</div><div class="hero-card-sub">Curitiba · Disponível agora</div></div>
-          <div class="hero-card-value"><div class="hero-card-num">R$80</div><div class="hero-card-unit">por dia</div></div>
-        </div>
-        <div class="hero-card">
-          <div class="hero-card-icon" style="background:#F0E6FF;">🎸</div>
-          <div><div class="hero-card-title">Guitarra Fender Strat</div><div class="hero-card-sub">Belo Horizonte · Disponível</div></div>
-          <div class="hero-card-value"><div class="hero-card-num">R$55</div><div class="hero-card-unit">por dia</div></div>
+      <!-- Summary -->
+      <div>
+        <div class="order-summary">
+          <h3 style="font-family:var(--font-display);font-weight:700;margin-bottom:1rem">Resumo do pedido</h3>
+          <div id="checkoutSummaryProduct" style="display:flex;gap:10px;align-items:center;padding:10px;background:var(--surface2);border-radius:var(--radius);margin-bottom:1rem">
+            <span style="font-size:2rem" id="checkoutEmoji">📦</span>
+            <div>
+              <div style="font-weight:600;font-size:0.9rem" id="checkoutName"></div>
+              <div style="font-size:0.78rem;color:var(--text2)" id="checkoutType"></div>
+            </div>
+          </div>
+          <div class="summary-row"><span>Subtotal</span><span id="subtotalVal">R$ 0,00</span></div>
+          <div class="summary-row"><span>Frete</span><span id="freteVal">—</span></div>
+          <div class="summary-row"><span>Taxa plataforma (8%)</span><span id="taxaVal">R$ 0,00</span></div>
+          <div class="summary-row summary-total"><span>Total</span><span id="totalVal" style="color:var(--brand)">R$ 0,00</span></div>
+          <button class="btn btn-primary btn-full" style="margin-top:1rem;padding:14px" onclick="confirmOrder()">✅ Confirmar pedido</button>
+          <p style="font-size:0.75rem;color:var(--text3);text-align:center;margin-top:8px">Pagamento 100% simulado para MVP</p>
         </div>
       </div>
     </div>
   </div>
-</section>
+</div>
 
-<!-- CATEGORIAS -->
-<section id="categorias">
-  <div class="container">
-    <div class="section-label">Categorias</div>
-    <h2 class="section-title">Alugue qualquer coisa</h2>
-    <p class="section-sub">De câmeras a bicicletas, ferramentas a instrumentos. Se existe, alguém tem para alugar.</p>
-    <div class="cat-grid fade-in">
-      <div class="cat-card"><div class="cat-icon">📷</div><div class="cat-name">Foto & Vídeo</div><div class="cat-desc">Câmeras, lentes, drones</div></div>
-      <div class="cat-card"><div class="cat-icon">🔧</div><div class="cat-name">Ferramentas</div><div class="cat-desc">Furadeiras, serras, kits</div></div>
-      <div class="cat-card"><div class="cat-icon">🏕️</div><div class="cat-name">Outdoor</div><div class="cat-desc">Camping, trilha, surf</div></div>
-      <div class="cat-card"><div class="cat-icon">💻</div><div class="cat-name">Eletrônicos</div><div class="cat-desc">Notebooks, tablets, games</div></div>
-      <div class="cat-card"><div class="cat-icon">🎸</div><div class="cat-name">Música</div><div class="cat-desc">Guitarras, teclados, PAs</div></div>
-      <div class="cat-card"><div class="cat-icon">🏋️</div><div class="cat-name">Fitness</div><div class="cat-desc">Bikes, pesos, tapetes</div></div>
-      <div class="cat-card"><div class="cat-icon">🎉</div><div class="cat-name">Festas & Eventos</div><div class="cat-desc">Tendas, mesas, som</div></div>
-      <div class="cat-card"><div class="cat-icon">👗</div><div class="cat-name">Moda</div><div class="cat-desc">Roupas, acessórios, looks</div></div>
-      <div class="cat-card"><div class="cat-icon">🚲</div><div class="cat-name">Mobilidade</div><div class="cat-desc">Bikes, patinetes, skates</div></div>
-      <div class="cat-card"><div class="cat-icon">🎮</div><div class="cat-name">Games</div><div class="cat-desc">Consoles, jogos, VR</div></div>
+<!-- ==================== USER AREA ==================== -->
+<div class="page" id="page-user-area">
+  <div class="user-header">
+    <div class="user-avatar-lg" id="userAvatarLg">?</div>
+    <div>
+      <div class="user-name-lg" id="userNameLg">Usuário</div>
+      <div class="user-email-sm" id="userEmailLg">email@exemplo.com</div>
+      <button class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:#fff;margin-top:8px" onclick="openModal('editProfileModal')">✏️ Editar perfil</button>
     </div>
   </div>
-</section>
-
-<!-- COMO FUNCIONA -->
-<section id="como-funciona">
-  <div class="container">
-    <div class="section-label">Como funciona</div>
-    <h2 class="section-title">Dois lados, uma plataforma</h2>
-    <p class="section-sub">Seja quem precisa usar ou quem quer lucrar com o que já tem parado em casa.</p>
-    <div class="how-grid fade-in">
-      <div class="how-card">
-        <div class="how-card-badge badge-blue">Para quem quer alugar</div>
-        <h3>Acesse sem precisar comprar</h3>
-        <div class="how-steps">
-          <div class="how-step"><div class="step-num step-num-blue">1</div><p><strong>Busque o produto</strong> que você precisa por período, cidade ou categoria.</p></div>
-          <div class="how-step"><div class="step-num step-num-blue">2</div><p><strong>Reserve com segurança</strong> pagando só pelo tempo de uso, com caução protegido.</p></div>
-          <div class="how-step"><div class="step-num step-num-blue">3</div><p><strong>Retire, use e devolva.</strong> Sem dores de cabeça, sem depreciação, sem guardar.</p></div>
-          <div class="how-step"><div class="step-num step-num-blue">4</div><p><strong>Avalie a experiência.</strong> Sua avaliação fortalece a comunidade.</p></div>
-        </div>
-        <hr class="how-divider">
-        <div class="how-highlight">💡 Uma furadeira usada 3x por ano: alugue por R$25/dia ao invés de pagar R$350.</div>
-      </div>
-      <div class="how-card">
-        <div class="how-card-badge badge-green">Para quem quer ganhar dinheiro</div>
-        <h3>Monetize o que você já tem</h3>
-        <div class="how-steps">
-          <div class="how-step"><div class="step-num step-num-green">1</div><p><strong>Cadastre seu item</strong> com fotos, descrição e preço. Leva menos de 5 minutos.</p></div>
-          <div class="how-step"><div class="step-num step-num-green">2</div><p><strong>Defina disponibilidade.</strong> Você controla quando e para quem deseja alugar.</p></div>
-          <div class="how-step"><div class="step-num step-num-green">3</div><p><strong>Confirme o aluguel</strong> pelo app. Combine retirada ou entrega com o locatário.</p></div>
-          <div class="how-step"><div class="step-num step-num-green">4</div><p><strong>Receba na sua conta.</strong> A USEI cuida da intermediação, caução e proteção.</p></div>
-        </div>
-        <hr class="how-divider">
-        <div class="how-highlight">💰 Uma câmera alugada 2x por mês pode gerar R$600–R$1.200/mês.</div>
-      </div>
+  <div class="section-sm" style="max-width:900px;margin:0 auto">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('user','purchases')">🛒 Compras</button>
+      <button class="tab-btn" onclick="switchTab('user','rentals')">🔄 Aluguéis</button>
+      <button class="tab-btn" onclick="switchTab('user','profile')">👤 Perfil</button>
+    </div>
+    <div id="user-tab-purchases" class="user-tab-content">
+      <div id="userPurchasesList"></div>
+    </div>
+    <div id="user-tab-rentals" class="user-tab-content" style="display:none">
+      <div id="userRentalsList"></div>
+    </div>
+    <div id="user-tab-profile" class="user-tab-content" style="display:none">
+      <div class="card"><div class="card-body" id="userProfileInfo"></div></div>
     </div>
   </div>
-</section>
+</div>
 
-<!-- COMO GANHAR DINHEIRO -->
-<section id="como-ganhar">
-  <div class="container">
-    <div class="ganhar-grid fade-in">
-      <div class="ganhar-text">
-        <div class="section-label">Renda extra real</div>
-        <h3>Seus itens parados<br>rendem dinheiro</h3>
-        <p>A maioria das pessoas possui produtos que usa menos de 10% do tempo. Na USEI, você transforma esse tempo ocioso em renda real, sem precisar vender nada.</p>
-        <ul class="ganhar-list">
-          <li>Você define o preço, a disponibilidade e as regras</li>
-          <li>Caução garante proteção total ao seu item</li>
-          <li>Pagamento direto na sua conta após cada aluguel</li>
-          <li>Você pode pausar ou encerrar quando quiser</li>
-          <li>Quanto mais avaliações positivas, mais aluguéis</li>
-        </ul>
-        <a href="#lista-espera" class="btn btn-green btn-lg" data-intent="ganhar">Quero cadastrar meus itens →</a>
-      </div>
-      <div class="ganhar-example">
-        <h4>Simulação de renda mensal</h4>
-        <div class="ganhar-item">
-          <div class="ganhar-item-left"><div class="ganhar-item-icon">📷</div><div><div class="ganhar-item-name">Câmera Sony A7III</div><div class="ganhar-item-freq">8 dias/mês · R$120/dia</div></div></div>
-          <div class="ganhar-item-value">R$960</div>
+<!-- ==================== CREATOR ==================== -->
+<div class="page" id="page-creator">
+  <div class="creator-header">
+    <div style="max-width:1200px;margin:0 auto">
+      <p style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin-bottom:4px">Dashboard</p>
+      <h2 style="font-family:var(--font-display);font-weight:700;font-size:1.5rem;color:#fff">Área do criador</h2>
+      <div class="metric-grid">
+        <div class="stat-card" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.1)">
+          <div class="stat-value" style="color:#fff" id="creatorSalesVal">0</div>
+          <div class="stat-label" style="color:rgba(255,255,255,0.5)">Vendas realizadas</div>
+          <div class="stat-change stat-up">+12% este mês</div>
         </div>
-        <div class="ganhar-item">
-          <div class="ganhar-item-left"><div class="ganhar-item-icon">🎮</div><div><div class="ganhar-item-name">PS5 + jogos</div><div class="ganhar-item-freq">6 dias/mês · R$60/dia</div></div></div>
-          <div class="ganhar-item-value">R$360</div>
+        <div class="stat-card" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.1)">
+          <div class="stat-value" style="color:#fff" id="creatorRentalsVal">0</div>
+          <div class="stat-label" style="color:rgba(255,255,255,0.5)">Aluguéis ativos</div>
+          <div class="stat-change stat-up">+3 novos</div>
         </div>
-        <div class="ganhar-item">
-          <div class="ganhar-item-left"><div class="ganhar-item-icon">🔧</div><div><div class="ganhar-item-name">Kit ferramentas</div><div class="ganhar-item-freq">4 dias/mês · R$40/dia</div></div></div>
-          <div class="ganhar-item-value">R$160</div>
+        <div class="stat-card" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.1)">
+          <div class="stat-value" style="color:#fff" id="creatorRevenueVal">R$ 0</div>
+          <div class="stat-label" style="color:rgba(255,255,255,0.5)">Receita total</div>
+          <div class="stat-change stat-up">↑ R$ 420</div>
         </div>
-        <div class="ganhar-total">
-          <div class="ganhar-total-label">Renda mensal estimada</div>
-          <div class="ganhar-total-value">R$1.480</div>
+        <div class="stat-card" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.1)">
+          <div class="stat-value" style="color:#fff" id="creatorProductsVal">0</div>
+          <div class="stat-label" style="color:rgba(255,255,255,0.5)">Produtos ativos</div>
         </div>
       </div>
     </div>
   </div>
-</section>
-
-<!-- BENEFÍCIOS -->
-<section id="beneficios">
-  <div class="container">
-    <div class="section-label">Benefícios</div>
-    <h2 class="section-title">Por que a USEI.APP?</h2>
-    <p class="section-sub">Construída para quem valoriza acesso, não acúmulo.</p>
-    <div class="benefits-grid fade-in">
-      <div class="benefit-card"><div class="benefit-icon" style="background:#EBF1FF;">💸</div><h3>Economize de verdade</h3><p>Por que comprar uma furadeira para usar 3 vezes? Alugue por R$25 ao invés de pagar R$350 e guardar no armário.</p></div>
-      <div class="benefit-card"><div class="benefit-icon" style="background:#E6F7EF;">📈</div><h3>Renda extra real</h3><p>Seus itens parados rendem dinheiro. Uma câmera alugada regularmente pode gerar mais de R$1.000 por mês.</p></div>
-      <div class="benefit-card"><div class="benefit-icon" style="background:#FFF7E6;">⚡</div><h3>Simples e rápido</h3><p>Processo 100% digital. Reserve, combine a retirada e use — sem burocracia, sem papelada, sem complicação.</p></div>
-      <div class="benefit-card"><div class="benefit-icon" style="background:#EBF1FF;">🔒</div><h3>Proteção garantida</h3><p>Caução digital protege quem disponibiliza. Sistema de avaliações mantém a qualidade da comunidade.</p></div>
-      <div class="benefit-card"><div class="benefit-icon" style="background:#F0E6FF;">🌱</div><h3>Mais sustentável</h3><p>Menos produção desnecessária. Compartilhar é o novo ter — e ainda faz muito bem para o planeta.</p></div>
-      <div class="benefit-card"><div class="benefit-icon" style="background:#E6F7EF;">🤝</div><h3>Comunidade confiável</h3><p>Perfis verificados, avaliações reais e suporte ativo. Você sempre sabe com quem está negociando.</p></div>
+  <div class="section-sm" style="max-width:1200px;margin:0 auto">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('creator','products')">📦 Meus produtos</button>
+      <button class="tab-btn" onclick="switchTab('creator','sales')">💰 Vendas</button>
+      <button class="tab-btn" onclick="switchTab('creator','analytics')">📊 Analytics</button>
     </div>
-  </div>
-</section>
-
-<!-- NÚMEROS -->
-<section id="numeros">
-  <div class="container">
-    <div class="numeros-grid fade-in">
-      <div><div class="num-val">200+</div><div class="num-lbl">Na lista de espera</div></div>
-      <div><div class="num-val">10+</div><div class="num-lbl">Categorias de produtos</div></div>
-      <div><div class="num-val">R$0</div><div class="num-lbl">Para entrar na plataforma</div></div>
-      <div><div class="num-val">2026</div><div class="num-lbl">Lançamento previsto</div></div>
+    <div id="creator-tab-products">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:1rem">
+        <button class="btn btn-primary" onclick="openModal('addProductModal')">+ Cadastrar produto</button>
+      </div>
+      <div id="creatorProductList"></div>
     </div>
-  </div>
-</section>
-
-<!-- SEGURANÇA -->
-<section id="seguranca">
-  <div class="container">
-    <div class="section-label">Segurança & Confiança</div>
-    <h2 class="section-title">Você protegido em<br>cada transação</h2>
-    <p class="section-sub">Construímos a USEI para que ninguém precise confiar cegamente em ninguém.</p>
-    <div class="trust-grid fade-in">
-      <div class="trust-card">
-        <h3>🔐 Caução digital</h3>
-        <p>O valor de caução é bloqueado no cartão do locatário antes da retirada — sem débito. Ao confirmar a devolução, o bloqueio é liberado automaticamente. Em caso de danos, o valor cobre o ressarcimento.</p>
-        <div class="trust-badge">✓ Proteção automática</div>
-      </div>
-      <div class="trust-card">
-        <h3>✅ Perfis verificados</h3>
-        <p>CPF, telefone e e-mail verificados antes de qualquer transação. Histórico público de avaliações e aluguéis anteriores. Você sempre sabe com quem está negociando.</p>
-        <div class="trust-badge">✓ Identidade confirmada</div>
-      </div>
-      <div class="trust-card">
-        <h3>⭐ Sistema de avaliações</h3>
-        <p>Após cada aluguel, ambas as partes avaliam a experiência. Reputação visível, histórico transparente. Quem tem má conduta é suspenso da plataforma.</p>
-        <div class="trust-badge">✓ Reputação pública</div>
-      </div>
-      <div class="trust-card">
-        <h3>🛡️ Cobertura para danos</h3>
-        <p>Itens danificados têm cobertura pelo caução retido. A plataforma media conflitos de forma imparcial. Todo aluguel é documentado com fotos antes e depois.</p>
-        <div class="trust-badge">✓ Mediação imparcial</div>
-      </div>
+    <div id="creator-tab-sales" style="display:none">
+      <div id="creatorSalesList"></div>
     </div>
-  </div>
-</section>
-
-<!-- VALIDAÇÃO -->
-<section id="validacao">
-  <div class="container-sm">
-    <div style="text-align:center;margin-bottom:2.5rem;">
-      <div class="section-label" style="text-align:center">Nos ajude a construir</div>
-      <h2 class="section-title" style="text-align:center">O que você alugaria?</h2>
-      <p class="section-sub" style="text-align:center;margin:0 auto 2rem;">Clique nos itens que te interessam. Isso nos ajuda a priorizar as primeiras categorias.</p>
-    </div>
-    <div class="options-row" id="optionTags">
-      <div class="option-tag" onclick="selectTag(this)">📷 Câmera e fotografia</div>
-      <div class="option-tag" onclick="selectTag(this)">🔧 Ferramentas</div>
-      <div class="option-tag" onclick="selectTag(this)">🏕️ Equipamentos outdoor</div>
-      <div class="option-tag" onclick="selectTag(this)">🎮 Games e consoles</div>
-      <div class="option-tag" onclick="selectTag(this)">🎸 Instrumentos musicais</div>
-      <div class="option-tag" onclick="selectTag(this)">👗 Roupas e moda</div>
-      <div class="option-tag" onclick="selectTag(this)">🚲 Bikes e patinetes</div>
-      <div class="option-tag" onclick="selectTag(this)">💻 Eletrônicos</div>
-      <div class="option-tag" onclick="selectTag(this)">🏋️ Equipamentos fitness</div>
-      <div class="option-tag" onclick="selectTag(this)">🎉 Itens para festas</div>
-      <div class="option-tag" onclick="selectTag(this)">🏄 Esportes aquáticos</div>
-      <div class="option-tag" onclick="selectTag(this)">🎨 Arte e criatividade</div>
-    </div>
-    <p class="validation-result" id="validationResult"></p>
-  </div>
-</section>
-
-<!-- PROVA SOCIAL -->
-<section id="prova-social">
-  <div class="container">
-    <div class="section-label" style="text-align:center">Prova social</div>
-    <h2 class="section-title" style="text-align:center">O que as pessoas dizem</h2>
-    <p class="section-sub" style="text-align:center;margin:0 auto 3rem;">Ainda em pré-lançamento, mas a demanda já é real.</p>
-    <div class="testimonials-grid fade-in">
-      <div class="testimonial-card">
-        <div class="stars">★★★★★</div>
-        <p class="testimonial-text">"Tenho uma câmera Sony que uso 4x por ano. Poder alugar ela quando não estou usando seria perfeito — é uma renda extra sem esforço nenhum."</p>
-        <div class="testimonial-author"><div class="author-avatar">AL</div><div><div class="author-name">André Lima</div><div class="author-role">Fotógrafo, São Paulo</div></div></div>
-      </div>
-      <div class="testimonial-card">
-        <div class="stars">★★★★★</div>
-        <p class="testimonial-text">"Precisei de uma furadeira por 1 semana pra reforma do apê. Comprar não fazia o menor sentido. Queria exatamente uma plataforma assim há anos."</p>
-        <div class="testimonial-author"><div class="author-avatar">MC</div><div><div class="author-name">Mariana Costa</div><div class="author-role">Designer, Belo Horizonte</div></div></div>
-      </div>
-      <div class="testimonial-card">
-        <div class="stars">★★★★★</div>
-        <p class="testimonial-text">"Tenho equipamento de camping que uso 2x por ano. Se puder alugar pro resto do tempo, já pagou o investimento que fiz. Faz todo sentido."</p>
-        <div class="testimonial-author"><div class="author-avatar">RS</div><div><div class="author-name">Rafael Santos</div><div class="author-role">Engenheiro, Curitiba</div></div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- LISTA DE ESPERA -->
-<section id="lista-espera">
-  <div class="container">
-    <div class="waitlist-box">
-      <div class="waitlist-split">
-        <div class="waitlist-left">
-          <div class="section-label">Lista de espera</div>
-          <h2>Garanta seu acesso antecipado</h2>
-          <p>Seja um dos primeiros a usar a USEI.APP. Quem entra na lista recebe acesso ao beta antes do lançamento público — e condições especiais de fundador.</p>
-          <ul class="waitlist-perks">
-            <li><span class="perk-dot"></span>Acesso ao beta antes de todo mundo</li>
-            <li><span class="perk-dot"></span>Condições especiais para os primeiros usuários</li>
-            <li><span class="perk-dot"></span>Você ajuda a moldar o produto com seu feedback</li>
-            <li><span class="perk-dot"></span>Zero spam — só notificações importantes</li>
-            <li><span class="perk-dot"></span>Pode cancelar a qualquer momento</li>
-          </ul>
+    <div id="creator-tab-analytics" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div class="card">
+          <div class="card-body">
+            <h3 style="font-family:var(--font-display);font-size:0.95rem;font-weight:700;margin-bottom:1rem">Vendas — Últimos 7 dias</h3>
+            <div class="bar-chart" id="salesChart"></div>
+          </div>
         </div>
-        <div>
-          <form class="waitlist-form-col" id="waitlistInline" action="https://formspree.io/f/xjgjbprj" method="POST">
-            <input type="hidden" name="intent" id="intentField" value="">
-            <input type="text" name="name" placeholder="Seu nome completo" class="form-input-dark" required>
-            <input type="email" name="email" placeholder="Seu melhor e-mail" class="form-input-dark" required>
-            <input type="tel" name="phone" placeholder="WhatsApp (opcional)" class="form-input-dark">
-            <select name="city" class="form-input-dark" style="appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23B0B0B0' stroke-width='1.5' fill='none'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 1rem center;">
-              <option value="" disabled selected>Sua cidade</option>
-              <option>São Paulo</option><option>Rio de Janeiro</option><option>Belo Horizonte</option>
-              <option>Curitiba</option><option>Porto Alegre</option><option>Brasília</option>
-              <option>Salvador</option><option>Fortaleza</option><option>Outra</option>
-            </select>
-            <select name="role" class="form-input-dark" style="appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23B0B0B0' stroke-width='1.5' fill='none'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 1rem center;">
-              <option value="" disabled selected>Quero usar a USEI para...</option>
-              <option value="alugar">Alugar produtos de outras pessoas</option>
-              <option value="ganhar">Ganhar dinheiro alugando meus itens</option>
-              <option value="ambos">Os dois!</option>
-            </select>
-            <button type="submit" class="btn btn-primary btn-lg" style="width:100%">Garantir minha vaga →</button>
-            <p class="form-note">Sem spam. Você só recebe confirmação e aviso de lançamento.</p>
-          </form>
-          <div id="waitlistInlineSuccess" style="display:none;background:var(--green-light);border-radius:var(--radius);padding:1.5rem;text-align:center;">
-            <div style="font-size:1.5rem;margin-bottom:0.5rem;">🎉</div>
-            <div style="font-weight:600;color:var(--green);margin-bottom:0.25rem;">Você está na lista!</div>
-            <div style="font-size:0.875rem;color:var(--gray-500);">Avisaremos assim que o beta abrir.</div>
+        <div class="card">
+          <div class="card-body">
+            <h3 style="font-family:var(--font-display);font-size:0.95rem;font-weight:700;margin-bottom:1rem">Carrinho abandonado (simulado)</h3>
+            <div class="bar-chart" id="abandonChart"></div>
           </div>
         </div>
       </div>
     </div>
   </div>
-</section>
+</div>
 
-<!-- FAQ -->
-<section id="faq">
-  <div class="container-sm">
-    <div class="section-label">Dúvidas frequentes</div>
-    <h2 class="section-title">Perguntas & Respostas</h2>
-    <div class="faq-list" style="display:flex;flex-direction:column;gap:8px;">
-      <div class="faq-item" style="background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius);overflow:hidden;">
-        <button class="faq-question" onclick="toggleFaq(this)" style="width:100%;text-align:left;background:none;border:none;padding:1.25rem 1.5rem;font-family:var(--font-body);font-size:0.9375rem;font-weight:500;color:var(--black);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;">Como funciona o caução? <span class="faq-icon" style="min-width:22px;height:22px;border-radius:50%;background:var(--gray-50);display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:transform 0.3s;color:var(--gray-500);">+</span></button>
-        <div class="faq-answer" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 1.5rem;font-size:0.9rem;color:var(--gray-500);line-height:1.7;">O caução é bloqueado digitalmente no cartão do locatário no momento da reserva — nenhum valor é debitado de fato. Ao confirmar a devolução em boas condições, o bloqueio é liberado automaticamente em até 24h. Em caso de danos, o valor cobre o ressarcimento do proprietário.</div>
+<!-- ==================== ADMIN ==================== -->
+<div class="page" id="page-admin">
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div style="color:#fff;font-family:var(--font-display);font-weight:700;font-size:1rem;margin-bottom:1.5rem;padding:0 12px">USEI Admin</div>
+      <div class="admin-nav-section">Principal</div>
+      <div class="admin-nav-item active" onclick="switchAdminTab('dashboard',this)">📊 Dashboard</div>
+      <div class="admin-nav-section">Gerenciar</div>
+      <div class="admin-nav-item" onclick="switchAdminTab('users',this)">👥 Usuários</div>
+      <div class="admin-nav-item" onclick="switchAdminTab('products',this)">📦 Produtos</div>
+      <div class="admin-nav-item" onclick="switchAdminTab('orders',this)">🛒 Pedidos</div>
+      <div class="admin-nav-item" onclick="switchAdminTab('transactions',this)">💳 Transações</div>
+      <div class="admin-nav-section">Sistema</div>
+      <div class="admin-nav-item" onclick="goTo('landing');toast('Saindo do admin...')">↩ Voltar ao site</div>
+    </aside>
+    <main class="admin-content">
+      <div id="admin-tab-dashboard">
+        <h2 style="font-family:var(--font-display);font-weight:700;margin-bottom:1.5rem">Visão geral</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:2rem">
+          <div class="stat-card"><div class="stat-value" id="adminUsersCount">0</div><div class="stat-label">Usuários</div><div class="stat-change stat-up">+5 hoje</div></div>
+          <div class="stat-card"><div class="stat-value" id="adminProductsCount">0</div><div class="stat-label">Produtos</div></div>
+          <div class="stat-card"><div class="stat-value" id="adminOrdersCount">0</div><div class="stat-label">Pedidos</div></div>
+          <div class="stat-card"><div class="stat-value" id="adminRevenue">R$ 0</div><div class="stat-label">Receita Total</div><div class="stat-change stat-up">+8%</div></div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <h3 style="font-family:var(--font-display);font-weight:700;margin-bottom:1rem">Atividade recente</h3>
+            <div id="adminActivity"></div>
+          </div>
+        </div>
       </div>
-      <div class="faq-item" style="background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius);overflow:hidden;">
-        <button class="faq-question" onclick="toggleFaq(this)" style="width:100%;text-align:left;background:none;border:none;padding:1.25rem 1.5rem;font-family:var(--font-body);font-size:0.9375rem;font-weight:500;color:var(--black);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;">Quem define o preço do aluguel? <span class="faq-icon" style="min-width:22px;height:22px;border-radius:50%;background:var(--gray-50);display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:transform 0.3s;color:var(--gray-500);">+</span></button>
-        <div class="faq-answer" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 1.5rem;font-size:0.9rem;color:var(--gray-500);line-height:1.7;">Quem disponibiliza o item define o preço por dia, semana ou mês. A plataforma oferece sugestões de precificação com base no mercado e na categoria para ajudar quem está começando.</div>
+      <div id="admin-tab-users" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+          <h2 style="font-family:var(--font-display);font-weight:700">Usuários</h2>
+          <input type="text" class="form-input" placeholder="Buscar usuário..." style="width:220px" oninput="filterAdminUsers(this.value)">
+        </div>
+        <div class="card">
+          <table class="admin-table" id="adminUsersTable">
+            <thead><tr><th>#</th><th>Nome</th><th>Email</th><th>Telefone</th><th>Cadastro</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody id="adminUsersTbody"></tbody>
+          </table>
+        </div>
       </div>
-      <div class="faq-item" style="background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius);overflow:hidden;">
-        <button class="faq-question" onclick="toggleFaq(this)" style="width:100%;text-align:left;background:none;border:none;padding:1.25rem 1.5rem;font-family:var(--font-body);font-size:0.9375rem;font-weight:500;color:var(--black);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;">E se o item for danificado? <span class="faq-icon" style="min-width:22px;height:22px;border-radius:50%;background:var(--gray-50);display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:transform 0.3s;color:var(--gray-500);">+</span></button>
-        <div class="faq-answer" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 1.5rem;font-size:0.9rem;color:var(--gray-500);line-height:1.7;">O caução cobre danos. Se o valor não for suficiente, a USEI.APP medeia o processo com base nas fotos registradas antes e depois do aluguel. Todo aluguel deve ser documentado com fotos.</div>
+      <div id="admin-tab-products" style="display:none">
+        <h2 style="font-family:var(--font-display);font-weight:700;margin-bottom:1.25rem">Produtos</h2>
+        <div class="card">
+          <table class="admin-table">
+            <thead><tr><th>#</th><th>Produto</th><th>Categoria</th><th>Tipo</th><th>Preço venda</th><th>Preço aluguel</th><th>Dono</th><th>Status</th></tr></thead>
+            <tbody id="adminProductsTbody"></tbody>
+          </table>
+        </div>
       </div>
-      <div class="faq-item" style="background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius);overflow:hidden;">
-        <button class="faq-question" onclick="toggleFaq(this)" style="width:100%;text-align:left;background:none;border:none;padding:1.25rem 1.5rem;font-family:var(--font-body);font-size:0.9375rem;font-weight:500;color:var(--black);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;">É gratuito para usar? <span class="faq-icon" style="min-width:22px;height:22px;border-radius:50%;background:var(--gray-50);display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:transform 0.3s;color:var(--gray-500);">+</span></button>
-        <div class="faq-answer" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 1.5rem;font-size:0.9rem;color:var(--gray-500);line-height:1.7;">Cadastro e navegação são completamente gratuitos. A plataforma cobra uma pequena comissão apenas em transações bem-sucedidas, de ambos os lados. Nenhuma cobrança antes de fechar negócio.</div>
+      <div id="admin-tab-orders" style="display:none">
+        <h2 style="font-family:var(--font-display);font-weight:700;margin-bottom:1.25rem">Pedidos</h2>
+        <div class="card">
+          <table class="admin-table">
+            <thead><tr><th>#</th><th>Produto</th><th>Comprador</th><th>Tipo</th><th>Valor</th><th>Data</th><th>Status</th></tr></thead>
+            <tbody id="adminOrdersTbody"></tbody>
+          </table>
+        </div>
       </div>
-      <div class="faq-item" style="background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius);overflow:hidden;">
-        <button class="faq-question" onclick="toggleFaq(this)" style="width:100%;text-align:left;background:none;border:none;padding:1.25rem 1.5rem;font-family:var(--font-body);font-size:0.9375rem;font-weight:500;color:var(--black);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;">Quando a plataforma lança? <span class="faq-icon" style="min-width:22px;height:22px;border-radius:50%;background:var(--gray-50);display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:transform 0.3s;color:var(--gray-500);">+</span></button>
-        <div class="faq-answer" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 1.5rem;font-size:0.9rem;color:var(--gray-500);line-height:1.7;">O lançamento está previsto para 2026. Estamos em fase de pré-lançamento construindo o produto. Quem entrar na lista de espera terá acesso antecipado ao beta antes da abertura ao público.</div>
+      <div id="admin-tab-transactions" style="display:none">
+        <h2 style="font-family:var(--font-display);font-weight:700;margin-bottom:1.25rem">Transações</h2>
+        <div class="card">
+          <table class="admin-table">
+            <thead><tr><th>#</th><th>ID</th><th>Usuário</th><th>Produto</th><th>Valor</th><th>Método</th><th>Data</th><th>Status</th></tr></thead>
+            <tbody id="adminTransactionsTbody"></tbody>
+          </table>
+        </div>
       </div>
-      <div class="faq-item" style="background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius);overflow:hidden;">
-        <button class="faq-question" onclick="toggleFaq(this)" style="width:100%;text-align:left;background:none;border:none;padding:1.25rem 1.5rem;font-family:var(--font-body);font-size:0.9375rem;font-weight:500;color:var(--black);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;">Posso recusar um aluguel? <span class="faq-icon" style="min-width:22px;height:22px;border-radius:50%;background:var(--gray-50);display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:transform 0.3s;color:var(--gray-500);">+</span></button>
-        <div class="faq-answer" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 1.5rem;font-size:0.9rem;color:var(--gray-500);line-height:1.7;">Sim. Você pode ver o perfil completo do locatário antes de confirmar — avaliações, verificações e histórico. Você tem total liberdade para recusar qualquer aluguel sem precisar justificar.</div>
+    </main>
+  </div>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- LOGIN -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Entrar na USEI.APP</h2>
+      <button class="modal-close" onclick="closeModal('loginModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="loginEmail" placeholder="seu@email.com">
       </div>
-      <div class="faq-item" style="background:var(--white);border:1px solid var(--gray-100);border-radius:var(--radius);overflow:hidden;">
-        <button class="faq-question" onclick="toggleFaq(this)" style="width:100%;text-align:left;background:none;border:none;padding:1.25rem 1.5rem;font-family:var(--font-body);font-size:0.9375rem;font-weight:500;color:var(--black);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;">Como funciona a retirada e devolução? <span class="faq-icon" style="min-width:22px;height:22px;border-radius:50%;background:var(--gray-50);display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:transform 0.3s;color:var(--gray-500);">+</span></button>
-        <div class="faq-answer" style="max-height:0;overflow:hidden;transition:max-height 0.35s ease,padding 0.35s ease;padding:0 1.5rem;font-size:0.9rem;color:var(--gray-500);line-height:1.7;">Locatário e proprietário combinam pela plataforma: retirada presencial, entrega por motoboy ou envio pelos Correios, dependendo do item e da distância. A plataforma oferece sugestões de logística para cada tipo de produto.</div>
+      <div class="form-group">
+        <label class="form-label">Senha</label>
+        <input type="password" class="form-input" id="loginPassword" placeholder="••••••••">
       </div>
+      <button class="btn btn-primary btn-full" onclick="login()" style="margin-bottom:0.75rem">Entrar</button>
+      <div class="divider-text"><span>ou</span></div>
+      <button class="btn btn-secondary btn-full" onclick="closeModal('loginModal');openModal('registerModal')">Criar conta grátis</button>
+      <p style="font-size:0.78rem;color:var(--text3);text-align:center;margin-top:10px">
+        Admin: admin@usei.app / admin123
+      </p>
     </div>
   </div>
-</section>
+</div>
 
-<!-- CTA FINAL -->
-<section id="cta-final">
-  <div class="container-sm" style="text-align:center;">
-    <div class="section-label" style="color:rgba(255,255,255,0.6)">Junte-se ao movimento</div>
-    <h2 class="section-title">Pronto para começar?</h2>
-    <p class="section-sub">Economize alugando. Ganhe disponibilizando. Seja parte do movimento de acesso sobre posse.</p>
-    <form class="waitlist-form-row" id="waitlistFinal" action="https://formspree.io/f/xjgjbprj" method="POST">
-      <input type="text" name="name" placeholder="Seu nome" class="form-input" required>
-      <input type="email" name="email" placeholder="Seu e-mail" class="form-input" required>
-      <button type="submit" class="btn btn-white btn-lg">Garantir minha vaga →</button>
-    </form>
-    <div class="form-success" id="formSuccess">🎉 Você está na lista! Avisaremos em primeira mão quando o beta abrir.</div>
-    <p class="form-note-white">Sem spam. Cancele quando quiser.</p>
+<!-- REGISTER -->
+<div class="modal-overlay" id="registerModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Criar conta</h2>
+      <button class="modal-close" onclick="closeModal('registerModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nome completo</label>
+        <input type="text" class="form-input" id="regName" placeholder="Seu nome">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-input" id="regEmail" placeholder="seu@email.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone</label>
+          <input type="text" class="form-input" id="regPhone" placeholder="(11) 99999-9999" oninput="formatPhone(this)">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Senha</label>
+        <input type="password" class="form-input" id="regPassword" placeholder="Mínimo 6 caracteres">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirmar senha</label>
+        <input type="password" class="form-input" id="regConfirm" placeholder="Repita a senha">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="register()" style="margin-bottom:0.75rem">Criar conta</button>
+      <p style="font-size:0.8rem;color:var(--text3);text-align:center">
+        Já tem conta? <span style="color:var(--brand);cursor:pointer" onclick="closeModal('registerModal');openModal('loginModal')">Entrar</span>
+      </p>
+    </div>
   </div>
-</section>
+</div>
 
-<!-- FOOTER -->
-<footer>
-  <div class="footer-inner">
+<!-- EDIT PROFILE -->
+<div class="modal-overlay" id="editProfileModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Editar perfil</h2>
+      <button class="modal-close" onclick="closeModal('editProfileModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;justify-content:center;margin-bottom:1.25rem">
+        <div class="profile-pic" onclick="document.getElementById('profilePicInput').click()">
+          <span id="profilePicEmoji">📷</span>
+          <img id="profilePicImg" src="" style="display:none">
+          <input type="file" id="profilePicInput" accept="image/*" onchange="handleProfilePic(this)">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nome</label>
+        <input type="text" class="form-input" id="editName">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="editEmail">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Telefone</label>
+        <input type="text" class="form-input" id="editPhone" oninput="formatPhone(this)">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="saveProfile()">Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD PRODUCT -->
+<div class="modal-overlay" id="addProductModal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <h2 class="modal-title">Cadastrar produto</h2>
+      <button class="modal-close" onclick="closeModal('addProductModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nome do produto</label>
+        <input type="text" class="form-input" id="prodName" placeholder="Ex: Furadeira Black+Decker">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Categoria</label>
+          <select class="form-input" id="prodCategory">
+            <option value="electronics">📱 Eletrônicos</option>
+            <option value="tools">🔧 Ferramentas</option>
+            <option value="sports">⚽ Esportes</option>
+            <option value="home">🏠 Casa</option>
+            <option value="fashion">👗 Moda</option>
+            <option value="events">🎉 Festas</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Disponível para</label>
+          <select class="form-input" id="prodType">
+            <option value="both">Venda e Aluguel</option>
+            <option value="rent">Apenas Aluguel</option>
+            <option value="sale">Apenas Venda</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Preço de venda (R$)</label>
+          <input type="number" class="form-input" id="prodSalePrice" placeholder="0,00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Preço aluguel/dia (R$)</label>
+          <input type="number" class="form-input" id="prodRentPrice" placeholder="0,00">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <textarea class="form-input" id="prodDesc" placeholder="Descreva o produto..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Localização</label>
+        <input type="text" class="form-input" id="prodLocation" placeholder="Ex: São Paulo, SP">
+      </div>
+      <!-- CLOUDINARY CONFIG -->
+      <div id="cloudinaryConfigBanner" style="background:var(--brand-light);border:1.5px solid var(--brand);border-radius:var(--radius);padding:12px 14px;margin-bottom:1rem;font-size:0.82rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="color:var(--brand2)">☁️ Cloudinary — upload real</strong>
+          <button onclick="toggleCloudinaryConfig()" style="background:transparent;border:none;font-size:0.75rem;color:var(--text2);cursor:pointer" id="cloudinaryToggleBtn">▼ configurar</button>
+        </div>
+        <p style="color:var(--text2);line-height:1.5" id="cloudinaryStatusMsg">Sem configurar, fotos ficam só no seu navegador. Configure para ficarem online e visíveis para todos.</p>
+        <div id="cloudinaryConfigFields" style="display:none;margin-top:10px">
+          <div style="background:var(--surface);border-radius:8px;padding:10px;margin-bottom:8px;font-size:0.78rem;color:var(--text2);line-height:1.7">
+            <strong>Como configurar (grátis):</strong><br>
+            1. Acesse <strong>cloudinary.com</strong> → crie conta grátis<br>
+            2. No Dashboard copie o <strong>Cloud Name</strong><br>
+            3. Settings → Upload → Add upload preset → Mode: <strong>Unsigned</strong> → copie o nome<br>
+            4. Cole abaixo e clique em Salvar
+          </div>
+          <div class="form-row" style="margin-bottom:8px">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Cloud Name</label>
+              <input type="text" class="form-input" id="cfCloudName" placeholder="ex: meu-app-123">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Upload Preset (Unsigned)</label>
+              <input type="text" class="form-input" id="cfUploadPreset" placeholder="ex: usei_unsigned">
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="saveCloudinaryConfig()">💾 Salvar configuração</button>
+          <div id="cloudinaryFeedback" style="font-size:0.78rem;margin-top:8px;display:none"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Imagens do produto</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div class="upload-zone" onclick="document.getElementById('prodImgInput').click()" ondrop="handleDrop(event)" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')">
+            <input type="file" id="prodImgInput" accept="image/*" multiple onchange="handleProdImages(this)">
+            <div style="font-size:1.8rem;margin-bottom:4px">🖼️</div>
+            <p style="font-size:0.82rem;color:var(--text2);font-weight:500">Galeria / Arquivo</p>
+            <p style="font-size:0.72rem;color:var(--text3)">Clique ou arraste</p>
+          </div>
+          <div class="upload-zone" onclick="document.getElementById('prodCamInput').click()">
+            <input type="file" id="prodCamInput" accept="image/*" capture="environment" onchange="handleProdImages(this)">
+            <div style="font-size:1.8rem;margin-bottom:4px">📷</div>
+            <p style="font-size:0.82rem;color:var(--text2);font-weight:500">Câmera</p>
+            <p style="font-size:0.72rem;color:var(--text3)">Tirar foto agora</p>
+          </div>
+        </div>
+        <div id="uploadProgressWrap" style="display:none;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--text2);margin-bottom:4px">
+            <span id="uploadProgressLabel">Enviando para Cloudinary...</span>
+            <span id="uploadProgressPct">0%</span>
+          </div>
+          <div class="progress"><div class="progress-bar" id="uploadProgressBar" style="width:0%;background:var(--brand)"></div></div>
+        </div>
+        <div id="prodImgPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="saveProduct()" id="saveProductBtn">Publicar produto</button>
+    </div>
+  </div>
+</div>
+
+<!-- ORDER SUCCESS -->
+<div class="modal-overlay" id="successModal">
+  <div class="modal">
+    <div class="modal-body" style="text-align:center;padding:2rem">
+      <div style="font-size:4rem;margin-bottom:1rem">🎉</div>
+      <h2 style="font-family:var(--font-display);font-weight:700;margin-bottom:0.5rem">Pedido confirmado!</h2>
+      <p style="color:var(--text2);margin-bottom:1.5rem">Seu pedido foi registrado com sucesso. Acompanhe na sua área do usuário.</p>
+      <button class="btn btn-primary" onclick="closeModal('successModal');goTo('user-area')">Ver meus pedidos</button>
+      <button class="btn btn-secondary" style="margin-left:8px" onclick="closeModal('successModal');goTo('catalog')">Continuar comprando</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHATBOT -->
+<button id="chatbot-toggle" onclick="toggleChat()" title="Chat com suporte">💬</button>
+<div id="chatbot-widget">
+  <div class="chat-header">
     <div>
-      <a href="#" class="footer-logo">USEI<span>.</span>APP</a>
-      <p class="footer-desc">A plataforma de aluguel P2P que transforma acesso em modelo de vida. Alugue o que precisa, ganhe com o que tem.</p>
+      <div class="chat-title">Assistente USEI</div>
+      <div class="chat-subtitle">Normalmente responde em segundos</div>
     </div>
-    <div class="footer-col">
-      <h4>Plataforma</h4>
-      <a href="#como-funciona">Como funciona</a>
-      <a href="#categorias">Categorias</a>
-      <a href="#como-ganhar">Ganhe dinheiro</a>
-      <a href="#lista-espera">Lista de espera</a>
-    </div>
-    <div class="footer-col">
-      <h4>Segurança</h4>
-      <a href="#seguranca">Caução digital</a>
-      <a href="#seguranca">Perfis verificados</a>
-      <a href="#seguranca">Cobertura de danos</a>
-      <a href="#faq">FAQ</a>
-    </div>
-    <div class="footer-col">
-      <h4>Contato</h4>
-      <a href="mailto:oi@usei.app">oi@usei.app</a>
-      <a href="#lista-espera">Entrar na lista</a>
-    </div>
+    <button class="chat-close" onclick="toggleChat()">✕</button>
   </div>
-  <div class="footer-bottom">
-    <p class="footer-copy">© 2026 USEI.APP. Todos os direitos reservados.</p>
-    <p class="footer-copy">Acesso sobre posse. 🌱</p>
+  <div class="chat-messages" id="chatMessages"></div>
+  <button class="chat-human-btn" onclick="transferToHuman()">📞 Falar com humano (WhatsApp)</button>
+  <div class="chat-input-row">
+    <input type="text" id="chatInput" placeholder="Digite sua mensagem..." onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="chat-send" onclick="sendChat()">→</button>
   </div>
-</footer>
-
-<div class="mobile-sticky-cta">
-  <a href="#lista-espera" class="btn btn-primary">Entrar na lista de espera →</a>
 </div>
 
 <script>
-  let lastScroll = 0;
-  const mainHeader = document.getElementById('mainHeader');
-  window.addEventListener('scroll', () => {
-    const cur = window.scrollY;
-    mainHeader.style.transform = (cur > lastScroll && cur > 200) ? 'translateY(-100%)' : 'translateY(0)';
-    lastScroll = cur;
+// ============================================================
+// DATA STORE (localStorage)
+// ============================================================
+const DB = {
+  get: k => { try { return JSON.parse(localStorage.getItem('usei_'+k)) || null; } catch(e){ return null; } },
+  set: (k,v) => localStorage.setItem('usei_'+k, JSON.stringify(v)),
+  users: () => DB.get('users') || [],
+  products: () => DB.get('products') || [],
+  orders: () => DB.get('orders') || [],
+  transactions: () => DB.get('transactions') || [],
+  currentUser: () => DB.get('currentUser'),
+};
+
+// ============================================================
+// SEED DATA
+// ============================================================
+function seedData() {
+  if(DB.get('seeded')) return;
+  
+  DB.set('users', [
+    { id:1, name:'Admin USEI', email:'admin@usei.app', phone:'(11) 97825-0549', password:'admin123', role:'admin', createdAt:'2024-01-01' },
+    { id:2, name:'Maria Silva', email:'maria@email.com', phone:'(11) 91234-5678', password:'123456', role:'user', createdAt:'2024-01-15' },
+    { id:3, name:'João Santos', email:'joao@email.com', phone:'(11) 99876-5432', password:'123456', role:'creator', createdAt:'2024-01-20' },
+  ]);
+
+  DB.set('products', [
+    { id:1, name:'Furadeira Black+Decker', category:'tools', type:'both', emoji:'🔧', salePrice:320, rentPrice:35, desc:'Furadeira de impacto 600W, kit com brocas incluído. Perfeita para reformas.', location:'São Paulo, SP', ownerId:3, ownerName:'João Santos', active:true },
+    { id:2, name:'iPhone 13 Pro', category:'electronics', type:'both', emoji:'📱', salePrice:3800, rentPrice:120, desc:'iPhone 13 Pro 256GB, câmera tripla, excelente estado. Acompanha carregador.', location:'Rio de Janeiro, RJ', ownerId:3, ownerName:'João Santos', active:true },
+    { id:3, name:'Tenda para Eventos 4x4m', category:'events', type:'rent', emoji:'⛺', salePrice:0, rentPrice:180, desc:'Tenda dobrável profissional 4x4m, cor branca, ideal para festas e eventos.', location:'São Paulo, SP', ownerId:3, ownerName:'João Santos', active:true },
+    { id:4, name:'Bicicleta Caloi Explorer', category:'sports', type:'both', emoji:'🚲', salePrice:890, rentPrice:45, desc:'Bicicleta mountain bike aro 29, 21 marchas, ótima para trilhas e cidade.', location:'Belo Horizonte, MG', ownerId:3, ownerName:'João Santos', active:true },
+    { id:5, name:'Vestido de Festa Longo', category:'fashion', type:'rent', emoji:'👗', salePrice:0, rentPrice:150, desc:'Vestido longo de festa, tamanho M, cor dourada, usado apenas 2 vezes.', location:'São Paulo, SP', ownerId:2, ownerName:'Maria Silva', active:true },
+    { id:6, name:'Projetor Epson Full HD', category:'electronics', type:'both', emoji:'📽️', salePrice:2100, rentPrice:95, desc:'Projetor Full HD 3300 lúmens, HDMI, WiFi. Perfeito para apresentações.', location:'Curitiba, PR', ownerId:3, ownerName:'João Santos', active:true },
+    { id:7, name:'Câmera Sony Alpha A7III', category:'electronics', type:'rent', emoji:'📷', salePrice:0, rentPrice:200, desc:'Câmera mirrorless full frame, lente 28-70mm inclusa. Para fotógrafos e produções.', location:'São Paulo, SP', ownerId:3, ownerName:'João Santos', active:true },
+    { id:8, name:'Kit Churrasco Premium', category:'home', type:'rent', emoji:'🥩', salePrice:0, rentPrice:80, desc:'Kit completo para churrasco: grelha, espetos, tábua e utensílios para até 20 pessoas.', location:'Porto Alegre, RS', ownerId:2, ownerName:'Maria Silva', active:true },
+  ]);
+
+  DB.set('orders', [
+    { id:1, productId:2, productName:'iPhone 13 Pro', productEmoji:'📱', buyerId:2, buyerName:'Maria Silva', type:'rent', value:360, days:3, status:'entregue', date:'2024-01-25' },
+    { id:2, productId:4, productName:'Bicicleta Caloi', productEmoji:'🚲', buyerId:2, buyerName:'Maria Silva', type:'sale', value:890, status:'entregue', date:'2024-02-01' },
+  ]);
+
+  DB.set('transactions', [
+    { id:1, orderId:1, userId:2, userName:'Maria Silva', productName:'iPhone 13 Pro', value:360, method:'Cartão', date:'2024-01-25', status:'aprovado' },
+    { id:2, orderId:2, userId:2, userName:'Maria Silva', productName:'Bicicleta Caloi', value:890, method:'PIX', date:'2024-02-01', status:'aprovado' },
+  ]);
+
+  DB.set('seeded', true);
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+let currentPage = 'landing';
+let pageHistory = [];
+
+function goTo(page) {
+  pageHistory.push(currentPage);
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('page-'+page);
+  if(target) { target.classList.add('active'); target.classList.add('animate-in'); }
+  currentPage = page;
+  window.scrollTo(0,0);
+  onPageLoad(page);
+}
+
+function goBack() {
+  if(pageHistory.length) goTo(pageHistory.pop());
+  else goTo('catalog');
+}
+
+function onPageLoad(page) {
+  if(page === 'landing') renderFeatured();
+  if(page === 'catalog') renderCatalog();
+  if(page === 'user-area') renderUserArea();
+  if(page === 'creator') renderCreator();
+  if(page === 'admin') renderAdmin();
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openModal(id) {
+  const m = document.getElementById(id);
+  if(m) m.classList.add('open');
+  if(id === 'editProfileModal') prefillEditProfile();
+}
+function closeModal(id) {
+  const m = document.getElementById(id);
+  if(m) m.classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if(e.target.classList.contains('modal-overlay')) e.target.classList.remove('open');
+});
+
+// ============================================================
+// TOAST
+// ============================================================
+function toast(msg, dur=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+function login() {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pass = document.getElementById('loginPassword').value;
+  if(!email || !pass) { toast('Preencha email e senha'); return; }
+  const users = DB.users();
+  const user = users.find(u => u.email === email && u.password === pass);
+  if(!user) { toast('❌ Email ou senha incorretos'); return; }
+  DB.set('currentUser', user);
+  closeModal('loginModal');
+  updateNavForUser(user);
+  toast('👋 Bem-vindo, '+user.name+'!');
+  if(user.role === 'admin') goTo('admin');
+  else goTo('catalog');
+}
+
+function register() {
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim().toLowerCase();
+  const phone = document.getElementById('regPhone').value.trim();
+  const pass = document.getElementById('regPassword').value;
+  const confirm = document.getElementById('regConfirm').value;
+  if(!name || !email || !phone || !pass) { toast('⚠️ Preencha todos os campos'); return; }
+  if(pass !== confirm) { toast('❌ Senhas não coincidem'); return; }
+  if(pass.length < 6) { toast('❌ Senha mínimo 6 caracteres'); return; }
+  const users = DB.users();
+  if(users.find(u => u.email === email)) { toast('❌ Email já cadastrado'); return; }
+  if(users.find(u => u.phone === phone)) { toast('❌ Telefone já cadastrado'); return; }
+  const newUser = { id: Date.now(), name, email, phone, password:pass, role:'creator', createdAt: new Date().toISOString().split('T')[0] };
+  users.push(newUser);
+  DB.set('users', users);
+  DB.set('currentUser', newUser);
+  closeModal('registerModal');
+  updateNavForUser(newUser);
+  toast('🎉 Conta criada! Bem-vindo(a), '+name+'!');
+  goTo('catalog');
+}
+
+function logout() {
+  DB.set('currentUser', null);
+  updateNavForUser(null);
+  goTo('landing');
+  toast('Até logo!');
+}
+
+function updateNavForUser(user) {
+  const loginBtn = document.getElementById('navLoginBtn');
+  const avatar = document.getElementById('navAvatar');
+  const dashBtn = document.getElementById('navDashBtn');
+  const creatorBtn = document.getElementById('navCreatorBtn');
+  const adminBtn = document.getElementById('navAdminBtn');
+  if(user) {
+    loginBtn.style.display = 'none';
+    avatar.style.display = 'flex';
+    avatar.textContent = user.name.charAt(0).toUpperCase();
+    dashBtn.style.display = 'inline-flex';
+    creatorBtn.style.display = user.role !== 'user' ? 'inline-flex' : 'none';
+    adminBtn.style.display = user.role === 'admin' ? 'inline-flex' : 'none';
+  } else {
+    loginBtn.style.display = 'inline-flex';
+    avatar.style.display = 'none';
+    dashBtn.style.display = 'none';
+    creatorBtn.style.display = 'none';
+    adminBtn.style.display = 'none';
+  }
+}
+
+function prefillEditProfile() {
+  const u = DB.currentUser();
+  if(!u) return;
+  document.getElementById('editName').value = u.name;
+  document.getElementById('editEmail').value = u.email;
+  document.getElementById('editPhone').value = u.phone;
+}
+
+function saveProfile() {
+  const u = DB.currentUser();
+  if(!u) return;
+  const name = document.getElementById('editName').value.trim();
+  const email = document.getElementById('editEmail').value.trim().toLowerCase();
+  const phone = document.getElementById('editPhone').value.trim();
+  if(!name||!email||!phone) { toast('Preencha todos os campos'); return; }
+  const users = DB.users();
+  const others = users.filter(x => x.id !== u.id);
+  if(others.find(x => x.email === email)) { toast('❌ Email já em uso'); return; }
+  if(others.find(x => x.phone === phone)) { toast('❌ Telefone já em uso'); return; }
+  const updated = {...u, name, email, phone};
+  DB.set('users', users.map(x => x.id === u.id ? updated : x));
+  DB.set('currentUser', updated);
+  updateNavForUser(updated);
+  closeModal('editProfileModal');
+  toast('✅ Perfil atualizado!');
+  renderUserArea();
+}
+
+function handleProfilePic(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('profilePicImg');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    document.getElementById('profilePicEmoji').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+// ============================================================
+// PRODUCTS
+// ============================================================
+let currentFilter = 'all';
+let currentSearch = '';
+
+function renderProductCard(p, onclick_fn) {
+  const typeLabel = p.type==='rent'?'Aluguel':p.type==='sale'?'Venda':'Aluguel+Venda';
+  const badgeClass = p.type==='rent'?'badge-rent':p.type==='sale'?'badge-sale':'badge-both';
+  const prices = `
+    ${p.type!=='sale'?`<span class="price-rent">R$ ${p.rentPrice}/dia</span>`:''}
+    ${p.type!=='rent'?`<span class="price-sale">R$ ${p.salePrice.toLocaleString('pt-BR')}</span>`:''}
+  `;
+  return `<div class="product-card" onclick="${onclick_fn}">
+    <div class="product-img" style="overflow:hidden;position:relative">
+      ${p.mainImage ? `<img src="${p.mainImage}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">` : `<span style="font-size:3rem">${p.emoji||'📦'}</span>`}
+      <span class="product-badge ${badgeClass}">${typeLabel}</span>
+    </div>
+    <div class="product-info">
+      <div class="product-name">${p.name}</div>
+      <div class="product-category">${categoryLabel(p.category)}</div>
+      <div class="product-prices">${prices}</div>
+      <div class="product-location">📍 ${p.location||'—'}</div>
+    </div>
+  </div>`;
+}
+
+function categoryLabel(c) {
+  const m = {electronics:'📱 Eletrônicos',tools:'🔧 Ferramentas',sports:'⚽ Esportes',home:'🏠 Casa',fashion:'👗 Moda',events:'🎉 Festas'};
+  return m[c]||c;
+}
+
+function renderFeatured() {
+  const products = DB.products().filter(p=>p.active).slice(0,6);
+  document.getElementById('featuredProducts').innerHTML = products.map(p =>
+    renderProductCard(p, `openProduct(${p.id})`)
+  ).join('');
+}
+
+function renderCatalog(filter, search) {
+  if(filter!==undefined) currentFilter = filter;
+  if(search!==undefined) currentSearch = search;
+  let products = DB.products().filter(p => p.active);
+  if(currentFilter && currentFilter !== 'all') {
+    if(currentFilter === 'rent') products = products.filter(p => p.type!=='sale');
+    else if(currentFilter === 'sale') products = products.filter(p => p.type!=='rent');
+    else products = products.filter(p => p.category === currentFilter);
+  }
+  if(currentSearch) {
+    const s = currentSearch.toLowerCase();
+    products = products.filter(p => p.name.toLowerCase().includes(s) || (p.desc||'').toLowerCase().includes(s) || categoryLabel(p.category).toLowerCase().includes(s));
+  }
+  document.getElementById('catalogGrid').innerHTML = products.map(p =>
+    renderProductCard(p, `openProduct(${p.id})`)
+  ).join('') || '';
+  document.getElementById('catalogEmpty').style.display = products.length ? 'none' : 'block';
+  document.getElementById('catalogCount').textContent = `${products.length} produto${products.length!==1?'s':''} encontrado${products.length!==1?'s':''}`;
+}
+
+function filterProducts(filter, el) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  if(el) el.classList.add('active');
+  currentFilter = filter;
+  renderCatalog();
+}
+
+function sortProducts(val) {
+  let products = DB.products().filter(p => p.active);
+  if(val === 'price-asc') products.sort((a,b) => (a.salePrice||a.rentPrice) - (b.salePrice||b.rentPrice));
+  if(val === 'price-desc') products.sort((a,b) => (b.salePrice||b.rentPrice) - (a.salePrice||a.rentPrice));
+  if(val === 'name') products.sort((a,b) => a.name.localeCompare(b.name));
+  document.getElementById('catalogGrid').innerHTML = products.map(p =>
+    renderProductCard(p, `openProduct(${p.id})`)
+  ).join('');
+}
+
+function handleSearch(val) {
+  currentSearch = val;
+  if(currentPage === 'catalog') renderCatalog();
+}
+
+// ============================================================
+// PRODUCT DETAIL
+// ============================================================
+let selectedProductId = null;
+
+function openProduct(id) {
+  selectedProductId = id;
+  const p = DB.products().find(x => x.id === id);
+  if(!p) return;
+  
+  const typeOptions = [
+    p.type !== 'sale' ? `<div class="price-option" id="opt-rent" onclick="selectPriceOpt('rent')" style=""><div class="price-radio" id="radio-rent"></div><div><div style="font-weight:600;font-size:0.9rem">🔄 Alugar</div><div style="font-size:0.8rem;color:var(--text2)">R$ ${p.rentPrice}/dia</div></div></div>` : '',
+    p.type !== 'rent' ? `<div class="price-option" id="opt-sale" onclick="selectPriceOpt('sale')"><div class="price-radio" id="radio-sale"></div><div><div style="font-weight:600;font-size:0.9rem">🛒 Comprar</div><div style="font-size:0.8rem;color:var(--text2)">R$ ${p.salePrice.toLocaleString('pt-BR')}</div></div></div>` : ''
+  ].filter(Boolean).join('');
+
+  document.getElementById('productDetailContent').innerHTML = `
+    <div>
+      <div class="product-main-img" style="overflow:hidden" id="mainImgContainer">
+        ${p.mainImage || (p.images && p.images[0])
+          ? `<img src="${p.mainImage || p.images[0]}" id="mainImgEl" style="width:100%;height:100%;object-fit:cover">`
+          : `<span style="font-size:6rem">${p.emoji||'📦'}</span>`}
+      </div>
+      <div class="product-thumbs">
+        ${(p.images && p.images.length > 0)
+          ? p.images.map((img, i) => `<div class="thumb ${i===0?'active':''}" onclick="switchMainImg('${img}', this)"><img src="${img}" style="width:100%;height:100%;object-fit:cover;border-radius:6px"></div>`).join('')
+          : `<div class="thumb active">${p.emoji||'📦'}</div><div class="thumb">📸</div><div class="thumb">🖼️</div>`}
+      </div>
+    </div>
+    <div>
+      <div style="margin-bottom:0.5rem"><span class="badge badge-info">${categoryLabel(p.category)}</span></div>
+      <h1 style="font-family:var(--font-display);font-size:1.6rem;font-weight:800;margin-bottom:0.5rem;line-height:1.2">${p.name}</h1>
+      <p style="font-size:0.85rem;color:var(--text2);margin-bottom:1.25rem">📍 ${p.location||'—'} · Vendido por <strong>${p.ownerName||'USEI.APP'}</strong></p>
+      <p style="line-height:1.7;color:var(--text2);font-size:0.9rem;margin-bottom:1.5rem">${p.desc||''}</p>
+      <div class="product-price-box">
+        <p style="font-size:0.8rem;font-weight:600;color:var(--text2);margin-bottom:10px">Escolha como quer usar:</p>
+        ${typeOptions}
+        <button class="btn btn-primary btn-full" style="margin-top:12px" onclick="goToCheckout()">Continuar →</button>
+      </div>
+      <div style="margin-top:1rem;padding:1rem;background:var(--surface2);border-radius:var(--radius)">
+        <div style="display:flex;gap:1rem;font-size:0.82rem;color:var(--text2)">
+          <span>🔒 Pagamento seguro</span>
+          <span>⚡ Entrega rápida</span>
+          <span>🔄 Devolução garantida</span>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  goTo('product');
+  // Auto select first option
+  const firstOpt = p.type!=='sale' ? 'rent' : 'sale';
+  selectPriceOpt(firstOpt);
+}
+
+let selectedPriceOpt = 'rent';
+
+function selectPriceOpt(type) {
+  selectedPriceOpt = type;
+  ['rent','sale'].forEach(t => {
+    const opt = document.getElementById('opt-'+t);
+    const radio = document.getElementById('radio-'+t);
+    if(opt) opt.classList.toggle('selected', t === type);
   });
+}
 
-  const hamburger = document.getElementById('hamburger');
-  const mobileMenu = document.getElementById('mobileMenu');
-  hamburger.addEventListener('click', () => { hamburger.classList.toggle('open'); mobileMenu.classList.toggle('open'); });
-  function closeMenu() { hamburger.classList.remove('open'); mobileMenu.classList.remove('open'); }
+function goToCheckout() {
+  const user = DB.currentUser();
+  if(!user) { openModal('loginModal'); toast('Faça login para continuar'); return; }
+  const p = DB.products().find(x => x.id === selectedProductId);
+  if(!p) return;
+  // Setup checkout page
+  document.getElementById('checkoutEmoji').textContent = p.emoji||'📦';
+  document.getElementById('checkoutName').textContent = p.name;
+  document.getElementById('checkoutType').textContent = selectedPriceOpt === 'rent' ? '🔄 Aluguel' : '🛒 Compra';
+  
+  const opts = [];
+  if(p.type!=='sale') opts.push({ type:'rent', label:'🔄 Alugar', price: p.rentPrice, unit:'/dia' });
+  if(p.type!=='rent') opts.push({ type:'sale', label:'🛒 Comprar', price: p.salePrice, unit:'' });
+  
+  document.getElementById('checkoutTypeOptions').innerHTML = opts.map(o =>
+    `<div class="price-option ${o.type===selectedPriceOpt?'selected':''}" onclick="selectCheckoutType('${o.type}',${o.price})">
+      <div class="price-radio ${o.type===selectedPriceOpt?'selected':''}"></div>
+      <div><div style="font-weight:600;font-size:0.9rem">${o.label}</div>
+      <div style="font-size:0.8rem;color:var(--text2)">R$ ${o.price}${o.unit}</div></div>
+    </div>`
+  ).join('');
+  
+  const isRent = selectedPriceOpt === 'rent';
+  document.getElementById('rentalPeriodSection').style.display = isRent ? 'block' : 'none';
+  
+  checkoutState = { productId: p.id, type: selectedPriceOpt, basePrice: isRent ? p.rentPrice : p.salePrice, days:1, shipping:0 };
+  updateCheckoutSummary();
+  
+  // Set default dates
+  const today = new Date();
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
+  document.getElementById('rentStart').value = today.toISOString().split('T')[0];
+  document.getElementById('rentEnd').value = tomorrow.toISOString().split('T')[0];
+  
+  goTo('checkout');
+}
 
-  const obs = new IntersectionObserver((entries) => { entries.forEach(el => { if (el.isIntersecting) el.target.classList.add('visible'); }); }, { threshold: 0.08 });
-  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+let checkoutState = {};
 
-  function toggleFaq(btn) {
-    const item = btn.parentElement;
-    const wasOpen = item.classList.contains('open');
-    document.querySelectorAll('.faq-item').forEach(i => {
-      i.classList.remove('open');
-      const ans = i.querySelector('.faq-answer');
-      const ico = i.querySelector('.faq-icon');
-      if (ans) ans.style.maxHeight = '0';
-      if (ans) ans.style.padding = '0 1.5rem';
-      if (ico) ico.style.transform = 'rotate(0deg)';
+function selectCheckoutType(type, price) {
+  checkoutState.type = type;
+  checkoutState.basePrice = price;
+  document.getElementById('rentalPeriodSection').style.display = type === 'rent' ? 'block' : 'none';
+  document.querySelectorAll('#checkoutTypeOptions .price-option').forEach(el => el.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+  updateCheckoutSummary();
+}
+
+function calcRental() {
+  const start = document.getElementById('rentStart').value;
+  const end = document.getElementById('rentEnd').value;
+  if(!start || !end) return;
+  const days = Math.max(1, Math.round((new Date(end)-new Date(start))/(1000*60*60*24)));
+  checkoutState.days = days;
+  const p = DB.products().find(x => x.id === checkoutState.productId);
+  document.getElementById('rentalCalc').textContent = `${days} dia${days>1?'s':''} × R$ ${checkoutState.basePrice} = R$ ${(days*checkoutState.basePrice).toLocaleString('pt-BR')}`;
+  updateCheckoutSummary();
+}
+
+function updateCheckoutSummary() {
+  const subtotal = checkoutState.type === 'rent'
+    ? (checkoutState.basePrice||0) * (checkoutState.days||1)
+    : (checkoutState.basePrice||0);
+  const shipping = checkoutState.shipping||0;
+  const taxa = Math.round(subtotal * 0.08 * 100)/100;
+  const total = subtotal + shipping + taxa;
+  document.getElementById('subtotalVal').textContent = 'R$ '+subtotal.toLocaleString('pt-BR');
+  document.getElementById('taxaVal').textContent = 'R$ '+taxa.toFixed(2).replace('.',',');
+  document.getElementById('freteVal').textContent = shipping ? 'R$ '+shipping.toFixed(2).replace('.',',') : '—';
+  document.getElementById('totalVal').textContent = 'R$ '+total.toLocaleString('pt-BR');
+  checkoutState.total = total;
+}
+
+function calcShipping() {
+  const cep = document.getElementById('cepInput').value.replace(/\D/g,'');
+  if(cep.length < 8) { toast('CEP inválido'); return; }
+  // Mock shipping calculation
+  const num = parseInt(cep.substring(0,2));
+  let cost, days;
+  if(num < 20) { cost=15; days='2-3 dias úteis'; }
+  else if(num < 40) { cost=22; days='3-4 dias úteis'; }
+  else if(num < 60) { cost=28; days='4-5 dias úteis'; }
+  else if(num < 80) { cost=18; days='2-3 dias úteis'; }
+  else { cost=35; days='5-7 dias úteis'; }
+  
+  checkoutState.shipping = cost;
+  document.getElementById('shippingDays').textContent = days;
+  document.getElementById('shippingCost').textContent = 'R$ '+cost.toFixed(2).replace('.',',');
+  document.getElementById('shippingResult').style.display = 'block';
+  updateCheckoutSummary();
+  toast('✅ Frete calculado!');
+}
+
+function confirmOrder() {
+  const user = DB.currentUser();
+  if(!user) { openModal('loginModal'); return; }
+  const p = DB.products().find(x => x.id === checkoutState.productId);
+  if(!p) return;
+  
+  const order = {
+    id: Date.now(),
+    productId: p.id,
+    productName: p.name,
+    productEmoji: p.emoji,
+    buyerId: user.id,
+    buyerName: user.name,
+    type: checkoutState.type,
+    value: checkoutState.total,
+    days: checkoutState.days,
+    status: 'confirmado',
+    date: new Date().toISOString().split('T')[0],
+    rentStart: document.getElementById('rentStart')?.value,
+    rentEnd: document.getElementById('rentEnd')?.value,
+  };
+  
+  const transaction = {
+    id: Date.now()+1,
+    orderId: order.id,
+    userId: user.id,
+    userName: user.name,
+    productName: p.name,
+    value: checkoutState.total,
+    method: 'Cartão',
+    date: new Date().toISOString().split('T')[0],
+    status: 'aprovado',
+  };
+  
+  const orders = DB.orders(); orders.push(order); DB.set('orders', orders);
+  const txs = DB.transactions(); txs.push(transaction); DB.set('transactions', txs);
+  
+  openModal('successModal');
+}
+
+// ============================================================
+// USER AREA
+// ============================================================
+function renderUserArea() {
+  const user = DB.currentUser();
+  if(!user) { goTo('landing'); openModal('loginModal'); return; }
+  
+  document.getElementById('userAvatarLg').textContent = user.name.charAt(0).toUpperCase();
+  document.getElementById('userNameLg').textContent = user.name;
+  document.getElementById('userEmailLg').textContent = user.email;
+  
+  const orders = DB.orders().filter(o => o.buyerId === user.id);
+  const purchases = orders.filter(o => o.type === 'sale');
+  const rentals = orders.filter(o => o.type === 'rent');
+  
+  // Purchases
+  document.getElementById('userPurchasesList').innerHTML = purchases.length
+    ? purchases.map(o => `<div class="order-item">
+        <div class="order-emoji">${o.productEmoji||'📦'}</div>
+        <div class="order-info">
+          <div class="order-name">${o.productName}</div>
+          <div class="order-meta">📅 ${o.date} · R$ ${Number(o.value).toLocaleString('pt-BR')}</div>
+        </div>
+        <span class="badge ${o.status==='entregue'?'badge-success':o.status==='confirmado'?'badge-info':'badge-warning'}">${o.status}</span>
+      </div>`).join('')
+    : '<div class="empty-state"><div class="empty-icon">🛒</div><h3>Sem compras</h3><p>Seus produtos comprados aparecem aqui</p></div>';
+  
+  // Rentals
+  document.getElementById('userRentalsList').innerHTML = rentals.length
+    ? rentals.map(o => {
+        const today = new Date();
+        const end = o.rentEnd ? new Date(o.rentEnd) : new Date(today.getTime() + o.days*86400000);
+        const start = o.rentStart ? new Date(o.rentStart) : new Date(today);
+        const total = Math.max(1, Math.round((end-start)/86400000));
+        const remaining = Math.max(0, Math.round((end-today)/86400000));
+        const pct = Math.round((1 - remaining/total)*100);
+        return `<div class="order-item">
+          <div class="order-emoji">${o.productEmoji||'📦'}</div>
+          <div class="order-info">
+            <div class="order-name">${o.productName}</div>
+            <div class="order-meta">⏱️ ${remaining} dia${remaining!==1?'s':''} restante${remaining!==1?'s':''} · R$ ${Number(o.value).toLocaleString('pt-BR')}</div>
+            <div class="rental-progress"><div class="rental-bar" style="width:${pct}%"></div></div>
+          </div>
+          <span class="badge ${remaining>0?'badge-success':'badge-gray'}">${remaining>0?'Ativo':'Encerrado'}</span>
+        </div>`;
+      }).join('')
+    : '<div class="empty-state"><div class="empty-icon">🔄</div><h3>Sem aluguéis</h3><p>Seus aluguéis ativos aparecem aqui</p></div>';
+  
+  // Profile
+  document.getElementById('userProfileInfo').innerHTML = `
+    <h3 style="font-family:var(--font-display);font-weight:700;margin-bottom:1rem">Dados da conta</h3>
+    <div style="display:grid;gap:10px;font-size:0.9rem">
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Nome</span><strong>${user.name}</strong></div>
+      <div class="divider" style="margin:0"></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Email</span><strong>${user.email}</strong></div>
+      <div class="divider" style="margin:0"></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Telefone</span><strong>${user.phone||'—'}</strong></div>
+      <div class="divider" style="margin:0"></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Membro desde</span><strong>${user.createdAt||'—'}</strong></div>
+      <div class="divider" style="margin:0"></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Perfil</span><span class="badge badge-info">${user.role}</span></div>
+    </div>
+    <button class="btn btn-danger btn-sm" style="margin-top:1.5rem" onclick="logout()">Sair da conta</button>
+  `;
+}
+
+// ============================================================
+// CREATOR
+// ============================================================
+function renderCreator() {
+  const user = DB.currentUser();
+  if(!user) { goTo('landing'); openModal('loginModal'); return; }
+  
+  const products = DB.products().filter(p => p.ownerId === user.id);
+  const orders = DB.orders();
+  const myOrders = orders.filter(o => {
+    const p = DB.products().find(x => x.id === o.productId);
+    return p && p.ownerId === user.id;
+  });
+  const sales = myOrders.filter(o => o.type === 'sale');
+  const rentals = myOrders.filter(o => o.type === 'rent');
+  const revenue = myOrders.reduce((acc,o) => acc + (o.value||0), 0);
+  
+  document.getElementById('creatorSalesVal').textContent = sales.length;
+  document.getElementById('creatorRentalsVal').textContent = rentals.length;
+  document.getElementById('creatorRevenueVal').textContent = 'R$ '+revenue.toLocaleString('pt-BR');
+  document.getElementById('creatorProductsVal').textContent = products.length;
+  
+  // Products list
+  document.getElementById('creatorProductList').innerHTML = products.length
+    ? products.map(p => `<div class="card" style="margin-bottom:0.75rem">
+        <div class="card-body" style="display:flex;gap:1rem;align-items:center">
+          <div style="width:56px;height:56px;border-radius:10px;overflow:hidden;background:var(--surface3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.8rem">
+            ${p.mainImage ? `<img src="${p.mainImage}" style="width:100%;height:100%;object-fit:cover">` : (p.emoji||'📦')}
+          </div>
+          <div style="flex:1">
+            <div style="font-weight:600">${p.name}</div>
+            <div style="font-size:0.78rem;color:var(--text2);margin-top:2px">${categoryLabel(p.category)}</div>
+            <div style="display:flex;gap:10px;margin-top:6px;font-size:0.8rem">
+              ${p.type!=='sale'?`<span style="color:var(--accent)">🔄 R$ ${p.rentPrice}/dia</span>`:''}
+              ${p.type!=='rent'?`<span style="color:var(--brand)">🛒 R$ ${p.salePrice.toLocaleString('pt-BR')}</span>`:''}
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <span class="badge ${p.active?'badge-success':'badge-gray'}">${p.active?'Ativo':'Inativo'}</span>
+            <button class="btn btn-sm btn-secondary" onclick="openProduct(${p.id})">Ver</button>
+          </div>
+        </div>
+      </div>`).join('')
+    : '<div class="empty-state"><div class="empty-icon">📦</div><h3>Nenhum produto</h3><p>Cadastre seu primeiro produto</p><button class="btn btn-primary btn-sm" onclick="openModal(\'addProductModal\')" style="margin-top:1rem">+ Cadastrar produto</button></div>';
+  
+  // Sales list
+  document.getElementById('creatorSalesList').innerHTML = myOrders.length
+    ? myOrders.map(o => `<div class="order-item">
+        <div class="order-emoji">${o.productEmoji||'📦'}</div>
+        <div class="order-info">
+          <div class="order-name">${o.productName}</div>
+          <div class="order-meta">${o.type==='rent'?'🔄 Aluguel':'🛒 Venda'} · ${o.buyerName} · ${o.date}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;color:var(--accent)">+R$ ${Number(o.value).toLocaleString('pt-BR')}</div>
+          <span class="badge ${o.status==='entregue'?'badge-success':'badge-info'}">${o.status}</span>
+        </div>
+      </div>`).join('')
+    : '<div class="empty-state"><div class="empty-icon">💰</div><h3>Sem vendas</h3><p>Suas vendas e aluguéis aparecem aqui</p></div>';
+  
+  // Analytics charts
+  renderBarChart('salesChart', ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'], [3,7,5,9,4,12,8], '#FF4D1C');
+  renderBarChart('abandonChart', ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'], [2,4,1,3,2,5,3], '#6B6B6B');
+}
+
+function renderBarChart(id, labels, values, color) {
+  const el = document.getElementById(id);
+  if(!el) return;
+  const max = Math.max(...values);
+  el.innerHTML = values.map((v,i) => `
+    <div class="bar-col">
+      <div class="bar-fill" style="height:${Math.round((v/max)*100)}%;background:${color};"></div>
+      <div class="bar-label">${labels[i]}</div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// CLOUDINARY CONFIG
+// ============================================================
+function getCloudinaryConfig() {
+  return {
+    cloudName: localStorage.getItem('usei_cf_cloud') || '',
+    uploadPreset: localStorage.getItem('usei_cf_preset') || '',
+  };
+}
+
+function saveCloudinaryConfig() {
+  const cn = document.getElementById('cfCloudName').value.trim();
+  const up = document.getElementById('cfUploadPreset').value.trim();
+  if(!cn || !up) { toast('Preencha Cloud Name e Upload Preset'); return; }
+  localStorage.setItem('usei_cf_cloud', cn);
+  localStorage.setItem('usei_cf_preset', up);
+  const fb = document.getElementById('cloudinaryFeedback');
+  fb.style.display = 'block';
+  fb.style.cssText = 'font-size:0.78rem;margin-top:8px;padding:8px 10px;border-radius:6px;background:#E8F8EE;color:#1A7A3C';
+  fb.textContent = '✅ Configuração salva! Seus próximos uploads irão para o Cloudinary.';
+  document.getElementById('cloudinaryStatusMsg').textContent = '✅ Cloudinary configurado! Suas fotos serão hospedadas online.';
+  document.getElementById('cloudinaryStatusMsg').style.color = '#1A7A3C';
+  toast('✅ Cloudinary configurado!');
+}
+
+function toggleCloudinaryConfig() {
+  const fields = document.getElementById('cloudinaryConfigFields');
+  const btn = document.getElementById('cloudinaryToggleBtn');
+  const open = fields.style.display === 'none';
+  fields.style.display = open ? 'block' : 'none';
+  btn.textContent = open ? '▲ fechar' : '▼ configurar';
+  if(open) {
+    const cfg = getCloudinaryConfig();
+    if(cfg.cloudName) document.getElementById('cfCloudName').value = cfg.cloudName;
+    if(cfg.uploadPreset) document.getElementById('cfUploadPreset').value = cfg.uploadPreset;
+  }
+}
+
+async function uploadToCloudinary(file) {
+  const cfg = getCloudinaryConfig();
+  if(!cfg.cloudName || !cfg.uploadPreset) return null; // fallback to base64
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', cfg.uploadPreset);
+  try {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cfg.cloudName}/image/upload`, {
+      method: 'POST', body: fd
     });
-    if (!wasOpen) {
-      item.classList.add('open');
-      const ans = item.querySelector('.faq-answer');
-      const ico = item.querySelector('.faq-icon');
-      if (ans) { ans.style.maxHeight = '240px'; ans.style.padding = '0 1.5rem 1.25rem'; }
-      if (ico) ico.style.transform = 'rotate(45deg)';
+    const data = await res.json();
+    if(data.secure_url) return data.secure_url;
+    console.error('Cloudinary error:', data);
+    return null;
+  } catch(err) {
+    console.error('Upload error:', err);
+    return null;
+  }
+}
+
+// ============================================================
+// ADD PRODUCT
+// ============================================================
+let prodImages = [];
+let prodImageFiles = [];
+
+function addPreviewThumb(src, idx) {
+  const preview = document.getElementById('prodImgPreview');
+  const div = document.createElement('div');
+  div.style.cssText = 'position:relative;width:72px;height:72px;border-radius:10px;overflow:hidden;border:2px solid var(--border)';
+  div.id = 'thumb-'+idx;
+  div.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover">
+    <button onclick="removeProdImage(${idx})" style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;border:none;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>`;
+  preview.appendChild(div);
+}
+
+function removeProdImage(idx) {
+  prodImages.splice(idx, 1);
+  prodImageFiles.splice(idx, 1);
+  document.getElementById('prodImgPreview').innerHTML = '';
+  prodImages.forEach((src, i) => addPreviewThumb(src, i));
+}
+
+function handleProdImages(input) {
+  const files = Array.from(input.files);
+  files.forEach(f => {
+    const idx = prodImages.length;
+    prodImageFiles.push(f);
+    const reader = new FileReader();
+    reader.onload = e => {
+      prodImages.push(e.target.result); // local preview (base64)
+      addPreviewThumb(e.target.result, idx);
+    };
+    reader.readAsDataURL(f);
+  });
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag');
+  const dt = e.dataTransfer;
+  if(dt.files.length) {
+    // simulate file input
+    const mockInput = { files: dt.files };
+    handleProdImages(mockInput);
+  }
+}
+
+function setUploadProgress(pct, label) {
+  const wrap = document.getElementById('uploadProgressWrap');
+  wrap.style.display = 'block';
+  document.getElementById('uploadProgressBar').style.width = pct+'%';
+  document.getElementById('uploadProgressPct').textContent = pct+'%';
+  if(label) document.getElementById('uploadProgressLabel').textContent = label;
+  if(pct >= 100) setTimeout(() => { wrap.style.display = 'none'; }, 1200);
+}
+
+const EMOJIS = {electronics:'📱',tools:'🔧',sports:'⚽',home:'🏠',fashion:'👗',events:'🎉'};
+
+async function saveProduct() {
+  const user = DB.currentUser();
+  if(!user) { toast('Faça login'); return; }
+  const name = document.getElementById('prodName').value.trim();
+  const category = document.getElementById('prodCategory').value;
+  const type = document.getElementById('prodType').value;
+  const salePrice = parseFloat(document.getElementById('prodSalePrice').value)||0;
+  const rentPrice = parseFloat(document.getElementById('prodRentPrice').value)||0;
+  const desc = document.getElementById('prodDesc').value.trim();
+  const location = document.getElementById('prodLocation').value.trim();
+  if(!name) { toast('Nome obrigatório'); return; }
+  if(type!=='rent' && !salePrice) { toast('Informe o preço de venda'); return; }
+  if(type!=='sale' && !rentPrice) { toast('Informe o preço de aluguel'); return; }
+
+  const btn = document.getElementById('saveProductBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Publicando...';
+
+  // Upload images to Cloudinary if configured, else keep base64
+  const cfg = getCloudinaryConfig();
+  let finalImages = [...prodImages]; // start with base64 previews
+
+  if(cfg.cloudName && cfg.uploadPreset && prodImageFiles.length > 0) {
+    toast('☁️ Enviando fotos para Cloudinary...');
+    const uploaded = [];
+    for(let i = 0; i < prodImageFiles.length; i++) {
+      setUploadProgress(Math.round((i / prodImageFiles.length) * 90), `Enviando foto ${i+1} de ${prodImageFiles.length}...`);
+      const url = await uploadToCloudinary(prodImageFiles[i]);
+      uploaded.push(url || prodImages[i]); // fallback to base64 if upload fails
+    }
+    setUploadProgress(100, '✅ Fotos enviadas!');
+    finalImages = uploaded;
+  }
+
+  const products = DB.products();
+  const newProd = {
+    id: Date.now(),
+    name, category, type,
+    emoji: EMOJIS[category]||'📦',
+    salePrice, rentPrice, desc, location,
+    ownerId: user.id,
+    ownerName: user.name,
+    images: finalImages,
+    mainImage: finalImages[0] || null,
+    active: true,
+    createdAt: new Date().toISOString().split('T')[0],
+  };
+  products.push(newProd);
+  DB.set('products', products);
+
+  btn.disabled = false;
+  btn.textContent = 'Publicar produto';
+  closeModal('addProductModal');
+  toast('🎉 Produto publicado com sucesso!');
+  prodImages = [];
+  prodImageFiles = [];
+  document.getElementById('prodImgPreview').innerHTML = '';
+  document.getElementById('prodName').value = '';
+  document.getElementById('prodDesc').value = '';
+  renderCreator();
+}
+
+// ============================================================
+// ADMIN
+// ============================================================
+function renderAdmin() {
+  const users = DB.users();
+  const products = DB.products();
+  const orders = DB.orders();
+  const txs = DB.transactions();
+  const revenue = txs.reduce((acc,t) => acc+(t.value||0),0);
+  
+  document.getElementById('adminUsersCount').textContent = users.length;
+  document.getElementById('adminProductsCount').textContent = products.length;
+  document.getElementById('adminOrdersCount').textContent = orders.length;
+  document.getElementById('adminRevenue').textContent = 'R$ '+revenue.toLocaleString('pt-BR');
+  
+  // Activity
+  const activities = [
+    ...orders.map(o => ({date:o.date, msg:`🛒 ${o.buyerName} — ${o.type==='rent'?'alugou':'comprou'} ${o.productName}`, val:'R$ '+Number(o.value).toLocaleString('pt-BR')})),
+    ...users.map(u => ({date:u.createdAt, msg:`👤 Novo usuário: ${u.name}`, val:'—'})),
+  ].sort((a,b)=>b.date?.localeCompare(a.date||'')||0).slice(0,8);
+  
+  document.getElementById('adminActivity').innerHTML = activities.map(a =>
+    `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.85rem">
+      <span>${a.msg}</span>
+      <div style="display:flex;gap:1rem;color:var(--text2)"><span>${a.val}</span><span>${a.date||''}</span></div>
+    </div>`
+  ).join('') || '<p style="color:var(--text3);font-size:0.85rem">Sem atividade ainda</p>';
+  
+  // Users table
+  renderAdminUsers(users);
+  
+  // Products
+  document.getElementById('adminProductsTbody').innerHTML = products.map((p,i) =>
+    `<tr><td style="color:var(--text3)">${i+1}</td>
+    <td>${p.emoji||'📦'} ${p.name}</td>
+    <td>${categoryLabel(p.category)}</td>
+    <td>${p.type==='both'?'Ambos':p.type==='rent'?'Aluguel':'Venda'}</td>
+    <td>${p.salePrice?'R$ '+p.salePrice.toLocaleString('pt-BR'):'—'}</td>
+    <td>${p.rentPrice?'R$ '+p.rentPrice+'/dia':'—'}</td>
+    <td>${p.ownerName||'—'}</td>
+    <td><span class="badge ${p.active?'badge-success':'badge-gray'}">${p.active?'Ativo':'Inativo'}</span></td></tr>`
+  ).join('');
+  
+  // Orders
+  document.getElementById('adminOrdersTbody').innerHTML = orders.map((o,i) =>
+    `<tr><td style="color:var(--text3)">${i+1}</td>
+    <td>${o.productEmoji||'📦'} ${o.productName}</td>
+    <td>${o.buyerName}</td>
+    <td>${o.type==='rent'?'🔄 Aluguel':'🛒 Venda'}</td>
+    <td>R$ ${Number(o.value).toLocaleString('pt-BR')}</td>
+    <td>${o.date}</td>
+    <td><span class="badge ${o.status==='entregue'?'badge-success':o.status==='confirmado'?'badge-info':'badge-warning'}">${o.status}</span></td></tr>`
+  ).join('');
+  
+  // Transactions
+  document.getElementById('adminTransactionsTbody').innerHTML = txs.map((t,i) =>
+    `<tr><td style="color:var(--text3)">${i+1}</td>
+    <td style="font-size:0.75rem;color:var(--text3)">#${t.id}</td>
+    <td>${t.userName}</td>
+    <td>${t.productName}</td>
+    <td>R$ ${Number(t.value).toLocaleString('pt-BR')}</td>
+    <td>${t.method}</td>
+    <td>${t.date}</td>
+    <td><span class="badge ${t.status==='aprovado'?'badge-success':'badge-warning'}">${t.status}</span></td></tr>`
+  ).join('');
+}
+
+function renderAdminUsers(users) {
+  document.getElementById('adminUsersTbody').innerHTML = users.map((u,i) =>
+    `<tr>
+    <td style="color:var(--text3)">${i+1}</td>
+    <td><strong>${u.name}</strong></td>
+    <td>${u.email}</td>
+    <td>${u.phone||'—'}</td>
+    <td>${u.createdAt||'—'}</td>
+    <td><span class="badge ${u.role==='admin'?'badge-danger':u.role==='creator'?'badge-info':'badge-success'}">${u.role}</span></td>
+    <td>
+      <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})" ${u.role==='admin'?'disabled':''}>Remover</button>
+    </td></tr>`
+  ).join('');
+}
+
+function filterAdminUsers(val) {
+  const s = val.toLowerCase();
+  const users = DB.users().filter(u =>
+    u.name.toLowerCase().includes(s) ||
+    u.email.toLowerCase().includes(s) ||
+    (u.phone||'').includes(s)
+  );
+  renderAdminUsers(users);
+}
+
+function deleteUser(id) {
+  if(!confirm('Remover este usuário?')) return;
+  const users = DB.users().filter(u => u.id !== id);
+  DB.set('users', users);
+  toast('Usuário removido');
+  renderAdmin();
+}
+
+function switchAdminTab(tab, el) {
+  document.querySelectorAll('.admin-nav-item').forEach(i => i.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.querySelectorAll('[id^="admin-tab-"]').forEach(t => t.style.display='none');
+  const target = document.getElementById('admin-tab-'+tab);
+  if(target) target.style.display='block';
+}
+
+// ============================================================
+// TABS (generic)
+// ============================================================
+function switchTab(area, tab) {
+  const prefix = area+'-tab-';
+  document.querySelectorAll(`[id^="${prefix}"]`).forEach(t => t.style.display='none');
+  const target = document.getElementById(prefix+tab);
+  if(target) target.style.display='block';
+  // Update tab buttons
+  const tabArea = target?.closest('div');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// ============================================================
+// CHATBOT
+// ============================================================
+const botResponses = {
+  'oi': 'Olá! 👋 Bem-vindo à USEI.APP! Posso te ajudar com: buscar produtos, fazer um aluguel, cadastrar produto para vender, ou problemas com pedidos. O que você precisa?',
+  'ola': 'Olá! 👋 Bem-vindo à USEI.APP! Como posso ajudar?',
+  'oque': 'A USEI.APP é uma plataforma P2P onde você pode alugar ou comprar produtos de outras pessoas, ou anunciar o que tem para ganhar dinheiro!',
+  'o que': 'A USEI.APP é uma plataforma P2P de aluguel e venda entre pessoas. Você pode alugar, comprar, ou vender/alugar seus produtos!',
+  'alugar': 'Para alugar um produto: 1️⃣ Navegue no catálogo 2️⃣ Escolha o produto 3️⃣ Clique em "Alugar" 4️⃣ Escolha as datas 5️⃣ Confirme o pedido! Simples assim! 😊',
+  'vender': 'Para vender ou alugar seus produtos: acesse "Vender/Alugar" no menu, clique em "Cadastrar produto" e preencha as informações. É rápido e gratuito!',
+  'preco': 'Os preços são definidos pelos próprios vendedores/locadores. A USEI.APP cobra uma taxa de 8% sobre cada transação.',
+  'preço': 'Os preços são definidos pelos próprios vendedores. Você vê o preço de venda e o preço de aluguel por dia em cada produto.',
+  'entrega': 'Calculamos o frete com base no CEP de entrega. Você pode ver o valor exato na página de checkout antes de confirmar.',
+  'pagamento': 'Aceitamos cartão de crédito, débito e PIX. Todos os pagamentos são processados com segurança.',
+  'pedido': 'Você pode acompanhar seus pedidos na seção "Minha conta" → "Compras" ou "Aluguéis".',
+  'devolucao': 'Para devoluções de aluguel, o produto deve ser devolvido até a data fim combinada. Em caso de problemas, fale com nosso suporte.',
+  'devolução': 'Para devoluções, entre em contato com o locador pelo chat ou fale com nosso suporte via WhatsApp.',
+  'suporte': 'Posso te transferir para um atendente humano agora mesmo! Clique no botão abaixo 👇',
+  'humano': 'Vou te conectar com um atendente agora! 📞',
+  'ajuda': 'Posso ajudar com: 📦 Buscar produtos · 🔄 Como alugar · 💰 Como vender · 🚚 Entrega e frete · 💳 Pagamentos · 📋 Meus pedidos',
+  'cadastro': 'Para se cadastrar clique em "Entrar" → "Criar conta grátis". É rápido e gratuito!',
+  'conta': 'Você pode criar uma conta clicando em "Entrar" no menu. É gratuito!',
+};
+
+let chatOpen = false;
+let chatInitialized = false;
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chatbot-widget').classList.toggle('open', chatOpen);
+  if(chatOpen && !chatInitialized) {
+    chatInitialized = true;
+    addBotMsg('Olá! 👋 Sou o assistente da USEI.APP. Como posso te ajudar hoje?\n\nAlgumas opções rápidas: "como alugar", "como vender", "meu pedido", "frete"');
+  }
+}
+
+function addBotMsg(msg) {
+  const div = document.createElement('div');
+  div.className = 'chat-msg msg-bot';
+  div.textContent = msg;
+  document.getElementById('chatMessages').appendChild(div);
+  document.getElementById('chatMessages').scrollTop = 9999;
+}
+
+function addUserMsg(msg) {
+  const div = document.createElement('div');
+  div.className = 'chat-msg msg-user';
+  div.textContent = msg;
+  document.getElementById('chatMessages').appendChild(div);
+  document.getElementById('chatMessages').scrollTop = 9999;
+}
+
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if(!msg) return;
+  addUserMsg(msg);
+  input.value = '';
+  
+  // Find response
+  const key = Object.keys(botResponses).find(k => msg.toLowerCase().includes(k));
+  setTimeout(() => {
+    if(key) {
+      addBotMsg(botResponses[key]);
+      if(key === 'suporte' || key === 'humano') {
+        document.getElementById('chatMessages').scrollTop = 9999;
+      }
+    } else {
+      addBotMsg('Não entendi bem sua pergunta. 😅 Posso te ajudar com aluguéis, vendas, pedidos, pagamentos ou frete. Se precisar de suporte humano, clique no botão abaixo!');
+    }
+  }, 500);
+}
+
+function transferToHuman() {
+  addBotMsg('Transferindo para atendimento humano... 📞 Você será redirecionado ao WhatsApp!');
+  setTimeout(() => {
+    window.open('https://wa.me/5511978250549?text=Olá! Preciso de ajuda com a USEI.APP', '_blank');
+  }, 800);
+}
+
+// ============================================================
+// FORMAT HELPERS
+// ============================================================
+function formatPhone(input) {
+  let v = input.value.replace(/\D/g,'').substring(0,11);
+  if(v.length > 6) v = '('+v.substring(0,2)+') '+v.substring(2,7)+'-'+v.substring(7);
+  else if(v.length > 2) v = '('+v.substring(0,2)+') '+v.substring(2);
+  input.value = v;
+}
+
+function formatCEP(input) {
+  let v = input.value.replace(/\D/g,'').substring(0,8);
+  if(v.length > 5) v = v.substring(0,5)+'-'+v.substring(5);
+  input.value = v;
+}
+
+function formatCard(input) {
+  let v = input.value.replace(/\D/g,'').substring(0,16);
+  v = v.replace(/(.{4})/g,'$1 ').trim();
+  input.value = v;
+}
+
+// ============================================================
+// PRODUCT GALLERY
+// ============================================================
+function switchMainImg(src, thumbEl) {
+  const main = document.getElementById('mainImgContainer');
+  if(!main) return;
+  // update or create img element
+  let img = document.getElementById('mainImgEl');
+  if(img) {
+    img.src = src;
+  } else {
+    main.innerHTML = `<img src="${src}" id="mainImgEl" style="width:100%;height:100%;object-fit:cover">`;
+  }
+  // update active thumb
+  document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
+  if(thumbEl) thumbEl.classList.add('active');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+seedData();
+
+// Restore Cloudinary config fields if already set
+(function initCloudinaryUI() {
+  const cfg = getCloudinaryConfig();
+  if(cfg.cloudName && cfg.uploadPreset) {
+    const msg = document.getElementById('cloudinaryStatusMsg');
+    if(msg) {
+      msg.textContent = '✅ Cloudinary configurado! Fotos hospedadas online.';
+      msg.style.color = '#1A7A3C';
     }
   }
-
-  document.querySelectorAll('[data-intent]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const intent = btn.dataset.intent;
-      const field = document.getElementById('intentField');
-      if (field) field.value = intent;
-      sessionStorage.setItem('usei_intent', intent);
-    });
-  });
-
-  let selectedTags = [];
-  function selectTag(el) {
-    const text = el.textContent.trim();
-    if (el.classList.contains('selected')) { el.classList.remove('selected'); selectedTags = selectedTags.filter(t => t !== text); }
-    else { el.classList.add('selected'); selectedTags.push(text); }
-    document.getElementById('validationResult').textContent = selectedTags.length > 0
-      ? `Ótimo! Priorizaremos ${selectedTags.length} categoria${selectedTags.length > 1 ? 's' : ''} que você selecionou. Entre na lista para ser o primeiro!` : '';
-  }
-
-  async function handleForm(formId, successId) {
-    const form = document.getElementById(formId);
-    if (!form) return;
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = form.querySelector('button[type=submit]');
-      const orig = btn.textContent; btn.textContent = 'Enviando...'; btn.disabled = true;
-      try {
-        const data = new FormData(form);
-        const intent = sessionStorage.getItem('usei_intent') || '';
-        if (intent) data.append('intent', intent);
-        data.append('interest_tags', selectedTags.join(', '));
-        const resp = await fetch(form.action, { method: 'POST', body: data, headers: { Accept: 'application/json' } });
-        if (resp.ok) {
-          form.style.display = 'none';
-          const s = document.getElementById(successId);
-          if (s) s.style.display = 'block';
-        } else { btn.textContent = orig; btn.disabled = false; }
-      } catch { btn.textContent = orig; btn.disabled = false; }
-    });
-  }
-
-  handleForm('waitlistFinal', 'formSuccess');
-  handleForm('waitlistInline', 'waitlistInlineSuccess');
+})();
+const savedUser = DB.currentUser();
+if(savedUser) updateNavForUser(savedUser);
+renderFeatured();
 </script>
 </body>
 </html>
