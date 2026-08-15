@@ -1,4 +1,4 @@
-\<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR" data-theme="light">
 <head>
 <meta charset="UTF-8">
@@ -402,7 +402,12 @@ tr:hover td{background:var(--surface2)}
     </div>
     <div class="modal-body">
       <div class="form-group"><label class="form-label">E-mail</label><input class="form-input" id="loginEmail" type="email" placeholder="seu@email.com"></div>
-      <div class="form-group"><label class="form-label">Senha</label><input class="form-input" id="loginPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <div class="form-group"><label class="form-label">Senha</label>
+        <div style="position:relative">
+          <input class="form-input" id="loginPass" type="password" placeholder="••••••••" style="padding-right:44px" onkeydown="if(event.key==='Enter')doLogin()">
+          <button type="button" onclick="togglePasswordField('loginPass',this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:1.1rem;padding:4px" aria-label="Mostrar senha">👁</button>
+        </div>
+      </div>
       <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Entrar</button>
       <div style="text-align:center;margin-top:16px;font-size:0.85rem;color:var(--text3)">Não tem conta? <span style="color:var(--brand);cursor:pointer;font-weight:600" onclick="closeModal('modalLogin');setTimeout(()=>openModal('modalRegister'),160)">Cadastre-se</span></div>
     </div>
@@ -422,9 +427,46 @@ tr:hover td{background:var(--surface2)}
         <div class="form-group"><label class="form-label">E-mail</label><input class="form-input" id="regEmail" type="email" placeholder="seu@email.com"></div>
         <div class="form-group"><label class="form-label">Telefone</label><input class="form-input" id="regPhone" type="tel" placeholder="(11) 99999-9999"></div>
       </div>
-      <div class="form-group"><label class="form-label">Senha</label><input class="form-input" id="regPass" type="password" placeholder="Mínimo 6 caracteres" onkeydown="if(event.key==='Enter')doRegister()"></div>
+      <div class="form-group"><label class="form-label">Senha</label>
+        <div style="position:relative">
+          <input class="form-input" id="regPass" type="password" placeholder="Mínimo 6 caracteres" style="padding-right:44px" onkeydown="if(event.key==='Enter')doRegister()">
+          <button type="button" onclick="togglePasswordField('regPass',this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:1.1rem;padding:4px" aria-label="Mostrar senha">👁</button>
+        </div>
+      </div>
       <button class="btn btn-primary btn-full btn-lg" onclick="doRegister()">Criar conta</button>
       <div style="text-align:center;margin-top:16px;font-size:0.85rem;color:var(--text3)">Já tem conta? <span style="color:var(--brand);cursor:pointer;font-weight:600" onclick="closeModal('modalRegister');setTimeout(()=>openModal('modalLogin'),160)">Entrar</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT PROFILE -->
+<div class="modal" id="modalEditProfile" onclick="if(event.target===this)closeModal('modalEditProfile')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div><div class="modal-title">Meu perfil</div><div class="modal-subtitle">Atualize seus dados</div></div>
+      <button class="modal-close" onclick="closeModal('modalEditProfile')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:18px">
+        <div style="position:relative;width:84px;height:84px">
+          <div id="profilePhotoPreview" style="width:84px;height:84px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;overflow:hidden;font-weight:700;font-size:1.3rem;color:var(--text3)"></div>
+          <button type="button" onclick="document.getElementById('profilePhotoInput').click()" style="position:absolute;bottom:-2px;right:-2px;width:28px;height:28px;border-radius:50%;background:var(--brand);border:2px solid var(--surface);color:#fff;cursor:pointer;font-size:0.8rem">✎</button>
+          <input type="file" id="profilePhotoInput" accept="image/*" style="display:none" onchange="handleProfilePhoto(this)">
+        </div>
+        <div style="font-size:0.7rem;color:var(--text3);text-align:center;max-width:280px">Fotos ou nomes ofensivos, falsos ou impróprios violam nossos termos de uso e podem levar à suspensão da conta. O envio é revisado pela nossa equipe.</div>
+      </div>
+      <div class="form-group"><label class="form-label">Nome completo</label><input class="form-input" id="profName" type="text"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">E-mail</label><input class="form-input" id="profEmail" type="email"></div>
+        <div class="form-group"><label class="form-label">Telefone</label><input class="form-input" id="profPhone" type="tel"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Nova senha (deixe em branco para manter a atual)</label>
+        <div style="position:relative">
+          <input class="form-input" id="profPass" type="password" placeholder="Mínimo 6 caracteres" style="padding-right:44px">
+          <button type="button" onclick="togglePasswordField('profPass',this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:1.1rem;padding:4px" aria-label="Mostrar senha">👁</button>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full btn-lg" id="btnSaveProfile" onclick="saveProfile()">Salvar alterações</button>
     </div>
   </div>
 </div>
@@ -522,8 +564,18 @@ tr:hover td{background:var(--surface2)}
     <div style="font-size:0.825rem;color:var(--text3);margin-bottom:24px">Crie a conta de administrador principal da plataforma.</div>
     <div class="form-group"><label class="form-label">Nome</label><input class="form-input" id="setupName" type="text" placeholder="Seu nome"></div>
     <div class="form-group"><label class="form-label">E-mail</label><input class="form-input" id="setupEmail" type="email" placeholder="admin@email.com"></div>
-    <div class="form-group"><label class="form-label">Senha (mín. 8 caracteres)</label><input class="form-input" id="setupPass" type="password" placeholder="••••••••"></div>
-    <div class="form-group"><label class="form-label">Confirmar senha</label><input class="form-input" id="setupPass2" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doSetup()"></div>
+    <div class="form-group"><label class="form-label">Senha (mín. 8 caracteres)</label>
+      <div style="position:relative">
+        <input class="form-input" id="setupPass" type="password" placeholder="••••••••" style="padding-right:44px">
+        <button type="button" onclick="togglePasswordField('setupPass',this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:1.1rem;padding:4px" aria-label="Mostrar senha">👁</button>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Confirmar senha</label>
+      <div style="position:relative">
+        <input class="form-input" id="setupPass2" type="password" placeholder="••••••••" style="padding-right:44px" onkeydown="if(event.key==='Enter')doSetup()">
+        <button type="button" onclick="togglePasswordField('setupPass2',this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:1.1rem;padding:4px" aria-label="Mostrar senha">👁</button>
+      </div>
+    </div>
     <button class="btn btn-primary btn-full btn-lg" onclick="doSetup()" style="margin-top:4px">Criar conta master</button>
     <div style="font-size:0.72rem;color:var(--text3);text-align:center;margin-top:14px">Esta configuração é salva localmente. Guarde bem suas credenciais.</div>
   </div>
@@ -648,11 +700,11 @@ const DB = {
   _state: null,
 
   async load() {
-    const [users, products, orders, txs] = await Promise.all([
+    const [users, products, orders, txs, refunds] = await Promise.all([
       this._load('users'), this._load('products'),
-      this._load('orders'), this._load('txs')
+      this._load('orders'), this._load('txs'), this._load('refunds')
     ]);
-    this._state = { users, products, orders, txs };
+    this._state = { users, products, orders, txs, refunds };
     return this._state;
   },
 
@@ -662,18 +714,23 @@ const DB = {
       products: this.getLocal('products') || [],
       orders:   this.getLocal('orders')   || [],
       txs:      this.getLocal('txs')      || [],
+      refunds:  this.getLocal('refunds')  || [],
     };
   },
 
-  // Retorna uma CÓPIA do array em cache (nunca a referência interna).
-  // Sem isso, código como `const products = DB.products(); products.unshift(x); DB.saveProducts(products)`
-  // muta o cache antes de saveProducts() comparar "antes" com "depois" — e como
-  // os dois viram o mesmo array, a comparação nunca detecta o item novo e ele
-  // nunca é salvo no Firestore (bug real encontrado em produção).
-  users()    { return [...(this._cache.users    || this.getLocal('users')    || [])]; },
-  products() { return [...(this._cache.products || this.getLocal('products') || [])]; },
-  orders()   { return [...(this._cache.orders   || this.getLocal('orders')   || [])]; },
-  txs()      { return [...(this._cache.txs      || this.getLocal('txs')      || [])]; },
+  // Retorna uma CÓPIA PROFUNDA do array em cache (nunca a referência interna,
+  // nem dos itens dentro dele). Sem isso, código como
+  // `const o = DB.orders().find(...); o.status = 'pago'; DB.saveOrders(orders)`
+  // muta o objeto original por dentro (cópia rasa só protege o array, não os
+  // itens), então saveX() compara "antes" com "depois" e vê os dois iguais —
+  // a mudança nunca é detectada e nunca é salva no Firestore (bug real
+  // encontrado em produção: status de pedido "voltava" pra pendente).
+  _clone(arr) { return JSON.parse(JSON.stringify(arr)); },
+  users()    { return this._clone(this._cache.users    || this.getLocal('users')    || []); },
+  products() { return this._clone(this._cache.products || this.getLocal('products') || []); },
+  orders()   { return this._clone(this._cache.orders   || this.getLocal('orders')   || []); },
+  txs()      { return this._clone(this._cache.txs      || this.getLocal('txs')      || []); },
+  refunds()  { return this._clone(this._cache.refunds  || this.getLocal('refunds')  || []); },
 
   // --- Salvar arrays inteiros (async — aguarda writes no Firestore antes de retornar) ---
   async saveUsers(newArr) {
@@ -723,6 +780,18 @@ const DB = {
       if(!prev || JSON.stringify(prev) !== JSON.stringify(t)) writes.push(this._writeDoc('txs', t.id, t));
     });
     old.forEach(t => { if(!newArr.find(x => x.id === t.id)) writes.push(this._deleteDoc('txs', t.id)); });
+    await Promise.all(writes);
+  },
+  async saveRefunds(newArr) {
+    const old = this.refunds();
+    this._cache.refunds = newArr; this.setLocal('refunds', newArr);
+    if(this._state) this._state.refunds = newArr;
+    const writes = [];
+    newArr.forEach(r => {
+      const prev = old.find(x => x.id === r.id);
+      if(!prev || JSON.stringify(prev) !== JSON.stringify(r)) writes.push(this._writeDoc('refunds', r.id, r));
+    });
+    old.forEach(r => { if(!newArr.find(x => x.id === r.id)) writes.push(this._deleteDoc('refunds', r.id)); });
     await Promise.all(writes);
   },
 
@@ -779,6 +848,11 @@ const DB = {
     const token = await this.getValidToken();
     if(!token) throw new Error('NAO_AUTENTICADO');
     return this._authRequest('update', { idToken: token, password: newPassword, returnSecureToken: true });
+  },
+  async authChangeEmail(newEmail) {
+    const token = await this.getValidToken();
+    if(!token) throw new Error('NAO_AUTENTICADO');
+    return this._authRequest('update', { idToken: token, email: newEmail, returnSecureToken: true });
   },
 
   // --- Sessão de autenticação (token em memória, refresh token em localStorage) ---
@@ -885,6 +959,13 @@ const DB = {
 // ================================================================
 // TOAST
 // ================================================================
+function togglePasswordField(id, btn) {
+  const input = document.getElementById(id);
+  if(!input) return;
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  if(btn) btn.textContent = showing ? '👁' : '🙈';
+}
 function toast(msg, duration = 3200) {
   const wrap = document.getElementById('toastWrap');
   const el = document.createElement('div');
@@ -1021,9 +1102,10 @@ function renderNav() {
       <button class="btn btn-primary btn-sm" onclick="openModal('modalRegister')">Cadastrar</button>`;
   } else {
     const initials = u.name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    const avatarInner = u.photoURL ? `<img src="${u.photoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'">` : initials;
     area.innerHTML = `
       <div style="position:relative">
-        <div class="nav-avatar" onclick="toggleAvatarMenu()" id="navAvatar">${initials}</div>
+        <div class="nav-avatar" onclick="toggleAvatarMenu()" id="navAvatar">${avatarInner}</div>
         <div class="nav-avatar-menu" id="avatarMenu">
           <div style="padding:12px 16px 8px;border-bottom:1px solid var(--border)">
             <div style="font-weight:700;font-size:0.9rem;color:var(--text)">${u.name}</div>
@@ -1033,6 +1115,7 @@ function renderNav() {
           ${u.role==='admin'?`<div class="nav-avatar-menu-item" onclick="closeAvatarMenu();goTo('admin')">Painel Admin</div>`:''}
           <div class="nav-avatar-menu-item" onclick="closeAvatarMenu();goTo('creatorDashboard')">Meus anúncios</div>
           <div class="nav-avatar-menu-item" onclick="closeAvatarMenu();goTo('userArea')">Meus pedidos</div>
+          <div class="nav-avatar-menu-item" onclick="closeAvatarMenu();openEditProfile()">Meu perfil</div>
           <div class="nav-avatar-menu-sep"></div>
           <div class="nav-avatar-menu-item danger" onclick="doLogout()">Sair</div>
         </div>
@@ -1154,6 +1237,75 @@ function doSetup() {
   document.getElementById('setupOverlay').classList.remove('open');
   history.replaceState(null, '', window.location.pathname);
   toast('Cadastre-se normalmente; a promoção a admin agora é feita pelo Firebase Console.');
+}
+
+// ================================================================
+// MEU PERFIL
+// ================================================================
+let _profilePhotoFile = null;
+function openEditProfile() {
+  const u = DB.currentUser();
+  if(!u) { openModal('modalLogin'); return; }
+  document.getElementById('profName').value = u.name || '';
+  document.getElementById('profEmail').value = u.email || '';
+  document.getElementById('profPhone').value = u.phone || '';
+  document.getElementById('profPass').value = '';
+  _profilePhotoFile = null;
+  const preview = document.getElementById('profilePhotoPreview');
+  const initials = (u.name||'?').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  preview.innerHTML = u.photoURL ? `<img src="${u.photoURL}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">` : initials;
+  openModal('modalEditProfile');
+}
+function handleProfilePhoto(input) {
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > 10*1024*1024) { toast('Imagem muito grande (máx. 10MB)'); input.value=''; return; }
+  _profilePhotoFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('profilePhotoPreview').innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+async function saveProfile() {
+  const u = DB.currentUser();
+  if(!u) return;
+  const name = document.getElementById('profName').value.trim();
+  const email = document.getElementById('profEmail').value.trim().toLowerCase();
+  const phone = document.getElementById('profPhone').value.trim();
+  const newPass = document.getElementById('profPass').value;
+  if(!name || !email) { toast('Nome e e-mail são obrigatórios'); return; }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  if(!emailRegex.test(email)) { toast('E-mail inválido'); return; }
+  if(newPass && newPass.length < 6) { toast('Senha deve ter pelo menos 6 caracteres'); return; }
+
+  const btn = document.getElementById('btnSaveProfile');
+  if(btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+  try {
+    if(email !== u.email) {
+      try { await DB.authChangeEmail(email); }
+      catch(e) { toast('Não foi possível alterar o e-mail: ' + (e.message.includes('EMAIL_EXISTS')?'já está em uso':'tente novamente')); return; }
+    }
+    if(newPass) {
+      try { await DB.authChangePassword(newPass); }
+      catch(e) { toast('Não foi possível alterar a senha, mas o resto foi salvo'); }
+    }
+    let photoURL = u.photoURL || null;
+    if(_profilePhotoFile) {
+      const uploaded = await uploadToCloudinary(_profilePhotoFile);
+      if(uploaded) photoURL = uploaded;
+      else toast('Não foi possível enviar a foto (verifique a configuração do Cloudinary)');
+    }
+    const updated = { ...u, name, email, phone, photoURL };
+    await DB.saveUser(updated);
+    DB.setSession(updated);
+    renderNav();
+    closeModal('modalEditProfile');
+    toast('Perfil atualizado!');
+  } finally {
+    if(btn) { btn.disabled = false; btn.textContent = 'Salvar alterações'; }
+  }
 }
 
 // ================================================================
@@ -1563,6 +1715,57 @@ function updateCheckoutTotal() {
   if(feeEl) feeEl.textContent = 'R$ ' + Number(fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
   if(totalEl) totalEl.textContent = 'R$ ' + Number(base+fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
 }
+// ================================================================
+// STATUS DE PEDIDO ↔ TRANSAÇÃO
+// Pedido é a fonte da verdade; a transação segue o pedido automaticamente.
+// Exceção: cancelar um pedido que JÁ estava confirmado/entregue gera
+// reembolso (dinheiro já tinha "andado"), enquanto cancelar um pedido
+// ainda pendente só cancela (nada a devolver).
+// ================================================================
+const ORDER_TX_STATUS = { pendente: 'em análise', confirmado: 'aprovado', entregue: 'finalizado', cancelado: 'cancelado' };
+
+// Atualiza pedido + transação vinculada (e cria registro de reembolso quando
+// necessário) de forma consistente. `actor` é quem tomou a ação:
+// 'admin' | 'cliente' | 'vendedor'.
+async function updateOrderStatus(orderId, newStatus, actor) {
+  const orders = DB.orders();
+  const order = orders.find(o => o.id === orderId);
+  if(!order) return false;
+  const oldStatus = order.status;
+  const wasPaid = (oldStatus === 'confirmado' || oldStatus === 'entregue');
+  const now = new Date().toISOString();
+
+  order.status = newStatus;
+  if(newStatus === 'cancelado') { order.cancelledBy = actor; order.cancelledAt = now; }
+  await DB.saveOrders(orders);
+
+  const txs = DB.txs();
+  const tx = txs.find(t => t.orderId === orderId);
+  let refundRecord = null;
+  if(tx) {
+    if(newStatus === 'cancelado' && wasPaid) {
+      tx.status = 'reembolsado';
+      refundRecord = {
+        id: Date.now(), orderId: order.id, txId: tx.id,
+        buyerUid: order.buyerUid||null, ownerUid: order.ownerUid||null,
+        productName: order.productName, value: tx.value,
+        requestedAt: now, requestedBy: actor,
+        status: 'aprovado', approvedAt: now,
+        cancelledBy: actor, cancelledAt: now,
+      };
+    } else {
+      tx.status = ORDER_TX_STATUS[newStatus] || tx.status;
+    }
+    tx.updatedAt = now;
+    await DB.saveTxs(txs);
+  }
+  if(refundRecord) {
+    const refunds = DB.refunds(); refunds.unshift(refundRecord);
+    await DB.saveRefunds(refunds);
+  }
+  return true;
+}
+
 async function confirmOrder() {
   const u = DB.currentUser();
   const p = checkoutData?.product;
@@ -1589,7 +1792,7 @@ async function confirmOrder() {
   const tx = {
     id: Date.now()+1, orderId: order.id, userId: u.id, buyerUid: u.uid, ownerUid: p.ownerUid||null, userName: u.name,
     productName: p.name, value: total, method: 'Plataforma',
-    status: 'aprovado', date: startDate.toISOString().split('T')[0],
+    status: ORDER_TX_STATUS.pendente, date: startDate.toISOString().split('T')[0],
   };
   const txs = DB.txs(); txs.unshift(tx);
   // AWAIT — garante que orders e txs chegam ao Firestore
@@ -1650,9 +1853,19 @@ function renderUserOrders(list) {
         <div style="font-size:0.78rem;color:var(--text3)">${o.type==='rent'?'Aluguel':'Compra'} · ${o.date}</div>
         <div style="font-size:0.9rem;font-weight:700;color:var(--text);margin-top:4px">R$ ${Number(o.value).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
       </div>
-      <span class="tag ${s.cls}">${s.l}</span>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <span class="tag ${s.cls}">${s.l}</span>
+        ${o.status==='pendente'?`<button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="cancelMyOrder(${o.id})">Cancelar</button>`:''}
+      </div>
     </div>`;
   }).join('') + '</div>';
+}
+async function cancelMyOrder(id) {
+  const ok = await showConfirm('Cancelar pedido', 'Tem certeza que deseja cancelar este pedido?', 'Cancelar pedido');
+  if(!ok) return;
+  await updateOrderStatus(id, 'cancelado', 'cliente');
+  toast('Pedido cancelado');
+  renderUserArea();
 }
 
 // ================================================================
@@ -1721,7 +1934,7 @@ function renderCreatorProducts(list) {
 }
 function renderCreatorSales(list) {
   if(!list.length) return '<div class="empty"><div class="empty-title">Nenhum pedido ainda</div></div>';
-  return '<div class="card"><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Comprador</th><th>Tipo</th><th>Valor</th><th>Status</th><th>Data</th></tr></thead><tbody>'+
+  return '<div class="card"><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Comprador</th><th>Tipo</th><th>Valor</th><th>Status</th><th>Data</th><th>Ações</th></tr></thead><tbody>'+
     list.map(o=>`<tr>
       <td class="td-name">${o.productName}</td>
       <td>${o.buyerName}</td>
@@ -1729,7 +1942,15 @@ function renderCreatorSales(list) {
       <td style="font-weight:700">R$ ${Number(o.value).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
       <td><span class="tag ${o.status==='entregue'?'tag-success':o.status==='cancelado'?'tag-danger':'tag-warning'}">${o.status}</span></td>
       <td>${o.date}</td>
+      <td>${o.status==='pendente'?`<button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="cancelSaleOrder(${o.id})">Cancelar</button>`:'—'}</td>
     </tr>`).join('')+'</tbody></table></div></div>';
+}
+async function cancelSaleOrder(id) {
+  const ok = await showConfirm('Cancelar pedido', 'Tem certeza que deseja cancelar este pedido?', 'Cancelar pedido');
+  if(!ok) return;
+  await updateOrderStatus(id, 'cancelado', 'vendedor');
+  toast('Pedido cancelado');
+  renderCreator();
 }
 function toggleProduct(id) {
   const products=DB.products();
@@ -1749,6 +1970,32 @@ async function deleteMyProduct(id) {
 // ================================================================
 let adminTab = 'dashboard';
 let _adminsListCache = [];
+let _allRefundsCache = [];
+function renderRefundRows(list) {
+  if(!list.length) return '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Nenhum reembolso</td></tr>';
+  const fmtDate = iso => iso ? new Date(iso).toLocaleString('pt-BR') : '—';
+  const actorLabel = {admin:'Admin',cliente:'Cliente',vendedor:'Vendedor'};
+  return list.map(r => `<tr>
+    <td style="color:var(--text3)">#${r.id}</td>
+    <td style="color:var(--text3)">#${r.orderId}</td>
+    <td style="color:var(--text3)">#${r.txId}</td>
+    <td class="td-name">${r.productName}</td>
+    <td style="font-weight:700">R$ ${Number(r.value).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+    <td>${fmtDate(r.requestedAt)}</td>
+    <td>${actorLabel[r.requestedBy]||r.requestedBy||'—'}</td>
+    <td>${fmtDate(r.approvedAt)}</td>
+    <td>${actorLabel[r.cancelledBy]||r.cancelledBy||'—'}</td>
+    <td>${fmtDate(r.cancelledAt)}</td>
+  </tr>`).join('');
+}
+function filterRefundsTable(q) {
+  q = (q||'').trim().toLowerCase();
+  const list = !q ? _allRefundsCache : _allRefundsCache.filter(r =>
+    String(r.id).toLowerCase().includes(q) || String(r.orderId).toLowerCase().includes(q) || String(r.txId).toLowerCase().includes(q)
+  );
+  const tbody = document.getElementById('refundsTbody');
+  if(tbody) tbody.innerHTML = renderRefundRows(list);
+}
 function renderAdmin() {
   const u = DB.currentUser();
   if(!u||u.role!=='admin') { goTo('landing'); return; }
@@ -1756,6 +2003,7 @@ function renderAdmin() {
   const products = DB.products();
   const orders   = DB.orders();
   const txs      = DB.txs();
+  const refunds  = DB.refunds();
   const revenue  = txs.reduce((a,t)=>a+t.value,0);
   const cfg      = getCloudinaryConfig();
   document.getElementById('page-admin').innerHTML = `
@@ -1769,6 +2017,7 @@ function renderAdmin() {
         <div class="admin-nav-item ${adminTab==='products'?'active':''}" onclick="switchAdminTab('products')">Produtos</div>
         <div class="admin-nav-item ${adminTab==='orders'?'active':''}" onclick="switchAdminTab('orders')">Pedidos</div>
         <div class="admin-nav-item ${adminTab==='transactions'?'active':''}" onclick="switchAdminTab('transactions')">Transações</div>
+        <div class="admin-nav-item ${adminTab==='refunds'?'active':''}" onclick="switchAdminTab('refunds')">Reembolsos</div>
         <div class="admin-nav-sep"></div>
         <div class="admin-sidebar-title">Sistema</div>
         <div class="admin-nav-item ${adminTab==='cloudinary'?'active':''}" onclick="switchAdminTab('cloudinary')">Imagens (Cloudinary)</div>
@@ -1778,7 +2027,7 @@ function renderAdmin() {
         <div class="admin-nav-item" onclick="goTo('landing')" style="color:var(--text3)">← Voltar ao site</div>
       </aside>
       <main class="admin-main">
-        ${renderAdminTab(adminTab, {users,products,orders,txs,revenue,cfg})}
+        ${renderAdminTab(adminTab, {users,products,orders,txs,refunds,revenue,cfg})}
       </main>
     </div>`;
 }
@@ -1789,7 +2038,7 @@ function switchAdminTab(tab) {
     DB.listAdmins().then(list => { _adminsListCache = list; if(adminTab==='admins') renderAdmin(); });
   }
 }
-function renderAdminTab(tab, {users,products,orders,txs,revenue,cfg}) {
+function renderAdminTab(tab, {users,products,orders,txs,refunds,revenue,cfg}) {
 
   if(tab==='dashboard') return `
     <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Dashboard</div>
@@ -1863,16 +2112,33 @@ function renderAdminTab(tab, {users,products,orders,txs,revenue,cfg}) {
   if(tab==='transactions') return `
     <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Transações (${txs.length})</div>
     <div class="card"><div class="table-wrap"><table><thead><tr><th>#</th><th>Usuário</th><th>Produto</th><th>Valor</th><th>Método</th><th>Status</th><th>Data</th></tr></thead><tbody>
-      ${txs.map(t=>`<tr>
+      ${txs.map(t=>{
+        const txCls = {'em análise':'tag-warning',aprovado:'tag-info',finalizado:'tag-success',cancelado:'tag-danger',reembolsado:'tag-danger'}[t.status]||'tag-default';
+        return `<tr>
         <td style="color:var(--text3)">#${t.id}</td>
         <td>${t.userName}</td>
         <td class="td-name">${t.productName}</td>
         <td style="font-weight:700">R$ ${Number(t.value).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
         <td>${t.method}</td>
-        <td><span class="tag tag-success">${t.status}</span></td>
+        <td><span class="tag ${txCls}">${t.status}</span></td>
         <td style="color:var(--text3)">${t.date}</td>
-      </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Nenhuma transação</td></tr>'}
+      </tr>`;}).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Nenhuma transação</td></tr>'}
     </tbody></table></div></div>`;
+
+  if(tab==='refunds') {
+    _allRefundsCache = refunds;
+    return `
+    <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Reembolsos (${refunds.length})</div>
+    <div class="card" style="margin-bottom:16px"><div class="card-body">
+      <input class="form-input" id="refundSearch" placeholder="Buscar por ID do pedido, da transação ou do reembolso..." oninput="filterRefundsTable(this.value)">
+    </div></div>
+    <div class="card"><div class="table-wrap"><table><thead><tr>
+      <th>Reembolso</th><th>Pedido</th><th>Transação</th><th>Produto</th><th>Valor</th>
+      <th>Solicitado em</th><th>Por</th><th>Aprovado em</th><th>Cancelado por</th><th>Cancelado em</th>
+    </tr></thead><tbody id="refundsTbody">
+      ${renderRefundRows(refunds)}
+    </tbody></table></div></div>`;
+  }
 
   if(tab==='cloudinary') return `
     <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px;color:var(--text)">Imagens — Cloudinary</div>
@@ -2021,10 +2287,9 @@ async function adminDeleteProduct(id) {
   renderAdmin(); toast('Produto excluído');
 }
 // FIX 6: adminUpdateOrder chama renderAdmin() para atualizar a tabela visualmente
-function adminUpdateOrder(id, status) {
-  const orders=DB.orders();
-  const o=orders.find(x=>x.id===id);
-  if(o){ o.status=status; DB.saveOrders(orders); toast('Status atualizado'); renderAdmin(); }
+async function adminUpdateOrder(id, status) {
+  const ok = await updateOrderStatus(id, status, 'admin');
+  if(ok) { toast(status==='cancelado' ? 'Pedido cancelado' : 'Status atualizado'); renderAdmin(); }
 }
 // Promove um usuário já cadastrado a admin, criando admins/{uid} no Firestore.
 // Só funciona se quem está logado já for admin (garantido pelas regras do Firestore).

@@ -47,10 +47,21 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Transações — mesmo critério de leitura dos pedidos.
+    // Transações — o comprador ou o dono do produto podem atualizar o status
+    // (ex: cancelar o próprio pedido também atualiza a transação vinculada).
     match /txs/{txId} {
       allow read: if isSignedIn() && (resource.data.buyerUid == request.auth.uid || resource.data.ownerUid == request.auth.uid || isAdmin());
       allow create: if isSignedIn() && request.resource.data.buyerUid == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.buyerUid == request.auth.uid || resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Reembolsos — gerados automaticamente ao cancelar um pedido já
+    // confirmado/entregue. Visível e criável por quem participou do pedido
+    // (comprador ou vendedor) ou admin; só admin edita/apaga depois de criado.
+    match /refunds/{refundId} {
+      allow read: if isSignedIn() && (resource.data.buyerUid == request.auth.uid || resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && (request.resource.data.buyerUid == request.auth.uid || request.resource.data.ownerUid == request.auth.uid || isAdmin());
       allow update, delete: if isAdmin();
     }
 
