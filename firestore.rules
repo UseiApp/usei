@@ -11,16 +11,74 @@ service cloud.firestore {
 
     // Perfis de usuário — cada um lê/edita só o próprio; admin lê/edita todos.
     // Nenhum documento pode conter o campo "password" (a senha vive só no
-    // Firebase Authentication, nunca no Firestore).
+    // Firebase Authentication, nunca no Firestore). "banned" e "feeRate" só
+    // podem ser alterados por admin — sem isso, um usuário banido poderia se
+    // desbanir sozinho editando o próprio documento direto pela API.
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == resource.data.uid || isAdmin());
       allow create: if isSignedIn()
                     && request.auth.uid == request.resource.data.uid
                     && !('password' in request.resource.data);
       allow update: if isSignedIn()
-                    && (request.auth.uid == resource.data.uid || isAdmin())
-                    && !('password' in request.resource.data);
+                    && !('password' in request.resource.data)
+                    && (
+                         isAdmin()
+                         || (request.auth.uid == resource.data.uid
+                             && request.resource.data.get('banned', false) == resource.data.get('banned', false)
+                             && request.resource.data.get('feeRate', null) == resource.data.get('feeRate', null))
+                       );
       allow delete: if isAdmin();
+    }
+
+    // Contador usado para gerar o ID sequencial alfanumérico de cada conta.
+    // Sem dado sensível — qualquer pessoa logada pode incrementar (necessário
+    // no momento do cadastro).
+    match /meta/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    // Verificação de vendedor (documento, selfie, dados bancários, telefone
+    // de suporte). Dado sensível — só o próprio dono e admin conseguem ler.
+    // Só pode ser criada com status "pendente"; só admin muda o status
+    // (aprova/rejeita) ou edita depois de enviada.
+    match /verifications/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if isSignedIn() && request.auth.uid == uid && request.resource.data.status == 'pendente';
+      allow update: if isAdmin()
+                    || (isSignedIn() && request.auth.uid == uid
+                        && resource.data.status in ['pendente', 'rejeitado'] && request.resource.data.status == 'pendente');
+      allow delete: if isAdmin();
+    }
+
+    // Cupons — qualquer pessoa logada pode criar os próprios; só quem criou
+    // (ou admin) pode editar/apagar. Leitura liberada pra quem está logado
+    // conseguir validar um cupom no checkout.
+    match /coupons/{code} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.createdByUid == request.auth.uid;
+      allow update, delete: if isSignedIn() && (resource.data.createdByUid == request.auth.uid || isAdmin());
+    }
+
+    // Registro de uso de cupom (um por pedido) — evita reaproveitar o mesmo
+    // cupom além do limite sem precisar de um contador mutável no cupom.
+    // Leitura liberada pra qualquer logado: no checkout, quem vai usar o
+    // cupom precisa contar quantas vezes ele já foi usado (por qualquer
+    // pessoa) pra saber se ainda tem vaga. Não expõe dado sensível.
+    match /couponRedemptions/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.buyerUid == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Chat interno entre comprador e vendedor (fallback quando o vendedor não
+    // informa telefone de suporte). Só as duas partes da conversa (ou admin)
+    // conseguem ler; quem cria a mensagem precisa ser o próprio remetente.
+    match /messages/{msgId} {
+      allow read: if isSignedIn() && (resource.data.buyerUid == request.auth.uid || resource.data.sellerUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.senderUid == request.auth.uid
+                    && (request.resource.data.buyerUid == request.auth.uid || request.resource.data.sellerUid == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
 
     // Quem é admin de verdade. O primeiro admin é criado manualmente no
@@ -40,10 +98,11 @@ service cloud.firestore {
     }
 
     // Pedidos — só quem comprou, o dono do produto, ou admin conseguem ver/mexer.
+    // O comprador também pode atualizar (ex: cancelar o próprio pedido pendente).
     match /orders/{orderId} {
       allow read: if isSignedIn() && (resource.data.buyerUid == request.auth.uid || resource.data.ownerUid == request.auth.uid || isAdmin());
       allow create: if isSignedIn() && request.resource.data.buyerUid == request.auth.uid;
-      allow update: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow update: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || resource.data.buyerUid == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
     }
 

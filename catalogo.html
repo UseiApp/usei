@@ -363,6 +363,7 @@ tr:hover td{background:var(--surface2)}
 <div id="page-productDetail" class="page container"></div>
 <div id="page-userArea" class="page container"></div>
 <div id="page-creatorDashboard" class="page container"></div>
+<div id="page-sellerVerify" class="page container"></div>
 <div id="page-admin" class="page"></div>
 
 <!-- MOBILE NAV -->
@@ -539,6 +540,32 @@ tr:hover td{background:var(--surface2)}
       <button class="btn btn-secondary" onclick="closeModal('modalCheckout')">Cancelar</button>
       <button class="btn btn-primary" onclick="confirmOrder()">Confirmar pedido</button>
     </div>
+  </div>
+</div>
+
+<!-- CHAT INTERNO -->
+<div class="modal" id="modalChat" onclick="if(event.target===this)closeChatModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div><div class="modal-title" id="chatTitle">Chat</div><div class="modal-subtitle" id="chatSubtitle"></div></div>
+      <button class="modal-close" onclick="closeChatModal()">✕</button>
+    </div>
+    <div class="modal-body" id="chatMessages" style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column"></div>
+    <div class="modal-footer" style="gap:8px">
+      <input class="form-input" id="chatInput" placeholder="Digite sua mensagem..." style="flex:1" onkeydown="if(event.key==='Enter')sendChatMessage()">
+      <button class="btn btn-primary" onclick="sendChatMessage()">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- LISTA DE CONVERSAS -->
+<div class="modal" id="modalChatList" onclick="if(event.target===this)closeModal('modalChatList')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div><div class="modal-title">Mensagens</div><div class="modal-subtitle">Suas conversas na plataforma</div></div>
+      <button class="modal-close" onclick="closeModal('modalChatList')">✕</button>
+    </div>
+    <div class="modal-body" id="chatListWrap"></div>
   </div>
 </div>
 
@@ -925,6 +952,20 @@ const DB = {
     await this._writeDoc('users', u.uid, u);
     this._invalidate('users');
   },
+  // --- Verificação de vendedor (documento/selfie/dados bancários) ---
+  async getVerification(uid) {
+    try {
+      const token = await this.getValidToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(this._url('verifications', uid), { headers });
+      if(!res.ok) return null;
+      const doc = await res.json();
+      return this._fromFS(doc.fields);
+    } catch { return null; }
+  },
+  async saveVerification(uid, data) {
+    return this._writeDoc('verifications', uid, data);
+  },
   async isAdmin(uid) {
     try {
       const token = await this.getValidToken();
@@ -964,6 +1005,102 @@ const DB = {
   // --- Lista todos os admins (só um admin logado consegue ler, pelas regras) ---
   async listAdmins() {
     return this._readCol('admins');
+  },
+
+  // --- ID sequencial alfanumérico da conta (ex: USEI-00042) ---
+  // Usa a transform "increment" do Firestore — atômica no servidor, então
+  // dois cadastros simultâneos nunca recebem o mesmo número.
+  async _nextAccountSeq() {
+    const token = await this.getValidToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if(token) headers['Authorization'] = `Bearer ${token}`;
+    const docPath = `projects/${this._FB_PROJECT}/databases/(default)/documents/meta/userIdCounter`;
+    const res = await fetch(`https://firestore.googleapis.com/v1/projects/${this._FB_PROJECT}/databases/(default)/documents:commit?key=${this._FB_KEY}`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ writes: [{ transform: { document: docPath, fieldTransforms: [{ fieldPath: 'next', increment: { integerValue: 1 } }] } }] }),
+    });
+    if(!res.ok) return null;
+    const data = await res.json();
+    const n = data.writeResults?.[0]?.transformResults?.[0]?.integerValue;
+    return n ? Number(n) : null;
+  },
+  async nextAccountId() {
+    const n = await this._nextAccountSeq();
+    if(!n) return null;
+    return 'USEI-' + String(n).padStart(5, '0');
+  },
+
+  // --- Query genérica por igualdade (mesmo mecanismo do findUserByEmail) ---
+  async queryEqual(collection, field, value, limit = 50) {
+    try {
+      const token = await this.getValidToken();
+      const headers = { 'Content-Type': 'application/json' };
+      if(token) headers['Authorization'] = `Bearer ${token}`;
+      const valueField = typeof value === 'number' ? { doubleValue: value } : { stringValue: value };
+      const res = await fetch(
+        `https://firestore.googleapis.com/v1/projects/${this._FB_PROJECT}/databases/(default)/documents:runQuery?key=${this._FB_KEY}`,
+        {
+          method: 'POST', headers,
+          body: JSON.stringify({
+            structuredQuery: {
+              from: [{ collectionId: collection }],
+              where: { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: valueField } },
+              limit,
+            },
+          }),
+        }
+      );
+      if(!res.ok) return [];
+      const results = await res.json();
+      return results.filter(r => r.document).map(r => this._fromFS(r.document.fields));
+    } catch { return []; }
+  },
+  // --- Chat interno comprador/vendedor ---
+  async sendMessage(msg) {
+    const id = 'm' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    await this._writeDoc('messages', id, msg);
+    return id;
+  },
+  async getMessages(chatId) {
+    const list = await this.queryEqual('messages', 'chatId', chatId, 200);
+    return list.sort((a, b) => String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+  },
+  async getMyChats(uid) {
+    const [asBuyer, asSeller] = await Promise.all([
+      this.queryEqual('messages', 'buyerUid', uid, 200),
+      this.queryEqual('messages', 'sellerUid', uid, 200),
+    ]);
+    const byChat = {};
+    [...asBuyer, ...asSeller].forEach(m => {
+      const prev = byChat[m.chatId];
+      if(!prev || String(m.createdAt||'') > String(prev.createdAt||'')) byChat[m.chatId] = m;
+    });
+    return Object.values(byChat).sort((a, b) => String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  },
+  // --- Cupons ---
+  async getCoupon(code) {
+    try {
+      const token = await this.getValidToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(this._url('coupons', code), { headers });
+      if(!res.ok) return null;
+      const doc = await res.json();
+      return this._fromFS(doc.fields);
+    } catch { return null; }
+  },
+  async saveCoupon(code, data) {
+    return this._writeDoc('coupons', code, data);
+  },
+  async deleteCoupon(code) {
+    return this._deleteDoc('coupons', code);
+  },
+  async countCouponRedemptions(code) {
+    const list = await this.queryEqual('couponRedemptions', 'couponCode', code, 500);
+    return list.length;
+  },
+  async saveCouponRedemption(data) {
+    const id = 'r' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    return this._writeDoc('couponRedemptions', id, data);
   },
 };
 
@@ -1032,7 +1169,7 @@ function initTheme() {
 // ================================================================
 // NAVIGATION
 // ================================================================
-const PAGES = ['landing','catalog','productDetail','userArea','creatorDashboard','admin'];
+const PAGES = ['landing','catalog','productDetail','userArea','creatorDashboard','sellerVerify','admin'];
 let currentPage = '';
 
 function goTo(page) {
@@ -1053,6 +1190,7 @@ function goTo(page) {
   if(page === 'catalog')           renderCatalog();
   if(page === 'userArea')          renderUserArea();
   if(page === 'creatorDashboard')  renderCreator();
+  if(page === 'sellerVerify')      renderSellerVerify();
   if(page === 'admin')             { DB._cache={};DB._cacheAt={};DB.load().then(()=>{renderAdmin();startAdminAutoRefresh();}); }
   else                             stopAdminAutoRefresh();
 }
@@ -1126,6 +1264,8 @@ function renderNav() {
           ${u.role==='admin'?`<div class="nav-avatar-menu-item" onclick="closeAvatarMenu();goTo('admin')">Painel Admin</div>`:''}
           <div class="nav-avatar-menu-item" onclick="closeAvatarMenu();goTo('creatorDashboard')">Meus anúncios</div>
           <div class="nav-avatar-menu-item" onclick="closeAvatarMenu();goTo('userArea')">Meus pedidos</div>
+          <div class="nav-avatar-menu-item" onclick="closeAvatarMenu();openMessagesInbox()">Mensagens</div>
+          <div class="nav-avatar-menu-item" onclick="closeAvatarMenu();goTo('sellerVerify')">Verificação de vendedor</div>
           <div class="nav-avatar-menu-item" onclick="closeAvatarMenu();openEditProfile()">Meu perfil</div>
           <div class="nav-avatar-menu-sep"></div>
           <div class="nav-avatar-menu-item danger" onclick="doLogout()">Sair</div>
@@ -1161,7 +1301,8 @@ async function doLogin() {
   let u = await DB.getUserProfile(authData.localId);
   if(!u) {
     // Login bem-sucedido no Firebase Auth mas sem perfil salvo ainda — cria um básico.
-    u = { id: Date.now(), uid: authData.localId, name: authData.email.split('@')[0], email: authData.email, phone: '', role: 'user', createdAt: new Date().toISOString() };
+    const accountId = await DB.nextAccountId();
+    u = { id: Date.now(), uid: authData.localId, accountId: accountId || null, name: authData.email.split('@')[0], email: authData.email, phone: '', role: 'user', createdAt: new Date().toISOString() };
     await DB.saveUser(u);
   }
   if(u.banned) {
@@ -1199,7 +1340,8 @@ async function doRegister() {
     return;
   }
   DB.setAuthSession(authData);
-  const u = { id: Date.now(), uid: authData.localId, name, email, phone, role: 'user', createdAt: new Date().toISOString() };
+  const accountId = await DB.nextAccountId();
+  const u = { id: Date.now(), uid: authData.localId, accountId: accountId || null, name, email, phone, role: 'user', createdAt: new Date().toISOString() };
   await DB.saveUser(u);
   DB.setSession(u);
   startBanWatcher();
@@ -1690,11 +1832,28 @@ function openProduct(id) {
           <button class="btn btn-primary btn-full btn-lg" onclick="startCheckout(${p.id},'${p.type}')">
             ${p.type==='rent'?'Solicitar aluguel':'Comprar agora'}
           </button>`}
-          <button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="window.open('https://wa.me/5511978250549?text=Olá! Vi o produto ${encodeURIComponent(p.name)} na USEI.APP e tenho interesse.','_blank')">Falar pelo WhatsApp</button>
+          <button class="btn btn-ghost btn-full" id="contactSellerBtn" style="margin-top:8px" onclick="window.open('https://wa.me/5511978250549?text=Olá! Vi o produto ${encodeURIComponent(p.name)} na USEI.APP e tenho interesse.','_blank')">Falar com o vendedor</button>
         </div>
       </div>
     </div>`;
   goTo('productDetail');
+  loadSellerContact(p);
+}
+// Se o vendedor cadastrou telefone de suporte (verificação aprovada), usa WhatsApp
+// direto com ele; senão, oferece o chat interno da plataforma.
+async function loadSellerContact(p) {
+  const btn = document.getElementById('contactSellerBtn');
+  if(!btn || !p.ownerUid) return;
+  const v = await DB.getVerification(p.ownerUid);
+  if(currentProductId !== p.id || !document.getElementById('contactSellerBtn')) return;
+  if(v && v.status === 'aprovado' && v.supportPhone) {
+    const phone = v.supportPhone.replace(/\D/g,'');
+    btn.textContent = 'Falar pelo WhatsApp';
+    btn.onclick = () => window.open(`https://wa.me/55${phone}?text=${encodeURIComponent('Olá! Vi o produto '+p.name+' na USEI.APP e tenho interesse.')}`,'_blank');
+  } else {
+    btn.textContent = 'Chat com o vendedor';
+    btn.onclick = () => openChat(p.ownerUid, p.ownerName, p.id, p.name);
+  }
 }
 
 // FIX 8: setMainImg com onerror para evitar imagem quebrada ao trocar thumbnail
@@ -1715,16 +1874,24 @@ function setMainImg(src, el) {
 // CHECKOUT
 // ================================================================
 let checkoutData = {};
+// Taxa da plataforma: usa a taxa configurada pelo admin pra este usuário
+// (users/{uid}.feeRate), ou 8% como padrão se não houver nenhuma definida.
+function currentFeeRate() {
+  const u = DB.currentUser();
+  const r = (u && u.feeRate != null && u.feeRate !== '') ? Number(u.feeRate) : 8;
+  return r / 100;
+}
 function startCheckout(productId, type) {
   const u = DB.currentUser();
   if(!u) { openModal('modalLogin'); return; }
   const pid = Number(productId);
   const p = DB.products().find(x => Number(x.id) === pid);
   if(!p) { toast('Produto não encontrado'); return; }
-  checkoutData = { product: p, type };
+  checkoutData = { product: p, type, coupon: null };
   const isRent = type === 'rent';
   const price = Number(isRent ? p.rentPrice : p.salePrice) || 0;
-  const fee = price * 0.08;
+  const feeRate = currentFeeRate();
+  const fee = price * feeRate;
   const html = `
     <div style="display:flex;gap:14px;align-items:flex-start;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:16px">
       ${p.mainImage||p.images?.[0]?`<img src="${p.mainImage||p.images[0]}" style="width:72px;height:72px;border-radius:var(--radius);object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:'<div style="width:72px;height:72px;border-radius:var(--radius);background:var(--surface3);flex-shrink:0"></div>'}
@@ -1741,13 +1908,25 @@ function startCheckout(productId, type) {
         <span style="color:var(--text2);font-size:0.875rem">dia(s)</span>
       </div>
     </div>`:''}
+    <div class="form-group">
+      <label class="form-label">Cupom de desconto</label>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="couponCode" placeholder="Código do cupom" style="flex:1;text-transform:uppercase">
+        <button class="btn btn-secondary" id="btnApplyCoupon" onclick="applyCoupon()">Aplicar</button>
+      </div>
+      <div id="couponMsg" style="font-size:0.78rem;margin-top:6px"></div>
+    </div>
     <div style="background:var(--surface2);border-radius:var(--radius);padding:14px">
       <div style="display:flex;justify-content:space-between;font-size:0.875rem;margin-bottom:8px">
         <span style="color:var(--text2)">${isRent?'Valor por dia':'Preço do produto'}</span>
-        <span style="color:var(--text);font-weight:600">R$ ${Number(price).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+        <span style="color:var(--text);font-weight:600" id="checkoutBase">R$ ${Number(price).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+      </div>
+      <div style="display:none;justify-content:space-between;font-size:0.875rem;margin-bottom:8px;color:var(--success)" id="checkoutDiscountRow">
+        <span>Desconto (<span id="checkoutCouponCode"></span>)</span>
+        <span id="checkoutDiscount">R$ 0,00</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:0.875rem;margin-bottom:10px">
-        <span style="color:var(--text2)">Taxa de serviço (8%)</span>
+        <span style="color:var(--text2)">Taxa de serviço (${(feeRate*100).toLocaleString('pt-BR')}%)</span>
         <span id="checkoutFee">R$ ${Number(fee).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-weight:700;font-size:1.05rem;border-top:1px solid var(--border);padding-top:10px;color:var(--text)">
@@ -1760,16 +1939,64 @@ function startCheckout(productId, type) {
   body.innerHTML = html;
   openModal('modalCheckout');
 }
+function checkoutBaseValue() {
+  const p = checkoutData?.product;
+  if(!p) return 0;
+  if(checkoutData.type === 'rent') {
+    const days = Math.max(1, parseInt(document.getElementById('rentDays')?.value) || 1);
+    return Number(p.rentPrice) * days;
+  }
+  return Number(p.salePrice);
+}
+function couponDiscountFor(base) {
+  const coupon = checkoutData?.coupon;
+  if(!coupon) return 0;
+  if(coupon.discountType === 'percent') return base * (Number(coupon.discountValue)/100);
+  return Math.min(base, Number(coupon.discountValue));
+}
 function updateCheckoutTotal() {
   const p = checkoutData?.product;
-  if(!p || checkoutData.type !== 'rent') return;
-  const days = Math.max(1, parseInt(document.getElementById('rentDays')?.value) || 1);
-  const base = Number(p.rentPrice) * days;
-  const fee = base * 0.08;
+  if(!p) return;
+  const base = checkoutBaseValue();
+  const discount = couponDiscountFor(base);
+  const netBase = Math.max(0, base - discount);
+  const fee = netBase * currentFeeRate();
+  const baseEl = document.getElementById('checkoutBase');
+  const discRow = document.getElementById('checkoutDiscountRow');
+  const discEl = document.getElementById('checkoutDiscount');
   const feeEl = document.getElementById('checkoutFee');
   const totalEl = document.getElementById('checkoutTotal');
+  if(baseEl) baseEl.textContent = 'R$ ' + Number(base).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  if(discRow) discRow.style.display = discount>0 ? 'flex' : 'none';
+  if(discEl) discEl.textContent = '- R$ ' + Number(discount).toLocaleString('pt-BR',{minimumFractionDigits:2});
   if(feeEl) feeEl.textContent = 'R$ ' + Number(fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
-  if(totalEl) totalEl.textContent = 'R$ ' + Number(base+fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  if(totalEl) totalEl.textContent = 'R$ ' + Number(netBase+fee).toLocaleString('pt-BR',{minimumFractionDigits:2});
+}
+async function applyCoupon() {
+  const u = DB.currentUser();
+  const input = document.getElementById('couponCode');
+  const code = (input?.value||'').trim().toUpperCase();
+  const msg = document.getElementById('couponMsg');
+  if(!code) { if(msg) { msg.textContent = 'Digite um código'; msg.style.color = 'var(--danger)'; } return; }
+  const btn = document.getElementById('btnApplyCoupon');
+  if(btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    const coupon = await DB.getCoupon(code);
+    if(!coupon || !coupon.active) { checkoutData.coupon = null; if(msg){msg.textContent='Cupom inválido';msg.style.color='var(--danger)';} updateCheckoutTotal(); return; }
+    if(coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) { checkoutData.coupon = null; if(msg){msg.textContent='Cupom expirado';msg.style.color='var(--danger)';} updateCheckoutTotal(); return; }
+    if(coupon.createdByUid === u?.uid) { checkoutData.coupon = null; if(msg){msg.textContent='Você não pode usar seu próprio cupom';msg.style.color='var(--danger)';} updateCheckoutTotal(); return; }
+    if(coupon.maxUses) {
+      const uses = await DB.countCouponRedemptions(code);
+      if(uses >= coupon.maxUses) { checkoutData.coupon = null; if(msg){msg.textContent='Cupom esgotado';msg.style.color='var(--danger)';} updateCheckoutTotal(); return; }
+    }
+    checkoutData.coupon = coupon;
+    const cEl = document.getElementById('checkoutCouponCode');
+    if(cEl) cEl.textContent = coupon.code;
+    if(msg) { msg.textContent = 'Cupom aplicado!'; msg.style.color = 'var(--success)'; }
+    updateCheckoutTotal();
+  } finally {
+    if(btn) { btn.disabled = false; btn.textContent = 'Aplicar'; }
+  }
 }
 // ================================================================
 // STATUS DE PEDIDO ↔ TRANSAÇÃO
@@ -1830,8 +2057,11 @@ async function confirmOrder() {
   const isRent = checkoutData.type === 'rent';
   const days = isRent ? (Math.max(1, parseInt(document.getElementById('rentDays')?.value) || 1)) : 0;
   const base = isRent ? Number(p.rentPrice)*days : Number(p.salePrice);
-  const fee = base*0.08;
-  const total = base+fee;
+  const coupon = checkoutData.coupon;
+  const discount = couponDiscountFor(base);
+  const netBase = Math.max(0, base - discount);
+  const fee = netBase*currentFeeRate();
+  const total = netBase+fee;
   const startDate = new Date();
   const endDate = new Date(startDate);
   if(isRent) endDate.setDate(endDate.getDate()+days);
@@ -1841,6 +2071,7 @@ async function confirmOrder() {
     ownerId: p.ownerId, ownerUid: p.ownerUid||null, ownerName: p.ownerName,
     buyerId: u.id, buyerUid: u.uid, buyerName: u.name, buyerEmail: u.email,
     type: checkoutData.type, days, value: total, fee,
+    couponCode: coupon?.code || null, discount: discount || 0,
     status: 'pendente', date: startDate.toISOString().split('T')[0],
     endDate: isRent ? endDate.toISOString().split('T')[0] : null,
   };
@@ -1852,7 +2083,9 @@ async function confirmOrder() {
   };
   const txs = DB.txs(); txs.unshift(tx);
   // AWAIT — garante que orders e txs chegam ao Firestore
-  await Promise.all([DB.saveOrders(orders), DB.saveTxs(txs)]);
+  const writes = [DB.saveOrders(orders), DB.saveTxs(txs)];
+  if(coupon) writes.push(DB.saveCouponRedemption({ couponCode: coupon.code, buyerUid: u.uid, orderId: order.id, discountApplied: discount, createdAt: new Date().toISOString() }));
+  await Promise.all(writes);
   closeModal('modalCheckout');
   toast('Pedido realizado!');
   goTo('userArea');
@@ -1952,9 +2185,11 @@ function renderCreator() {
       <div class="creator-tabs">
         <div class="creator-tab ${creatorTab==='products'?'active':''}" onclick="switchCreatorTab('products',this)">Produtos (${myProducts.length})</div>
         <div class="creator-tab ${creatorTab==='sales'?'active':''}" onclick="switchCreatorTab('sales',this)">Pedidos (${mySales.length})</div>
+        <div class="creator-tab ${creatorTab==='coupons'?'active':''}" onclick="switchCreatorTab('coupons',this)">Cupons</div>
       </div>
-      <div id="creatorTabContent">${creatorTab==='products'?renderCreatorProducts(myProducts):renderCreatorSales(mySales)}</div>
+      <div id="creatorTabContent">${creatorTab==='products'?renderCreatorProducts(myProducts):creatorTab==='sales'?renderCreatorSales(mySales):renderCreatorCoupons()}</div>
     </div>`;
+  if(creatorTab==='coupons') loadMyCoupons(u.uid);
 }
 function switchCreatorTab(tab, el) {
   creatorTab=tab;
@@ -1963,7 +2198,8 @@ function switchCreatorTab(tab, el) {
   el.classList.add('active');
   const myProducts=DB.products().filter(p=>p.ownerId===u.id);
   const mySales=DB.orders().filter(o=>o.ownerId===u.id);
-  document.getElementById('creatorTabContent').innerHTML=tab==='products'?renderCreatorProducts(myProducts):renderCreatorSales(mySales);
+  document.getElementById('creatorTabContent').innerHTML=tab==='products'?renderCreatorProducts(myProducts):tab==='sales'?renderCreatorSales(mySales):renderCreatorCoupons();
+  if(tab==='coupons') loadMyCoupons(u.uid);
 }
 function renderCreatorProducts(list) {
   if(!list.length) return '<div class="empty"><div class="empty-title">Nenhum anúncio publicado</div><div class="empty-sub">Clique em "Novo anúncio" para começar</div></div>';
@@ -2008,6 +2244,87 @@ async function cancelSaleOrder(id) {
   toast('Pedido cancelado');
   renderCreator();
 }
+
+// ================================================================
+// CUPONS (criados por qualquer usuário)
+// ================================================================
+let _myCouponsCache = [];
+async function loadMyCoupons(uid) {
+  _myCouponsCache = await DB.queryEqual('coupons', 'createdByUid', uid, 100);
+  if(creatorTab==='coupons') {
+    const wrap = document.getElementById('creatorTabContent');
+    if(wrap) wrap.innerHTML = renderCreatorCoupons();
+  }
+}
+function renderCreatorCoupons() {
+  return `
+  <div class="card" style="margin-bottom:16px"><div class="card-body">
+    <div style="font-weight:700;margin-bottom:12px;color:var(--text)">Criar cupom</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Código</label><input class="form-input" id="cpCode" placeholder="ex: PROMO10" style="text-transform:uppercase"></div>
+      <div class="form-group"><label class="form-label">Tipo</label>
+        <select class="form-input" id="cpType">
+          <option value="percent">Percentual (%)</option>
+          <option value="fixed">Valor fixo (R$)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Valor do desconto</label><input class="form-input" id="cpValue" type="number" min="0" step="0.01" placeholder="10"></div>
+      <div class="form-group"><label class="form-label">Limite de usos (0 = ilimitado)</label><input class="form-input" id="cpMax" type="number" min="0" step="1" value="0"></div>
+    </div>
+    <button class="btn btn-primary" onclick="createCoupon()">Criar cupom</button>
+  </div></div>
+  <div class="card"><div class="table-wrap"><table><thead><tr><th>Código</th><th>Desconto</th><th>Limite</th><th>Status</th><th>Ações</th></tr></thead><tbody>
+    ${_myCouponsCache.length ? _myCouponsCache.map(c=>`<tr>
+      <td class="td-name" style="font-family:monospace">${c.code}</td>
+      <td>${c.discountType==='percent'?Number(c.discountValue)+'%':'R$ '+Number(c.discountValue).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+      <td>${c.maxUses?c.maxUses:'Ilimitado'}</td>
+      <td>${c.active?'<span class="tag tag-success">Ativo</span>':'<span class="tag tag-default">Inativo</span>'}</td>
+      <td><div style="display:flex;gap:4px">
+        <button class="btn btn-secondary btn-sm" onclick="toggleCoupon('${c.code}')">${c.active?'Desativar':'Ativar'}</button>
+        <button class="btn btn-danger btn-sm" onclick="removeCoupon('${c.code}')">Excluir</button>
+      </div></td>
+    </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Nenhum cupom criado</td></tr>'}
+  </tbody></table></div></div>`;
+}
+async function createCoupon() {
+  const u = DB.currentUser();
+  if(!u) return;
+  const code = (document.getElementById('cpCode')?.value||'').trim().toUpperCase();
+  const type = document.getElementById('cpType')?.value;
+  const value = Number(document.getElementById('cpValue')?.value);
+  const maxUses = Number(document.getElementById('cpMax')?.value) || 0;
+  if(!code || !/^[A-Z0-9_-]{3,20}$/.test(code)) { toast('Código inválido (3 a 20 letras, números, - ou _)'); return; }
+  if(!value || value<=0) { toast('Informe um valor de desconto válido'); return; }
+  if(type==='percent' && value>100) { toast('Desconto percentual não pode passar de 100%'); return; }
+  const existing = await DB.getCoupon(code);
+  if(existing) { toast('Já existe um cupom com esse código'); return; }
+  await DB.saveCoupon(code, {
+    code, createdByUid: u.uid, createdByName: u.name,
+    discountType: type, discountValue: value, maxUses,
+    active: true, createdAt: new Date().toISOString(),
+  });
+  toast('Cupom criado!');
+  const codeEl = document.getElementById('cpCode'), valEl = document.getElementById('cpValue');
+  if(codeEl) codeEl.value=''; if(valEl) valEl.value='';
+  loadMyCoupons(u.uid);
+}
+async function toggleCoupon(code) {
+  const c = _myCouponsCache.find(x=>x.code===code);
+  if(!c) return;
+  c.active = !c.active;
+  await DB.saveCoupon(code, c);
+  loadMyCoupons(DB.currentUser().uid);
+}
+async function removeCoupon(code) {
+  const ok = await showConfirm('Excluir cupom', 'Tem certeza? Esta ação não pode ser desfeita.', 'Excluir');
+  if(!ok) return;
+  await DB.deleteCoupon(code);
+  toast('Cupom excluído');
+  loadMyCoupons(DB.currentUser().uid);
+}
+
 function toggleProduct(id) {
   const products=DB.products();
   const p=products.find(x=>x.id===id);
@@ -2022,11 +2339,235 @@ async function deleteMyProduct(id) {
 }
 
 // ================================================================
+// CHAT INTERNO (comprador ↔ vendedor)
+// ================================================================
+let _chatCtx = null;
+let _chatPollInterval = null;
+let _chatListCache = [];
+function chatIdFor(productId, buyerUid, sellerUid) {
+  return `p${productId}_${buyerUid}_${sellerUid}`;
+}
+async function openChat(sellerUid, sellerName, productId, productName) {
+  const u = DB.currentUser();
+  if(!u) { openModal('modalLogin'); return; }
+  if(!sellerUid) { toast('Vendedor não disponível para chat'); return; }
+  if(u.uid === sellerUid) { toast('Você é o vendedor deste anúncio'); return; }
+  _chatCtx = { chatId: chatIdFor(productId, u.uid, sellerUid), buyerUid: u.uid, sellerUid, productId, productName, otherName: sellerName };
+  await openChatModalWithCtx();
+}
+async function openChatForConversation(chat) {
+  const u = DB.currentUser();
+  if(!u) return;
+  const otherUid = u.uid === chat.buyerUid ? chat.sellerUid : chat.buyerUid;
+  const otherName = u.uid === chat.buyerUid ? (chat.sellerName||'Vendedor') : (chat.buyerName||'Comprador');
+  _chatCtx = { chatId: chat.chatId, buyerUid: chat.buyerUid, sellerUid: chat.sellerUid, productId: chat.productId, productName: chat.productName, otherName };
+  await openChatModalWithCtx();
+}
+async function openChatModalWithCtx() {
+  openModal('modalChat');
+  document.getElementById('chatTitle').textContent = 'Chat com ' + (_chatCtx.otherName||'usuário');
+  document.getElementById('chatSubtitle').textContent = _chatCtx.productName || '';
+  document.getElementById('chatMessages').innerHTML = '<div style="text-align:center;color:var(--text3);font-size:0.8rem;padding:20px">Carregando...</div>';
+  await refreshChatMessages();
+  stopChatPolling();
+  _chatPollInterval = setInterval(refreshChatMessages, 5000);
+}
+function closeChatModal() {
+  closeModal('modalChat');
+  stopChatPolling();
+  _chatCtx = null;
+}
+function stopChatPolling() {
+  if(_chatPollInterval) { clearInterval(_chatPollInterval); _chatPollInterval = null; }
+}
+async function refreshChatMessages() {
+  if(!_chatCtx) return;
+  const list = await DB.getMessages(_chatCtx.chatId);
+  const wrap = document.getElementById('chatMessages');
+  if(!wrap || !_chatCtx) return;
+  const u = DB.currentUser();
+  wrap.innerHTML = list.length ? list.map(m => `
+    <div style="display:flex;flex-direction:column;align-items:${m.senderUid===u.uid?'flex-end':'flex-start'};margin-bottom:8px">
+      <div style="max-width:75%;padding:8px 12px;border-radius:12px;font-size:0.85rem;background:${m.senderUid===u.uid?'var(--brand)':'var(--surface2)'};color:${m.senderUid===u.uid?'#fff':'var(--text)'}">${(m.text||'').replace(/</g,'&lt;')}</div>
+      <div style="font-size:0.65rem;color:var(--text3);margin-top:2px">${m.createdAt?new Date(m.createdAt).toLocaleString('pt-BR'):''}</div>
+    </div>`).join('') : '<div style="text-align:center;color:var(--text3);font-size:0.8rem;padding:20px">Nenhuma mensagem ainda. Diga oi!</div>';
+  wrap.scrollTop = wrap.scrollHeight;
+}
+async function sendChatMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input?.value.trim();
+  if(!text || !_chatCtx) return;
+  const u = DB.currentUser();
+  input.value = '';
+  await DB.sendMessage({
+    chatId: _chatCtx.chatId, productId: _chatCtx.productId, productName: _chatCtx.productName,
+    buyerUid: _chatCtx.buyerUid, sellerUid: _chatCtx.sellerUid,
+    buyerName: _chatCtx.buyerUid===u.uid ? u.name : _chatCtx.otherName,
+    sellerName: _chatCtx.sellerUid===u.uid ? u.name : _chatCtx.otherName,
+    senderUid: u.uid, senderName: u.name,
+    text, createdAt: new Date().toISOString(),
+  });
+  await refreshChatMessages();
+}
+async function openMessagesInbox() {
+  const u = DB.currentUser();
+  if(!u) { openModal('modalLogin'); return; }
+  openModal('modalChatList');
+  const wrap = document.getElementById('chatListWrap');
+  wrap.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:0.8rem;padding:20px">Carregando...</div>';
+  _chatListCache = await DB.getMyChats(u.uid);
+  if(!_chatListCache.length) { wrap.innerHTML = '<div class="empty"><div class="empty-icon">💬</div><div class="empty-title">Nenhuma conversa ainda</div></div>'; return; }
+  wrap.innerHTML = _chatListCache.map((c,i) => {
+    const otherName = u.uid===c.buyerUid ? (c.sellerName||'Vendedor') : (c.buyerName||'Comprador');
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="closeModal('modalChatList');openChatForConversation(_chatListCache[${i}])">
+      <div>
+        <div style="font-weight:700;font-size:0.85rem;color:var(--text)">${otherName}</div>
+        <div style="font-size:0.75rem;color:var(--text3)">${c.productName||''}</div>
+        <div style="font-size:0.75rem;color:var(--text2);margin-top:2px">${(c.text||'').slice(0,60)}</div>
+      </div>
+      <div style="font-size:0.65rem;color:var(--text3)">${c.createdAt?new Date(c.createdAt).toLocaleDateString('pt-BR'):''}</div>
+    </div>`;
+  }).join('');
+}
+
+// ================================================================
+// VERIFICAÇÃO DE VENDEDOR
+// ================================================================
+let _verifyFiles = { docFront: null, docBack: null, selfie: null };
+function handleVerifyPhoto(input, key) {
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > 10*1024*1024) { toast('Imagem muito grande (máx. 10MB)'); input.value=''; return; }
+  _verifyFiles[key] = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('verifyPreview_'+key);
+    if(preview) preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:8px">`;
+  };
+  reader.readAsDataURL(file);
+}
+async function renderSellerVerify() {
+  const u = DB.currentUser();
+  if(!u) { goTo('landing'); openModal('modalLogin'); return; }
+  _verifyFiles = { docFront: null, docBack: null, selfie: null };
+  const el = document.getElementById('page-sellerVerify');
+  if(!el) return;
+  el.innerHTML = `<div style="padding:60px 0;text-align:center;color:var(--text3)">Carregando...</div>`;
+  const v = await DB.getVerification(u.uid);
+  if(currentPage !== 'sellerVerify') return;
+  el.innerHTML = renderSellerVerifyContent(v);
+}
+function renderSellerVerifyContent(v) {
+  const statusTag = {pendente:'tag-warning',aprovado:'tag-success',rejeitado:'tag-danger'};
+  const statusLabel = {pendente:'Em análise',aprovado:'Verificado',rejeitado:'Rejeitado'};
+  const statusMsg = {pendente:'Sua verificação está sendo analisada pela nossa equipe.',aprovado:'Sua conta está verificada como vendedor.',rejeitado:'Corrija os dados e envie novamente.'};
+  const showForm = !v || v.status === 'rejeitado';
+  const noPhoneChecked = !v || !v.supportPhone;
+  return `
+  <div style="padding:24px 0;max-width:640px;margin:0 auto">
+    <div style="font-size:1.2rem;font-weight:800;color:var(--text);margin-bottom:6px">Verificação de vendedor</div>
+    <div style="font-size:0.85rem;color:var(--text3);margin-bottom:20px">Confirme sua identidade e dados bancários para vender com mais segurança na USEI.APP.</div>
+    ${v?`<div class="card" style="margin-bottom:20px"><div class="card-body" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span class="tag ${statusTag[v.status]||'tag-default'}">${statusLabel[v.status]||v.status}</span>
+      <span style="color:var(--text3);font-size:0.82rem">${statusMsg[v.status]||''}</span>
+    </div></div>`:''}
+    ${showForm ? `
+    <div class="card" style="margin-bottom:16px"><div class="card-body">
+      <div style="font-weight:700;margin-bottom:12px;color:var(--text)">Documento de identidade</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label class="form-label">Frente</label>
+          <div id="verifyPreview_docFront" style="width:100%;aspect-ratio:1.4;border-radius:8px;background:var(--surface2);border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:0.75rem;margin-bottom:6px;overflow:hidden">${v?.docFrontUrl?`<img src="${v.docFrontUrl}" style="width:100%;height:100%;object-fit:cover">`:'Nenhuma foto'}</div>
+          <input type="file" accept="image/*" onchange="handleVerifyPhoto(this,'docFront')">
+        </div>
+        <div>
+          <label class="form-label">Verso</label>
+          <div id="verifyPreview_docBack" style="width:100%;aspect-ratio:1.4;border-radius:8px;background:var(--surface2);border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:0.75rem;margin-bottom:6px;overflow:hidden">${v?.docBackUrl?`<img src="${v.docBackUrl}" style="width:100%;height:100%;object-fit:cover">`:'Nenhuma foto'}</div>
+          <input type="file" accept="image/*" onchange="handleVerifyPhoto(this,'docBack')">
+        </div>
+      </div>
+    </div></div>
+    <div class="card" style="margin-bottom:16px"><div class="card-body">
+      <div style="font-weight:700;margin-bottom:12px;color:var(--text)">Selfie</div>
+      <div style="max-width:200px">
+        <div id="verifyPreview_selfie" style="width:100%;aspect-ratio:1;border-radius:8px;background:var(--surface2);border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:0.75rem;margin-bottom:6px;overflow:hidden">${v?.selfieUrl?`<img src="${v.selfieUrl}" style="width:100%;height:100%;object-fit:cover">`:'Nenhuma foto'}</div>
+        <input type="file" accept="image/*" onchange="handleVerifyPhoto(this,'selfie')">
+      </div>
+      <div style="font-size:0.75rem;color:var(--text3);margin-top:8px">Tire uma foto do seu rosto segurando o documento, se possível.</div>
+    </div></div>
+    <div class="card" style="margin-bottom:16px"><div class="card-body">
+      <div style="font-weight:700;margin-bottom:12px;color:var(--text)">Dados bancários</div>
+      <div style="font-size:0.75rem;color:var(--text3);margin-bottom:12px">Usado futuramente para receber pagamentos direto no checkout.</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Banco</label><input class="form-input" id="vBankName" value="${v?.bankName||''}" placeholder="ex: Nubank"></div>
+        <div class="form-group"><label class="form-label">Agência</label><input class="form-input" id="vBankAgency" value="${v?.bankAgency||''}" placeholder="0001"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Conta</label><input class="form-input" id="vBankAccount" value="${v?.bankAccount||''}" placeholder="00000-0"></div>
+        <div class="form-group"><label class="form-label">Chave PIX</label><input class="form-input" id="vPixKey" value="${v?.pixKey||''}" placeholder="e-mail, telefone ou CPF"></div>
+      </div>
+    </div></div>
+    <div class="card" style="margin-bottom:20px"><div class="card-body">
+      <div style="font-weight:700;margin-bottom:8px;color:var(--text)">Contato de suporte para compradores</div>
+      <div style="font-size:0.75rem;color:var(--text3);margin-bottom:12px">Se preferir não divulgar seu número, os compradores vão poder falar com você só pelo chat interno da plataforma.</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:0.85rem;color:var(--text)">
+        <input type="checkbox" id="vNoPhone" ${noPhoneChecked?'checked':''} onchange="document.getElementById('vSupportPhoneWrap').style.display=this.checked?'none':'block'">
+        Não quero informar telefone (usar apenas chat interno)
+      </label>
+      <div id="vSupportPhoneWrap" style="display:${noPhoneChecked?'none':'block'}">
+        <input class="form-input" id="vSupportPhone" value="${v?.supportPhone||''}" placeholder="(11) 99999-9999">
+      </div>
+    </div></div>
+    <button class="btn btn-primary btn-full" id="btnSubmitVerify" onclick="submitVerification()">Enviar para análise</button>
+    ` : ''}
+  </div>`;
+}
+async function submitVerification() {
+  const u = DB.currentUser();
+  if(!u) return;
+  const btn = document.getElementById('btnSubmitVerify');
+  if(btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+  try {
+    const existing = await DB.getVerification(u.uid) || {};
+    let docFrontUrl = existing.docFrontUrl || null;
+    let docBackUrl  = existing.docBackUrl  || null;
+    let selfieUrl   = existing.selfieUrl   || null;
+    if(_verifyFiles.docFront) { const url = await uploadToCloudinary(_verifyFiles.docFront); if(url) docFrontUrl = url; }
+    if(_verifyFiles.docBack)  { const url = await uploadToCloudinary(_verifyFiles.docBack);  if(url) docBackUrl  = url; }
+    if(_verifyFiles.selfie)   { const url = await uploadToCloudinary(_verifyFiles.selfie);   if(url) selfieUrl   = url; }
+    if(!docFrontUrl || !docBackUrl || !selfieUrl) { toast('Envie as 3 fotos: documento frente, verso e selfie'); return; }
+    const noPhone = document.getElementById('vNoPhone')?.checked;
+    const supportPhone = noPhone ? '' : (document.getElementById('vSupportPhone')?.value.trim() || '');
+    const data = {
+      uid: u.uid, name: u.name, email: u.email,
+      docFrontUrl, docBackUrl, selfieUrl,
+      bankName: document.getElementById('vBankName')?.value.trim() || '',
+      bankAgency: document.getElementById('vBankAgency')?.value.trim() || '',
+      bankAccount: document.getElementById('vBankAccount')?.value.trim() || '',
+      pixKey: document.getElementById('vPixKey')?.value.trim() || '',
+      supportPhone,
+      status: 'pendente',
+      submittedAt: new Date().toISOString(),
+    };
+    await DB.saveVerification(u.uid, data);
+    toast('Verificação enviada! Vamos analisar em breve.');
+    renderSellerVerify();
+  } catch(e) {
+    console.error('Erro ao enviar verificação:', e);
+    toast('Não foi possível enviar. Tente novamente.');
+  } finally {
+    if(btn) { btn.disabled = false; btn.textContent = 'Enviar para análise'; }
+  }
+}
+
+// ================================================================
 // ADMIN PANEL
 // ================================================================
 let adminTab = 'dashboard';
 let _adminsListCache = [];
 let _allRefundsCache = [];
+let _adminUserDetailId = null;
+let _adminUserDetailVerification = undefined;
 function renderRefundRows(list) {
   if(!list.length) return '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Nenhum reembolso</td></tr>';
   const fmtDate = iso => iso ? new Date(iso).toLocaleString('pt-BR') : '—';
@@ -2123,7 +2664,7 @@ function renderAdminTab(tab, {users,products,orders,txs,refunds,revenue,cfg}) {
       <input class="form-input" style="max-width:240px" placeholder="Buscar usuário..." oninput="adminSearchUsers(this.value)">
     </div>
     <div class="card" id="adminUsersWrap">
-      <div class="table-wrap"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Cadastro</th><th>Status</th><th>Ações</th></tr></thead>
+      <div class="table-wrap"><table><thead><tr><th>ID</th><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Cadastro</th><th>Status</th><th>Ações</th></tr></thead>
       <tbody id="adminUsersTbody">${renderUsersRows(users)}</tbody></table></div>
     </div>`;
 
@@ -2194,6 +2735,104 @@ function renderAdminTab(tab, {users,products,orders,txs,refunds,revenue,cfg}) {
     </tr></thead><tbody id="refundsTbody">
       ${renderRefundRows(refunds)}
     </tbody></table></div></div>`;
+  }
+
+  if(tab==='userDetail') {
+    const target = users.find(u=>u.id===_adminUserDetailId);
+    if(!target) return '<div class="card"><div class="card-body">Usuário não encontrado.</div></div>';
+    const myProducts = products.filter(p=>p.ownerUid===target.uid);
+    const myPurchases = orders.filter(o=>o.buyerUid===target.uid);
+    const mySales = orders.filter(o=>o.ownerUid===target.uid);
+    const v = _adminUserDetailVerification;
+    const statusTag = {pendente:'tag-warning',aprovado:'tag-success',rejeitado:'tag-danger'};
+    const statusLabel = {pendente:'Pendente',aprovado:'Aprovado',rejeitado:'Rejeitado'};
+    return `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <button class="btn btn-secondary btn-sm" onclick="switchAdminTab('users')">← Voltar</button>
+      <div style="font-size:1.1rem;font-weight:800;color:var(--text)">Detalhes do usuário</div>
+    </div>
+    <div class="card" style="margin-bottom:16px"><div class="card-body">
+      <div style="display:flex;gap:16px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+        ${target.photoUrl?`<img src="${target.photoUrl}" style="width:56px;height:56px;border-radius:50%;object-fit:cover">`:`<div style="width:56px;height:56px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--text3)">${(target.name||'?')[0].toUpperCase()}</div>`}
+        <div>
+          <div style="font-weight:800;font-size:1.05rem;color:var(--text)">${target.name}</div>
+          <div style="color:var(--text3);font-size:0.85rem">${target.email}</div>
+          <div style="color:var(--text3);font-size:0.75rem;font-family:monospace;margin-top:2px">ID: ${target.accountId||'—'}</div>
+        </div>
+        <div style="margin-left:auto">${target.banned?'<span class="tag tag-danger">Banido</span>':'<span class="tag tag-success">Ativo</span>'}</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Telefone</label><div style="color:var(--text)">${target.phone||'—'}</div></div>
+        <div class="form-group"><label class="form-label">Cadastro</label><div style="color:var(--text)">${target.createdAt?new Date(target.createdAt).toLocaleDateString('pt-BR'):'—'}</div></div>
+      </div>
+    </div></div>
+
+    <div class="form-row" style="align-items:stretch">
+      <div class="card" style="flex:1;margin-bottom:16px"><div class="card-body">
+        <div style="font-weight:700;margin-bottom:10px;color:var(--text)">Taxa da plataforma</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="form-input" id="udFeeRate" type="number" min="0" max="100" step="0.1" value="${target.feeRate!=null?target.feeRate:''}" placeholder="Padrão" style="max-width:140px">
+          <span style="color:var(--text3)">%</span>
+          <button class="btn btn-primary btn-sm" onclick="adminSaveFeeRate(${target.id})">Salvar</button>
+        </div>
+        <div style="color:var(--text3);font-size:0.75rem;margin-top:6px">Deixe em branco para usar a taxa padrão da plataforma.</div>
+      </div></div>
+      <div class="card" style="flex:1;margin-bottom:16px"><div class="card-body">
+        <div style="font-weight:700;margin-bottom:10px;color:var(--text)">Anotações internas (só admin vê)</div>
+        <textarea class="form-input" id="udNotes" rows="2" placeholder="Observações sobre este usuário...">${target.adminNotes||''}</textarea>
+        <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="adminSaveNotes(${target.id})">Salvar anotação</button>
+      </div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px"><div class="card-body">
+      <div style="font-weight:700;margin-bottom:10px;color:var(--text)">Verificação de vendedor</div>
+      ${v===undefined?'<div style="color:var(--text3);font-size:0.85rem">Carregando...</div>':
+        !v?'<div style="color:var(--text3);font-size:0.85rem">Este usuário ainda não enviou verificação.</div>':`
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <span class="tag ${statusTag[v.status]||'tag-default'}">${statusLabel[v.status]||v.status}</span>
+          <span style="color:var(--text3);font-size:0.78rem">Enviado em ${v.submittedAt?new Date(v.submittedAt).toLocaleString('pt-BR'):'—'}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:14px">
+          ${[['Documento (frente)',v.docFrontUrl],['Documento (verso)',v.docBackUrl],['Selfie',v.selfieUrl]].map(([label,url])=>
+            url?`<a href="${url}" target="_blank" rel="noopener"><img src="${url}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:1px solid var(--border)"><div style="font-size:0.7rem;color:var(--text3);margin-top:4px;text-align:center">${label}</div></a>`
+            :`<div><div style="width:100%;aspect-ratio:1;border-radius:8px;background:var(--surface3);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:0.7rem">Sem foto</div><div style="font-size:0.7rem;color:var(--text3);margin-top:4px;text-align:center">${label}</div></div>`
+          ).join('')}
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Banco</label><div style="color:var(--text)">${v.bankName||'—'}</div></div>
+          <div class="form-group"><label class="form-label">Agência / Conta</label><div style="color:var(--text)">${v.bankAgency||'—'} / ${v.bankAccount||'—'}</div></div>
+          <div class="form-group"><label class="form-label">Chave PIX</label><div style="color:var(--text)">${v.pixKey||'—'}</div></div>
+        </div>
+        <div class="form-group"><label class="form-label">Telefone de suporte</label><div style="color:var(--text)">${v.supportPhone||'Não informado (usa chat na plataforma)'}</div></div>
+        ${v.status==='pendente'?`
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="adminReviewVerification('${target.uid}',${target.id},'aprovado')">Aprovar</button>
+          <button class="btn btn-danger btn-sm" onclick="adminReviewVerification('${target.uid}',${target.id},'rejeitado')">Rejeitar</button>
+        </div>`:''}
+      `}
+    </div></div>
+
+    <div class="card" style="margin-bottom:16px"><div class="card-body">
+      <div style="font-weight:700;margin-bottom:10px;color:var(--text)">Produtos anunciados (${myProducts.length})</div>
+      ${myProducts.length?`<div class="table-wrap"><table><thead><tr><th>Produto</th><th>Tipo</th><th>Status</th></tr></thead><tbody>
+        ${myProducts.map(p=>`<tr><td class="td-name">${p.name}</td><td>${p.type==='rent'?'Aluguel':p.type==='sale'?'Venda':'Ambos'}</td><td>${p.active?'<span class="tag tag-success">Ativo</span>':'<span class="tag tag-default">Pausado</span>'}</td></tr>`).join('')}
+      </tbody></table></div>`:'<div style="color:var(--text3);font-size:0.85rem">Nenhum produto anunciado</div>'}
+    </div></div>
+
+    <div class="form-row" style="align-items:stretch">
+      <div class="card" style="flex:1"><div class="card-body">
+        <div style="font-weight:700;margin-bottom:10px;color:var(--text)">Compras (${myPurchases.length})</div>
+        ${myPurchases.length?`<div class="table-wrap"><table><thead><tr><th>Produto</th><th>Valor</th><th>Status</th></tr></thead><tbody>
+          ${myPurchases.map(o=>`<tr><td class="td-name">${o.productName}</td><td>R$ ${Number(o.value).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td>${o.status}</td></tr>`).join('')}
+        </tbody></table></div>`:'<div style="color:var(--text3);font-size:0.85rem">Nenhuma compra</div>'}
+      </div></div>
+      <div class="card" style="flex:1"><div class="card-body">
+        <div style="font-weight:700;margin-bottom:10px;color:var(--text)">Vendas (${mySales.length})</div>
+        ${mySales.length?`<div class="table-wrap"><table><thead><tr><th>Produto</th><th>Valor</th><th>Status</th></tr></thead><tbody>
+          ${mySales.map(o=>`<tr><td class="td-name">${o.productName}</td><td>R$ ${Number(o.value).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td>${o.status}</td></tr>`).join('')}
+        </tbody></table></div>`:'<div style="color:var(--text3);font-size:0.85rem">Nenhuma venda</div>'}
+      </div></div>
+    </div>`;
   }
 
   if(tab==='cloudinary') return `
@@ -2294,16 +2933,58 @@ function renderUsersRows(list) {
   const roleMap={admin:'tag-danger',creator:'tag-info',user:'tag-default'};
   const roleLabel={admin:'Admin',creator:'Creator',user:'Usuário'};
   return list.map(u=>`<tr>
+    <td style="color:var(--text3);font-family:monospace;font-size:0.78rem">${u.accountId||'—'}</td>
     <td class="td-name">${u.name}</td>
     <td style="color:var(--text3)">${u.email}</td>
     <td><span class="tag ${roleMap[u.role]||'tag-default'}">${roleLabel[u.role]||u.role}</span></td>
     <td style="color:var(--text3)">${u.createdAt?u.createdAt.split('T')[0]:''}</td>
     <td>${u.banned?'<span class="tag tag-danger">Banido</span>':'<span class="tag tag-success">Ativo</span>'}</td>
     <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="openAdminUserDetail(${u.id})">Detalhes</button>
       <button class="btn btn-secondary btn-sm" onclick="adminToggleBan(${u.id})">${u.banned?'Desbanir':'Banir'}</button>
       <button class="btn btn-danger btn-sm" onclick="adminDeleteUser(${u.id})">Excluir</button>
     </div></td>
   </tr>`).join('');
+}
+function openAdminUserDetail(id) {
+  _adminUserDetailId = id;
+  _adminUserDetailVerification = undefined;
+  adminTab = 'userDetail';
+  renderAdmin();
+  const target = DB.users().find(u=>u.id===id);
+  if(!target || !target.uid) { _adminUserDetailVerification = null; if(adminTab==='userDetail') renderAdmin(); return; }
+  DB.getVerification(target.uid).then(v => {
+    _adminUserDetailVerification = v;
+    if(adminTab==='userDetail' && _adminUserDetailId===id) renderAdmin();
+  });
+}
+async function adminSaveFeeRate(id) {
+  const users = DB.users();
+  const u = users.find(x=>x.id===id);
+  if(!u) return;
+  const raw = document.getElementById('udFeeRate')?.value;
+  u.feeRate = (raw===''||raw==null) ? null : Number(raw);
+  await DB.saveUsers(users);
+  toast('Taxa salva');
+}
+async function adminSaveNotes(id) {
+  const users = DB.users();
+  const u = users.find(x=>x.id===id);
+  if(!u) return;
+  u.adminNotes = document.getElementById('udNotes')?.value || '';
+  await DB.saveUsers(users);
+  toast('Anotação salva');
+}
+async function adminReviewVerification(uid, id, status) {
+  const label = status==='aprovado' ? 'Aprovar verificação' : 'Rejeitar verificação';
+  const ok = await showConfirm(label, `Tem certeza que deseja ${status==='aprovado'?'aprovar':'rejeitar'} a verificação deste vendedor?`, status==='aprovado'?'Aprovar':'Rejeitar');
+  if(!ok) return;
+  const v = _adminUserDetailVerification || {};
+  const updated = {...v, status, reviewedAt: new Date().toISOString(), reviewedBy: DB.currentUser()?.uid||null};
+  await DB.saveVerification(uid, updated);
+  _adminUserDetailVerification = updated;
+  renderAdmin();
+  toast(status==='aprovado'?'Verificação aprovada':'Verificação rejeitada');
 }
 function adminSearchUsers(q) {
   const users=DB.users().filter(u=>u.name.toLowerCase().includes(q.toLowerCase())||u.email.toLowerCase().includes(q.toLowerCase()));
