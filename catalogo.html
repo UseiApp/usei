@@ -581,6 +581,17 @@ tr:hover td{background:var(--surface2)}
   </div>
 </div>
 
+<!-- CONTA SUSPENSA -->
+<div class="setup-overlay" id="bannedOverlay">
+  <div class="setup-box" style="text-align:center">
+    <div style="font-size:2.4rem;margin-bottom:8px">🚫</div>
+    <div style="font-size:1.15rem;font-weight:800;color:var(--text);margin-bottom:8px">Conta suspensa</div>
+    <div style="font-size:0.875rem;color:var(--text2);margin-bottom:24px;line-height:1.5">Sua conta foi suspensa e você não pode acessar a plataforma no momento. Se acredita que isso foi um engano, entre em contato com o nosso suporte.</div>
+    <button class="btn btn-primary btn-full btn-lg" onclick="closeBannedModal()">Voltar para o login</button>
+    <button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="window.open('https://wa.me/5511978250549?text=Ol%C3%A1!%20Minha%20conta%20na%20USEI.APP%20foi%20suspensa%20e%20gostaria%20de%20entender%20o%20motivo.','_blank')">Falar com o suporte</button>
+  </div>
+</div>
+
 <script>
 // ================================================================
 // DB — Firebase Firestore REST API com COLEÇÕES SEPARADAS
@@ -1153,10 +1164,16 @@ async function doLogin() {
     u = { id: Date.now(), uid: authData.localId, name: authData.email.split('@')[0], email: authData.email, phone: '', role: 'user', createdAt: new Date().toISOString() };
     await DB.saveUser(u);
   }
-  if(u.banned) { toast('Conta suspensa. Entre em contato com o suporte.'); DB.clearAuthSession(); return; }
+  if(u.banned) {
+    DB.clearAuthSession();
+    closeModal('modalLogin');
+    document.getElementById('bannedOverlay').classList.add('open');
+    return;
+  }
   // Admin de verdade é definido pela coleção "admins" no Firestore, não por um campo local.
   u.role = (await DB.isAdmin(authData.localId)) ? 'admin' : 'user';
   DB.setSession(u);
+  startBanWatcher();
   closeModal('modalLogin');
   renderNav();
   document.getElementById('loginEmail').value = '';
@@ -1185,6 +1202,7 @@ async function doRegister() {
   const u = { id: Date.now(), uid: authData.localId, name, email, phone, role: 'user', createdAt: new Date().toISOString() };
   await DB.saveUser(u);
   DB.setSession(u);
+  startBanWatcher();
   closeModal('modalRegister');
   renderNav();
   document.getElementById('regName').value = '';
@@ -1197,6 +1215,7 @@ async function doRegister() {
 
 function doLogout() {
   closeAvatarMenu();
+  stopBanWatcher();
   DB.clearSession();
   DB.clearAuthSession();
   renderNav();
@@ -1216,6 +1235,43 @@ async function validateSession() {
   const token = await DB.getValidToken();
   if(!token) { DB.clearSession(); DB.clearAuthSession(); }
 }
+
+// ================================================================
+// BANIMENTO — detecta suspensão mesmo com a sessão já aberta
+// (não só no momento do login). Como o site não usa listeners em
+// tempo real do Firestore, checamos periodicamente e sempre que a
+// aba volta a ficar visível.
+// ================================================================
+let _banWatcherInterval = null;
+function showBannedModal() {
+  stopBanWatcher();
+  DB.clearSession();
+  DB.clearAuthSession();
+  document.querySelectorAll('.modal.open, .modal[style*="flex"]').forEach(m => m.style.display = 'none');
+  document.getElementById('bannedOverlay').classList.add('open');
+}
+function closeBannedModal() {
+  document.getElementById('bannedOverlay').classList.remove('open');
+  renderNav();
+  goTo('landing');
+  openModal('modalLogin');
+}
+async function checkIfBanned() {
+  const u = DB.currentUser();
+  if(!u || !u.uid) return;
+  const fresh = await DB.getUserProfile(u.uid);
+  if(fresh && fresh.banned) showBannedModal();
+}
+function startBanWatcher() {
+  stopBanWatcher();
+  _banWatcherInterval = setInterval(checkIfBanned, 25000);
+}
+function stopBanWatcher() {
+  if(_banWatcherInterval) { clearInterval(_banWatcherInterval); _banWatcherInterval = null; }
+}
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible' && DB.currentUser()) checkIfBanned();
+});
 
 // ================================================================
 // ADMIN SETUP
@@ -2427,6 +2483,7 @@ initTheme();
   // expirado/inválido — e desloga automaticamente, em vez de deixar o site
   // mostrar "logado" enquanto toda gravação falha silenciosamente.
   await validateSession();
+  if(DB.currentUser()) { await checkIfBanned(); if(DB.currentUser()) startBanWatcher(); }
 
   seedData();
   checkAdminSetup();
