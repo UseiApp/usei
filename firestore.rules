@@ -24,6 +24,7 @@ service cloud.firestore {
                     && (
                          isAdmin()
                          || (request.auth.uid == resource.data.uid
+                             && request.resource.data.uid == resource.data.uid
                              && request.resource.data.get('banned', false) == resource.data.get('banned', false)
                              && request.resource.data.get('feeRate', null) == resource.data.get('feeRate', null))
                        );
@@ -49,6 +50,14 @@ service cloud.firestore {
                     || (isSignedIn() && request.auth.uid == uid
                         && resource.data.status in ['pendente', 'rejeitado'] && request.resource.data.status == 'pendente');
       allow delete: if isAdmin();
+    }
+
+    // Perfil público do vendedor: só o selo de verificado e o telefone de
+    // suporte. Qualquer visitante lê (aparece na página do produto); só
+    // admin grava, ao aprovar ou rejeitar a verificação.
+    match /publicProfiles/{uid} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // Cupons — qualquer pessoa logada pode criar os próprios; só quem criou

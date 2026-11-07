@@ -3123,22 +3123,24 @@ function stopAdminAutoRefresh() {
 }
 
 // ================================================================
-// SEED DATA
+// SEED DATA — removido. Os produtos fictícios (Câmera Sony, Furadeira,
+// Bicicleta, PS5) saíram: o catálogo mostra só anúncios reais. Além disso,
+// o seed antigo substituía a lista inteira de produtos pelos 4 fictícios,
+// e o salvamento por diferença tentava APAGAR os anúncios reais do
+// Firestore — se quem abrisse fosse admin num navegador "novo", apagava.
 // ================================================================
 function seedData() {
-  if(DB.get('seeded')) return;
-  // NOTA DE SEGURANÇA: usuários de demonstração não são mais criados aqui
-  // com senha em texto puro no Firestore. Contas reais são criadas pelo
-  // fluxo normal de cadastro (Firebase Authentication). Os produtos abaixo
-  // usam ownerId/ownerName/ownerEmail apenas como dados de exibição.
-  const products = [
-    { id:101, name:'Câmera Sony Alpha A6400', cat:'eletronicos', type:'rent', salePrice:0, rentPrice:89, desc:'Câmera mirrorless em ótimo estado, acompanha lente kit 16-50mm. Ideal para fotos e vídeos 4K.', location:'São Paulo, SP', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-22T00:00:00.000Z' },
-    { id:102, name:'Furadeira Bosch 1/2 HP',  cat:'ferramentas', type:'rent', salePrice:0, rentPrice:35, desc:'Furadeira de impacto profissional com maleta de brocas.', location:'São Paulo, SP', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-23T00:00:00.000Z' },
-    { id:103, name:'Bicicleta Caloi Explorer', cat:'esportes', type:'both', salePrice:800, rentPrice:45, desc:'Bicicleta mountain bike aro 29, 21 marchas, freios a disco.', location:'Campinas, SP', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-24T00:00:00.000Z' },
-    { id:104, name:'PlayStation 5 + 2 Controles', cat:'games', type:'rent', salePrice:0, rentPrice:120, desc:'PS5 com disco, 2 controles DualSense e 5 jogos físicos inclusos.', location:'Rio de Janeiro, RJ', images:[], mainImage:null, ownerId:3, ownerName:'João Santos', ownerEmail:'joao@email.com', active:true, createdAt:'2025-01-25T00:00:00.000Z' },
-  ];
-  DB.saveProducts(products);
-  DB.set('seeded', true);
+  // Limpa o que o seed antigo deixou guardado neste navegador.
+  const FAKE_IDS = [101, 102, 103, 104];
+  if(DB.get('seeded')) {
+    try {
+      const local = DB.getLocal('products');
+      if(Array.isArray(local)) DB.setLocal('products', local.filter(p => !FAKE_IDS.includes(p.id)));
+      if(Array.isArray(DB._cache.products)) DB._cache.products = DB._cache.products.filter(p => !FAKE_IDS.includes(p.id));
+      if(DB._state && Array.isArray(DB._state.products)) DB._state.products = DB._state.products.filter(p => !FAKE_IDS.includes(p.id));
+    } catch {}
+    DB.rmLocal('seeded');
+  }
 }
 
 // ================================================================
