@@ -12,7 +12,9 @@ Usei. é uma plataforma de aluguel sob demanda que permite usar o que você prec
 
 Arquivo único (HTML + CSS + JS, sem framework), como o resto do projeto.
 
-- **Visual:** inspirado na Apple (vidro fosco, tipografia grande, cartões amplos), no allu (UX de aluguel com período em dias, preço por período e selos de confiança) e no Mercado Livre (galeria com zoom). Fonte Instrument Sans (Google Fonts). Modo claro e escuro. No celular, os modais viram gaveta e a navegação fica numa cápsula de vidro embaixo.
+- **Marca:** logo "USEI" verde-lima + ".APP" azul-marinho em Syne 800; textos em DM Sans; lima (#8BBF00) só na ação principal; azul-marinho (#0B1F3A) nas superfícies escuras. Slogan: "Precisou? Usei."
+- **Visual:** mistura da Apple Store (menu de vidro, fileira de categorias com foto, cartões altos coloridos, cartões de "motivos" com botão +) e do allu (faixa de aviso, banner rotativo, faixa animada com o slogan, passos numerados, comparativo alugar × comprar, períodos em cartões). Do Mercado Livre ficou a mecânica da galeria com zoom. Modo claro e escuro. No celular, os modais viram gaveta e a navegação fica numa cápsula de vidro embaixo.
+- **Anúncios de demonstração:** 19 exemplos (PS5, MacBook, drone etc.) com fotos livres do Unsplash, marcados como "Demonstração" e sem checkout. Desligar: `SHOW_DEMO = false`. Os 4 anúncios antigos de teste ficam fora da vitrine (`HIDDEN_PRODUCT_IDS`).
 - **Endereços (rotas):** cada página tem URL própria e o botão voltar funciona.
   `#/` início · `#/explorar?cat=&tipo=&q=` · `#/produto/<id>` · `#/pedidos` · `#/anuncios` · `#/verificacao` · `#/admin/<aba>` · `#/admin/usuarios/<id>`
 - **Fotos:** o Cloudinary entrega cada foto no tamanho certo (`cld(url, largura)`): cartões leves e zoom em alta. No computador, lente + painel ampliado ao passar o mouse; no celular, carrossel de deslizar; em ambos, tela cheia com pinça, duplo toque/clique e roda do mouse.
