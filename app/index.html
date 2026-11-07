@@ -847,6 +847,14 @@ html,body{overflow-x:clip}
 .plan b{display:block;font-size:0.92rem}
 .plan span{display:block;font-size:0.82rem;color:var(--text2);margin-top:2px;font-variant-numeric:tabular-nums}
 .plan.active::after{content:'';position:absolute;right:12px;top:12px;width:18px;height:18px;border-radius:50%;background:var(--brand) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230B1F3A' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 12.5 4 4 8-9'/%3E%3C/svg%3E") center/12px no-repeat}
+/* fotos de produto como em marketplace: produto inteiro sobre fundo branco */
+.sc-media,.products-grid .product-img,.gallery-stage,.gs-track,.cp-thumb,.ct-photo,.hero-shot{background:#fff}
+.sc-media img,.product-img img,.cp-thumb img,.ct-photo img{object-fit:contain}
+.sc-media img{padding:8px}
+.cp-thumb img{padding:6px}
+.ct-photo img{padding:10px}
+.photo-credit a{text-decoration:underline;text-underline-offset:2px}
+.photo-credit a:hover{color:var(--text)}
 .demo-note{margin-top:18px;padding:14px 16px;border-radius:18px;background:var(--brand-light);color:var(--text);font-size:0.9rem;line-height:1.45}
 .demo-note strong{display:block;margin-bottom:2px}
 .photo-credit{font-size:0.78rem;color:var(--text3);margin-top:10px;text-align:center}
@@ -1004,7 +1012,7 @@ body[data-page="admin"] .help-fab,body[data-page="productDetail"] .help-fab{disp
     </div>
     <div class="footer-bottom">
       <span>© 2026 USEI.APP. Versão Alpha 2.</span>
-      <span>Fotos dos anúncios de demonstração: Unsplash. Feito no Brasil.</span>
+      <span>Fotos dos anúncios de demonstração: Wikimedia Commons, com os créditos em cada anúncio. Feito no Brasil.</span>
     </div>
   </div>
 </footer>
@@ -2485,6 +2493,15 @@ function cld(url, w) {
     const base = url.split('?')[0];
     return `${base}?w=${w}&q=${w > 1400 ? 85 : 78}&auto=format&fit=max`;
   }
+  // Wikimedia Commons: miniaturas nos tamanhos padrão do próprio Commons.
+  // Se a foto original for menor que o pedido, usa a original (sem ampliar).
+  const wm = url.match(/^(https:\/\/upload\.wikimedia\.org\/wikipedia\/commons)\/((?!thumb\/)[0-9a-f]\/[0-9a-f]{2})\/([^/?#]+)$/);
+  if(wm) {
+    const original = (typeof DEMO_IMG_W !== 'undefined' && DEMO_IMG_W[url]) || 0;
+    const bucket = [330, 500, 960, 1280, 1920].find(b => b >= w) || 1920;
+    if(original && bucket >= original) return url;
+    return `${wm[1]}/thumb/${wm[2]}/${wm[3]}/${bucket}px-${wm[3]}`;
+  }
   const m = url.match(/^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(.+)$/);
   if(!m) return url;
   if(/^[a-z]{1,4}_[^/]*\//.test(m[2])) return url; // já tem transformação
@@ -2548,81 +2565,102 @@ const SHOW_DEMO = true;
 // Anúncios antigos de teste que o dono pediu para tirar da vitrine.
 // (Apagar de vez: Painel admin → Produtos → Excluir.)
 const HIDDEN_PRODUCT_IDS = [1786575759750, 1786576081681, 1786587775316, 1790636398617];
-const UNS = id => `https://images.unsplash.com/${id}`;
+// Fotos reais dos produtos, de vários ângulos, do Wikimedia Commons
+// (licenças livres; os créditos aparecem na página de cada anúncio).
+const DEMO_IMG_W = {};
 const DEMO_PRODUCTS = [
-  { id: 9000001, name: 'PlayStation 5 com 2 controles', cat: 'games', type: 'rent', rentPrice: 45, tone: 'navy', location: 'São Paulo, SP',
-    desc: 'Console com leitor de disco, dois controles DualSense e cabo HDMI. Perfeito para o fim de semana com os amigos.',
-    images: ['photo-1607853202273-797f1c22a38e', 'photo-1622297845775-5ff3fef71d13', 'photo-1606813907291-d86efa9b94db'] },
-  { id: 9000002, name: 'Nintendo Switch OLED', cat: 'games', type: 'rent', rentPrice: 25, tone: 'lime', location: 'Rio de Janeiro, RJ',
-    desc: 'Switch com tela OLED, Joy-Con e base para jogar na TV. Leve para a viagem ou para a festa.',
-    images: ['photo-1578303512597-81e6cc155b3e', 'photo-1612036781124-847f8939b154'] },
-  { id: 9000003, name: 'MacBook Pro 14', cat: 'eletronicos', type: 'rent', rentPrice: 70, tone: 'sky', location: 'Curitiba, PR',
-    desc: 'Notebook para trabalho pesado: edição de vídeo, design e programação. Acompanha carregador.',
-    images: ['photo-1517336714731-489689fd1ca8', 'photo-1611186871348-b1ce696e52c9', 'photo-1496181133206-80ce9b88a853'] },
-  { id: 9000004, name: 'iPhone 17 Pro', cat: 'eletronicos', type: 'both', rentPrice: 45, salePrice: 7499, tone: 'lime', location: 'São Paulo, SP',
-    desc: 'Para a viagem ou para testar antes de comprar. Também está à venda.',
-    images: ['photo-1757710436034-f1d7372ec1be', 'photo-1634403665481-74948d815f03'] },
-  { id: 9000005, name: 'Câmera Sony mirrorless com lente', cat: 'eletronicos', type: 'rent', rentPrice: 70, tone: 'mist', location: 'Belo Horizonte, MG',
-    desc: 'Mirrorless com lente kit, duas baterias e cartão de memória. Fotos e vídeos 4K para eventos e viagens.',
-    images: ['photo-1516035069371-29a1b244cc32', 'photo-1512790182412-b19e6d62bc39'] },
-  { id: 9000006, name: 'Drone DJI com controle', cat: 'eletronicos', type: 'rent', rentPrice: 85, tone: 'sky', location: 'Florianópolis, SC',
-    desc: 'Drone dobrável com câmera estabilizada, controle e três baterias. Imagens aéreas para eventos e imóveis.',
-    images: ['photo-1507582020474-9a35b7d455d9', 'photo-1532989029401-439615f3d4b4'] },
-  { id: 9000007, name: 'Xbox Series X', cat: 'games', type: 'rent', rentPrice: 40, tone: 'mist', location: 'Porto Alegre, RS',
-    desc: 'Console com controle sem fio e acesso aos jogos instalados. Ligue na TV e jogue.',
-    images: ['photo-1621259182978-fbf93132d53d'] },
-  { id: 9000008, name: 'iPad Air com teclado', cat: 'eletronicos', type: 'rent', rentPrice: 30, tone: 'sky', location: 'Brasília, DF',
-    desc: 'Tablet com capa-teclado. Bom para estudar, desenhar e apresentar.',
-    images: ['photo-1758973935099-5b662a863f6c', 'photo-1760708369071-e8a50a8979cb'] },
-  { id: 9000009, name: 'GoPro para aventura', cat: 'esportes', type: 'rent', rentPrice: 25, tone: 'lime', location: 'Florianópolis, SC',
-    desc: 'Câmera de ação à prova d’água, com suporte de mão e de capacete.',
-    images: ['photo-1490971269589-386b2934c495'] },
-  { id: 9000010, name: 'Projetor Full HD', cat: 'casa', type: 'rent', rentPrice: 35, tone: 'navy', location: 'Recife, PE',
-    desc: 'Cinema em casa ou apresentação no trabalho. Acompanha cabo HDMI e controle.',
-    images: ['photo-1535016120720-40c646be5580', 'photo-1579036095242-fe07594274ca'] },
-  { id: 9000011, name: 'Caixa de som JBL', cat: 'eletronicos', type: 'rent', rentPrice: 20, tone: 'mist', location: 'Salvador, BA',
-    desc: 'Caixa portátil Bluetooth, resistente à água, com bateria para o dia todo.',
-    images: ['photo-1608043152269-423dbba4e7e1', 'photo-1767796427185-ada2bf414860'] },
-  { id: 9000012, name: 'Furadeira DeWalt sem fio', cat: 'ferramentas', type: 'both', rentPrice: 18, salePrice: 520, tone: 'lime', location: 'Campinas, SP',
-    desc: 'Furadeira e parafusadeira 20V com duas baterias e maleta. Para a reforma sem comprar ferramenta.',
-    images: ['photo-1572981779307-38b8cabb2407', 'photo-1540104539488-92a51bbc0410'] },
-  { id: 9000013, name: 'Bicicleta aro 29', cat: 'esportes', type: 'rent', rentPrice: 35, tone: 'mist', location: 'Belo Horizonte, MG',
-    desc: 'Mountain bike com 21 marchas e freio a disco. Capacete incluso.',
-    images: ['photo-1780004189175-202169141544', 'photo-1575548393466-0df1618ba410'] },
-  { id: 9000014, name: 'Barraca para 4 pessoas', cat: 'esportes', type: 'rent', rentPrice: 30, tone: 'lime', location: 'Curitiba, PR',
-    desc: 'Barraca impermeável, fácil de montar, com sobreteto. Para o acampamento do feriado.',
-    images: ['photo-1504280390367-361c6d9f38f4', 'photo-1537905569824-f89f14cceb68'] },
-  { id: 9000015, name: 'Patinete elétrico', cat: 'veiculos', type: 'rent', rentPrice: 40, tone: 'sky', location: 'São Paulo, SP',
-    desc: 'Patinete dobrável com 25 km de autonomia. Ideal para o dia a dia na cidade.',
-    images: ['photo-1760386128692-81476422e599', 'photo-1597260491619-bab87197869f'] },
-  { id: 9000016, name: 'Fone Sony com cancelamento de ruído', cat: 'eletronicos', type: 'rent', rentPrice: 15, tone: 'lime', location: 'Rio de Janeiro, RJ',
-    desc: 'Fone sem fio com cancelamento de ruído. Para a viagem de avião ou para focar no trabalho.',
-    images: ['photo-1505740420928-5e560c06d30e', 'photo-1618366712010-f4ae9c647dcb'] },
-  { id: 9000017, name: 'Smartwatch', cat: 'eletronicos', type: 'sale', salePrice: 1899, tone: 'mist', location: 'Porto Alegre, RS',
-    desc: 'Relógio inteligente com GPS e monitor de atividades. Pouco uso, com carregador.',
-    images: ['photo-1579586337278-3befd40fd17a', 'photo-1546868871-7041f2a55e12'] },
-  { id: 9000018, name: 'Óculos de realidade virtual', cat: 'games', type: 'rent', rentPrice: 50, tone: 'sky', location: 'Brasília, DF',
-    desc: 'Óculos VR sem fio, com dois controles. Para festas, eventos e para experimentar antes de comprar.',
-    images: ['photo-1622979135225-d2ba269cf1ac'] },
-  { id: 9000019, name: 'Notebook gamer', cat: 'eletronicos', type: 'rent', rentPrice: 80, tone: 'navy', location: 'Recife, PE',
-    desc: 'Placa de vídeo dedicada e tela de alta taxa de atualização. Para jogar ou para renderizar.',
-    images: ['photo-1603302576837-37561b2e2302'] },
-].map((p, i) => ({
-  ...p, demo: true, active: true, salePrice: p.salePrice || 0, rentPrice: p.rentPrice || 0,
-  images: p.images.map(UNS), mainImage: UNS(p.images[0]),
-  ownerName: 'USEI', ownerUid: null,
-  createdAt: new Date(Date.UTC(2026, 9, 30 - i)).toISOString(),
-}));
+  { id: 9000001, name: "PlayStation 5 com controle DualSense", cat: 'games', type: 'rent', rentPrice: 45, salePrice: 0, tone: 'navy', location: "São Paulo, SP",
+    desc: "Console com controle DualSense e cabo HDMI. Perfeito para o fim de semana com os amigos.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/0/00/PlayStation_5_and_DualSense.jpg", 1430], ["https://upload.wikimedia.org/wikipedia/commons/f/f4/PlayStation_5_and_DualSense_%282%29.jpg", 3024], ["https://upload.wikimedia.org/wikipedia/commons/1/1b/PlayStation_5_and_DualSense_with_transparent_background.png", 3024], ["https://upload.wikimedia.org/wikipedia/commons/f/f0/PS5Digitalprerefined.jpg", 1229]],
+    credits: [["Osh33m", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:PlayStation_5_and_DualSense.jpg"], ["Soberian", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:PlayStation_5_and_DualSense_with_transparent_background.png"], ["Wfrmsf", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:PS5Digitalprerefined.jpg"]] },
+  { id: 9000002, name: "Nintendo Switch com Joy-Con e dock", cat: 'games', type: 'rent', rentPrice: 25, salePrice: 0, tone: 'lime', location: "Rio de Janeiro, RJ",
+    desc: "Console com os dois Joy-Con, dock para jogar na TV e carregador. Leve para a viagem ou para a festa.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/7/76/Nintendo-Switch-Console-Docked-wJoyConRB.jpg", 4900], ["https://upload.wikimedia.org/wikipedia/commons/b/bc/Nintendo-Switch-wJoyCons-BlRd-Standing-FL.png", 4375], ["https://upload.wikimedia.org/wikipedia/commons/c/ce/Nintendo-Switch-Console-Bare-FL.jpg", 4700], ["https://upload.wikimedia.org/wikipedia/commons/1/13/Nintendo-Switch-Dock-Front.jpg", 4200], ["https://upload.wikimedia.org/wikipedia/commons/d/d0/Nintendo-Switch-Console-Flat-Side.jpg", 5300]],
+    credits: [["Evan-Amos", "Public domain", "", "https://commons.wikimedia.org/wiki/File:Nintendo-Switch-Console-Docked-wJoyConRB.jpg"]] },
+  { id: 9000003, name: "MacBook Pro 14", cat: 'eletronicos', type: 'rent', rentPrice: 70, salePrice: 0, tone: 'sky', location: "Curitiba, PR",
+    desc: "Notebook para trabalho pesado: edição de vídeo, design e programação. Acompanha carregador.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/d/d7/MacBook_Pro_%2814-inch%2C_M5%2C_Space_Black%29.jpg", 5712], ["https://upload.wikimedia.org/wikipedia/commons/b/b4/Apple_Macbook_Pro_14%22_2021_-_Keyboard.png", 3840], ["https://upload.wikimedia.org/wikipedia/commons/d/d7/Apple_Macbook_Pro_14%22_2021_-_Ports_on_the_left_side.png", 3840], ["https://upload.wikimedia.org/wikipedia/commons/f/fb/Apple_Macbook_Pro_14%22_2021_-_Back_cover.png", 3840]],
+    credits: [["AzureSaturn", "CC0", "https://creativecommons.org/publicdomain/zero/1.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:MacBook_Pro_(14-inch,_M5,_Space_Black).jpg"], ["Gyasi Linje", "CC BY 3.0", "https://creativecommons.org/licenses/by/3.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:Apple_Macbook_Pro_14%22_2021_-_Keyboard.png"]] },
+  { id: 9000004, name: "iPhone 16 Pro", cat: 'eletronicos', type: 'both', rentPrice: 40, salePrice: 6499, tone: 'lime', location: "São Paulo, SP",
+    desc: "Para a viagem ou para testar antes de comprar. Também está à venda.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/0/07/About_iPhone_16_Pro_White_Titanium.jpg", 3024], ["https://upload.wikimedia.org/wikipedia/commons/7/7f/Back_view_of_iPhone_16_Pro_White_Titanium.jpg", 3024], ["https://upload.wikimedia.org/wikipedia/commons/5/57/Right_view_of_iPhone_16_Pro_White_Titanium.jpg", 3024]],
+    credits: [["メイド理世", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:About_iPhone_16_Pro_White_Titanium.jpg"]] },
+  { id: 9000005, name: "Câmera Sony a6400 com lente", cat: 'eletronicos', type: 'rent', rentPrice: 70, salePrice: 0, tone: 'mist', location: "Belo Horizonte, MG",
+    desc: "Mirrorless com lente kit, bateria extra e cartão de memória. Fotos e vídeos 4K para eventos e viagens.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/7/7a/Sony_ILCE-6400_27_Feb_2019a.jpg", 2755], ["https://upload.wikimedia.org/wikipedia/commons/d/d4/Sony_ILCE-6400_27_Feb_2019b.jpg", 3170], ["https://upload.wikimedia.org/wikipedia/commons/9/9c/Sony_ILCE-6400_27_Feb_2019c.jpg", 3653]],
+    credits: [["昼落ち", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:Sony_ILCE-6400_27_Feb_2019a.jpg"]] },
+  { id: 9000006, name: "Drone DJI Mini 4 Pro", cat: 'eletronicos', type: 'rent', rentPrice: 85, salePrice: 0, tone: 'sky', location: "Florianópolis, SC",
+    desc: "Drone dobrável com câmera estabilizada, controle e baterias extras. Imagens aéreas para eventos e imóveis.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/9/94/2024_Dron_DJI_Mini_4_Pro_%2801%29.jpg", 4444], ["https://upload.wikimedia.org/wikipedia/commons/a/a4/2024_Dron_DJI_Mini_4_Pro_%2814%29.jpg", 3941], ["https://upload.wikimedia.org/wikipedia/commons/9/9b/2024_Dron_DJI_Mini_4_Pro_%2818%29.jpg", 5232], ["https://upload.wikimedia.org/wikipedia/commons/c/cb/2024_Dron_DJI_Mini_4_Pro_%2805%29.jpg", 3453]],
+    credits: [["Jacek Halicki", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:2024_Dron_DJI_Mini_4_Pro_(01).jpg"]] },
+  { id: 9000007, name: "Xbox Series X com controle", cat: 'games', type: 'rent', rentPrice: 40, salePrice: 0, tone: 'mist', location: "Porto Alegre, RS",
+    desc: "Console com controle sem fio. Ligue na TV e jogue.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/1/12/Xbox_Series_X_2.jpg", 4200], ["https://upload.wikimedia.org/wikipedia/commons/7/7d/Xbox_series_X_%2850648118708%29.jpg", 3024]],
+    credits: [["Der. Bellemer", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:Xbox_Series_X_2.jpg"], ["Ian Hughes", "CC BY 2.0", "https://creativecommons.org/licenses/by/2.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:Xbox_series_X_(50648118708).jpg"]] },
+  { id: 9000008, name: "iPad Pro 12,9 polegadas", cat: 'eletronicos', type: 'rent', rentPrice: 35, salePrice: 0, tone: 'sky', location: "Brasília, DF",
+    desc: "Tela grande para desenhar, estudar e apresentar. Acompanha carregador.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/e/e0/IPad_Pro_12.9-inch_%283rd_generation%29_front_side_%2820250525_155242%29.jpg", 4000], ["https://upload.wikimedia.org/wikipedia/commons/e/ed/IPad_Pro_12.9-inch_%283rd_generation%29_back_side_%2820250525_155242%29.jpg", 3000], ["https://upload.wikimedia.org/wikipedia/commons/e/ec/IPad_Pro_12.9-inch_%283rd_generation%29_camera_lens_%2820250525_155310%29.jpg", 3000]],
+    credits: [["茅野ふたば", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:IPad_Pro_12.9-inch_(3rd_generation)_front_side_(20250525_155242).jpg"]] },
+  { id: 9000009, name: "GoPro HERO9 Black", cat: 'esportes', type: 'rent', rentPrice: 25, salePrice: 0, tone: 'lime', location: "Florianópolis, SC",
+    desc: "Câmera de ação à prova d’água, com suporte de mão e de capacete.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/7/7e/GoPro_Hero_9_Black_-_Front.jpg", 6000], ["https://upload.wikimedia.org/wikipedia/commons/7/71/GoPro_Hero_9_Black_-_Back.jpg", 6000], ["https://upload.wikimedia.org/wikipedia/commons/d/d6/GoPro_Hero_9_Black_-_Right_Side.jpg", 6000], ["https://upload.wikimedia.org/wikipedia/commons/0/0a/GoPro_Hero_9_Black_-_Top.jpg", 6000]],
+    credits: [["Greyfiveys", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:GoPro_Hero_9_Black_-_Front.jpg"]] },
+  { id: 9000010, name: "Projetor BenQ", cat: 'casa', type: 'rent', rentPrice: 35, salePrice: 0, tone: 'navy', location: "Recife, PE",
+    desc: "Cinema em casa ou apresentação no trabalho. Acompanha cabo HDMI e controle remoto.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/2/29/Benq_Projector_01.jpg", 4032], ["https://upload.wikimedia.org/wikipedia/commons/3/3a/Benq_Projector_02.jpg", 4032], ["https://upload.wikimedia.org/wikipedia/commons/c/c2/Benq_Projector_03.jpg", 4032]],
+    credits: [["Hp.Baumeler", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:Benq_Projector_01.jpg"]] },
+  { id: 9000011, name: "Caixa de som JBL Charge 4", cat: 'eletronicos', type: 'rent', rentPrice: 20, salePrice: 0, tone: 'mist', location: "Salvador, BA",
+    desc: "Caixa portátil Bluetooth, resistente à água, com bateria para o dia todo.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/3/33/JBL_Charge_4_1v2.jpg", 4625], ["https://upload.wikimedia.org/wikipedia/commons/e/ef/JBL_Charge_4_2v2.jpg", 4576]],
+    credits: [["Singlespeedfahrer", "CC0", "https://creativecommons.org/publicdomain/zero/1.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:JBL_Charge_4_1v2.jpg"]] },
+  { id: 9000012, name: "Furadeira Makita 18V sem fio", cat: 'ferramentas', type: 'both', rentPrice: 18, salePrice: 520, tone: 'lime', location: "Campinas, SP",
+    desc: "Furadeira e parafusadeira 18V com bateria e carregador. Para a reforma sem comprar ferramenta.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/a/ab/Makita_18v_electric_drill.jpg", 2592], ["https://upload.wikimedia.org/wikipedia/commons/0/01/Makita_18v_electric_drill_%281%29.jpg", 2592], ["https://upload.wikimedia.org/wikipedia/commons/b/b5/Makita_LXT_drill.jpg", 3480]],
+    credits: [["Helar Lukats", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:Makita_18v_electric_drill.jpg"], ["Santeri Viinamäki", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:Makita_LXT_drill.jpg"]] },
+  { id: 9000013, name: "Bicicleta dobrável Brompton", cat: 'esportes', type: 'rent', rentPrice: 45, salePrice: 0, tone: 'mist', location: "Belo Horizonte, MG",
+    desc: "Dobra em segundos e cabe no porta-malas. Ideal para passear ou para ir ao trabalho.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/2/21/Brompton_bicycle_3.jpg", 3000], ["https://upload.wikimedia.org/wikipedia/commons/0/08/Brompton_bicycle_2.jpg", 3000], ["https://upload.wikimedia.org/wikipedia/commons/a/a3/Brompton_bicycle_half_folded_and_loaded.jpg", 1886]],
+    credits: [["Alicjajoanna", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:Brompton_bicycle_3.jpg"], ["Bossphotography", "CC0", "https://creativecommons.org/publicdomain/zero/1.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:Brompton_bicycle_half_folded_and_loaded.jpg"]] },
+  { id: 9000014, name: "Barraca iglu para camping", cat: 'esportes', type: 'rent', rentPrice: 25, salePrice: 0, tone: 'lime', location: "Curitiba, PR",
+    desc: "Barraca iglu impermeável, fácil de montar. Para o acampamento do feriado.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/e/e1/Dome_tent_in_the_BWCA_%28CDM11452CT%29.jpg", 1200], ["https://upload.wikimedia.org/wikipedia/commons/1/14/Dome_Tent_%28CDM11452CT%29.png", 770]],
+    credits: [["ModalPeak", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:Dome_tent_in_the_BWCA_(CDM11452CT).jpg"]] },
+  { id: 9000015, name: "Patinete elétrico Xiaomi M365", cat: 'veiculos', type: 'rent', rentPrice: 40, salePrice: 0, tone: 'sky', location: "São Paulo, SP",
+    desc: "Patinete dobrável com boa autonomia, farol e painel. Ideal para o dia a dia na cidade.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/a/a7/Xiaomi_M365_blanche.jpg", 3024], ["https://upload.wikimedia.org/wikipedia/commons/5/5d/Trottinette_%C3%A9lectrique_Xiaomi_Mijia_M365.jpg", 2414], ["https://upload.wikimedia.org/wikipedia/commons/3/3b/Xiaomi_M365_-_Face_avant.png", 1125], ["https://upload.wikimedia.org/wikipedia/commons/6/68/Xiaomi_M365_-_Roue_avant.png", 1125], ["https://upload.wikimedia.org/wikipedia/commons/6/69/Xiaomi_M365_-_Ecran.png", 1125]],
+    credits: [["Axel.206", "CC0", "https://creativecommons.org/publicdomain/zero/1.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:Xiaomi_M365_blanche.jpg"]] },
+  { id: 9000016, name: "Fone Sony WH-1000XM3", cat: 'eletronicos', type: 'rent', rentPrice: 15, salePrice: 0, tone: 'lime', location: "Rio de Janeiro, RJ",
+    desc: "Fone sem fio com cancelamento de ruído e estojo. Para a viagem de avião ou para focar no trabalho.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/4/4b/Sony-WH-1000XM3-kabellose-Bluetooth-Noise-Cancelling-Kopfhoerer.jpg", 3024], ["https://upload.wikimedia.org/wikipedia/commons/e/eb/Sony-WH-1000XM3-kabellose-Bluetooth-Noise-Cancelling-Kopfhoerer.2.jpg", 3024], ["https://upload.wikimedia.org/wikipedia/commons/d/df/Sony-WH-1000XM3-kabellose-Bluetooth-Noise-Cancelling-Kopfhoerer.3.jpg", 4032], ["https://upload.wikimedia.org/wikipedia/commons/2/21/Sony-WH-1000XM3-kabellose-Bluetooth-Noise-Cancelling-Kopfhoerer.5.jpg", 4032]],
+    credits: [["digitalpush.net", "CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:Sony-WH-1000XM3-kabellose-Bluetooth-Noise-Cancelling-Kopfhoerer.jpg"]] },
+  { id: 9000017, name: "Apple Watch Series 8", cat: 'eletronicos', type: 'sale', rentPrice: 0, salePrice: 2299, tone: 'mist', location: "Porto Alegre, RS",
+    desc: "Relógio com GPS e monitor de atividades. Pouco uso, com caixa e carregador.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/6/65/Apple_Watch_Series_8.jpg", 6000], ["https://upload.wikimedia.org/wikipedia/commons/a/af/Close_Up_of_Apple_Watch_8.jpg", 6000], ["https://upload.wikimedia.org/wikipedia/commons/d/d4/Apple_Watch_8_with_Box.jpg", 6000]],
+    credits: [["iGeeksBlog", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:Apple_Watch_Series_8.jpg"]] },
+  { id: 9000018, name: "Meta Quest 3", cat: 'games', type: 'rent', rentPrice: 50, salePrice: 0, tone: 'sky', location: "Brasília, DF",
+    desc: "Óculos de realidade virtual sem fio, com dois controles. Para festas, eventos e para experimentar antes de comprar.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/9/99/Meta_Quest_3_front_View.jpg", 5472], ["https://upload.wikimedia.org/wikipedia/commons/0/01/Meta_Quest_3_side_View.jpg", 3648], ["https://upload.wikimedia.org/wikipedia/commons/f/ff/Meta_Quest_3_Top_View.jpg", 3648], ["https://upload.wikimedia.org/wikipedia/commons/a/a5/Meta_Quest_3_back_View.jpg", 3648]],
+    credits: [["Roy.wonder.cohen", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:Meta_Quest_3_front_View.jpg"]] },
+  { id: 9000019, name: "Notebook gamer ASUS ROG Strix G16", cat: 'eletronicos', type: 'rent', rentPrice: 90, salePrice: 0, tone: 'navy', location: "Recife, PE",
+    desc: "Placa de vídeo dedicada e tela de alta taxa de atualização. Para jogar ou para renderizar.",
+    photos: [["https://upload.wikimedia.org/wikipedia/commons/d/d1/ROG_Strix_G16_2026-08-08_ASUS_01.jpg", 2438], ["https://upload.wikimedia.org/wikipedia/commons/f/f1/ROG_Strix_G16_2026-08-08_ASUS_02.jpg", 2661], ["https://upload.wikimedia.org/wikipedia/commons/5/51/ROG_Strix_G16_2026-08-08_ASUS_03.jpg", 1743]],
+    credits: [["P1898", "CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/deed.pt_BR", "https://commons.wikimedia.org/wiki/File:ROG_Strix_G16_2026-08-08_ASUS_01.jpg"]] },
+].map((p, i) => {
+  p.photos.forEach(([u, w]) => { DEMO_IMG_W[u] = w; });
+  const images = p.photos.map(([u]) => u);
+  return { ...p, demo: true, active: true, images, mainImage: images[0], ownerName: 'USEI', ownerUid: null,
+    createdAt: new Date(Date.UTC(2026, 9, 30 - i)).toISOString() };
+});
 // Palavras que as pessoas digitam na busca (ex.: "ps5" acha o PlayStation 5).
 const DEMO_TAGS = {
-  9000001: 'ps5 playstation sony console videogame', 9000002: 'nintendo console portatil videogame',
-  9000003: 'macbook apple notebook laptop computador', 9000004: 'apple celular smartphone telefone',
-  9000005: 'camera fotografia sony foto video', 9000006: 'dji drone filmagem aerea', 9000007: 'microsoft xbox console videogame',
-  9000008: 'apple ipad tablet', 9000009: 'gopro camera acao aventura', 9000010: 'projetor cinema filme tela',
-  9000011: 'jbl caixa som bluetooth musica festa', 9000012: 'furadeira parafusadeira dewalt obra reforma',
-  9000013: 'bike bicicleta mtb mountain', 9000014: 'barraca camping acampamento', 9000015: 'patinete scooter eletrico',
-  9000016: 'fone headphone sony musica', 9000017: 'smartwatch relogio', 9000018: 'vr realidade virtual meta quest oculos',
-  9000019: 'notebook laptop gamer pc computador',
+  9000001: 'ps5 playstation sony console videogame dualsense', 9000002: 'nintendo switch console portatil videogame',
+  9000003: 'macbook apple notebook laptop computador', 9000004: 'apple iphone celular smartphone telefone',
+  9000005: 'camera fotografia sony a6400 mirrorless foto video', 9000006: 'dji mini drone filmagem aerea', 9000007: 'microsoft xbox console videogame',
+  9000008: 'apple ipad pro tablet', 9000009: 'gopro hero camera acao aventura', 9000010: 'projetor benq cinema filme tela',
+  9000011: 'jbl caixa som bluetooth musica festa', 9000012: 'furadeira parafusadeira makita obra reforma',
+  9000013: 'bike bicicleta brompton dobravel', 9000014: 'barraca iglu camping acampamento', 9000015: 'patinete xiaomi scooter eletrico',
+  9000016: 'fone headphone sony wh-1000xm3 musica', 9000017: 'apple watch smartwatch relogio', 9000018: 'vr realidade virtual meta quest oculos',
+  9000019: 'notebook laptop gamer asus rog pc computador',
 };
 DEMO_PRODUCTS.forEach(p => { p.tags = DEMO_TAGS[p.id] || ''; });
 function findProduct(id) {
@@ -3146,7 +3184,8 @@ function renderProductPage(id) {
     <div class="pdp">
       <div class="pdp-media" id="pdpMedia">
         ${galleryHTML(images, p.name)}
-        ${p.demo ? '<div class="photo-credit">Foto ilustrativa: Unsplash</div>' : ''}
+        ${p.demo && p.credits ? `<div class="photo-credit">Fotos via Wikimedia Commons: ${p.credits.map(([by, lic, licUrl, page]) =>
+          `<a href="${esc(page)}" target="_blank" rel="noopener">${esc(by)}</a> (${licUrl ? `<a href="${esc(licUrl)}" target="_blank" rel="noopener">${esc(lic)}</a>` : esc(lic)})`).join('; ')}.</div>` : ''}
       </div>
       <div class="pdp-info" id="pdpInfo">
         <div class="pdp-kicker">
